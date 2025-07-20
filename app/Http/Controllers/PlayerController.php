@@ -73,6 +73,8 @@ class PlayerController extends Controller
             'USTA_rating' => 'nullable|numeric'
         ]);
 
+        $player->update($validated);
+
         return redirect()->route('players.index')->with('success', 'Player updated successfully!');
     }
 

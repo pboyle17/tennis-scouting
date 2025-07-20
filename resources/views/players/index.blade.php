@@ -27,7 +27,7 @@
             </thead>
             <tbody class="divide-y divide-gray-200">
                 @foreach ($players as $player)
-                    <tr class="hover:bg-gray-50">
+                    <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}'" class="hover:bg-gray-50 cursor-pointer">
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->id }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
