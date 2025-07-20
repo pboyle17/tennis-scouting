@@ -27,7 +27,7 @@
 
         <div class="mb-4">
             <label class="block mb-1" for="utr_rating">UTR Rating</label>
-            <input type="number" name="utr_rating" id="utr_rating" value="{{ old('utr_rating', $player->utr_rating) }}" class="w-full border rounded p-2">
+            <input type="number" step=".01" name="utr_rating" id="utr_rating" value="{{ old('utr_rating', $player->utr_rating) }}" class="w-full border rounded p-2">
         </div>
 
         <div class="mb-4">
