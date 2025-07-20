@@ -9,5 +9,5 @@ class Player extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'utr_id', 'first_name', 'last_name', 'USTA_rating', 'USTA_dynamic_rating'];
+    protected $fillable = ['name', 'utr_id', 'utr_rating', 'first_name', 'last_name', 'USTA_rating', 'USTA_dynamic_rating'];
 }

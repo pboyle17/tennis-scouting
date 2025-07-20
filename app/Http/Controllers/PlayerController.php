@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Player;
 use App\Http\Resources\PlayerResource;
+use App\Http\Controllers\Controller;
 
 class PlayerController extends Controller
 {
@@ -13,7 +14,8 @@ class PlayerController extends Controller
      */
     public function index()
     {
-        return PlayerResource::collection(Player::all());
+        $players = Player::all();
+        return view('players.index', compact('players'));
     }
 
     /**
@@ -21,7 +23,7 @@ class PlayerController extends Controller
      */
     public function create()
     {
-        //
+        return view('players.create');
     }
 
     /**
@@ -29,7 +31,17 @@ class PlayerController extends Controller
      */
     public function store(Request $request)
     {
-        //
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'utr_id' => 'nullable|integer',
+            'utr_rating' => 'nullable|numeric',
+            'USTA_rating' => 'nullable|numeric'
+        ]);
+
+        Player::create($validated);
+
+        return redirect()->route('players.index')->with('success', 'Player created successfully!');
     }
 
     /**
@@ -43,17 +55,25 @@ class PlayerController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(Player $player)
     {
-        //
+        return view('players.edit', compact('player'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, Player $player)
     {
-        //
+        $validated = $request->validate([
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'utr_id' => 'nullable|integer',
+            'utr_rating' => 'nullable|numeric',
+            'USTA_rating' => 'nullable|numeric'
+        ]);
+
+        return redirect()->route('players.index')->with('success', 'Player updated successfully!');
     }
 
     /**
