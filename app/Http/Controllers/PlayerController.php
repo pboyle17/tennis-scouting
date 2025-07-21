@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Player;
-use App\Http\Resources\PlayerResource;
 use App\Http\Controllers\Controller;
 
 class PlayerController extends Controller

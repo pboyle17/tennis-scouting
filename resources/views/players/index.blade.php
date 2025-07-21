@@ -33,9 +33,6 @@
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_rating }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_rating }}</td>
                         <td class="px-4 py-2 text-sm text-center">
-                            <a href="{{ route('players.edit', $player->id) }}" class="text-gray-700 hover:text-blue-500">
-                                ✏️
-                            </a>
                             <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
                                 <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
                             </a>
