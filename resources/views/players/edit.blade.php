@@ -26,8 +26,13 @@
         </div>
 
         <div class="mb-4">
-            <label class="block mb-1" for="utr_rating">UTR Rating</label>
-            <input type="number" step=".01" name="utr_rating" id="utr_rating" value="{{ old('utr_rating', $player->utr_rating) }}" class="w-full border rounded p-2">
+            <label class="block mb-1" for="utr_singles_rating">UTR Singles Rating</label>
+            <input type="number" step=".01" name="utr_singles_rating" id="utr_singles_rating" value="{{ old('utr_singles_rating', $player->utr_singles_rating) }}" class="w-full border rounded p-2">
+        </div>
+
+        <div class="mb-4">
+            <label class="block mb-1" for="utr_doubles_rating">UTR Doubles Rating</label>
+            <input type="number" step=".01" name="utr_doubles_rating" id="utr_doubles_rating" value="{{ old('utr_doubles_rating', $player->utr_doubles_rating) }}" class="w-full border rounded p-2">
         </div>
 
         <div class="mb-4">

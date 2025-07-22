@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Player;
 use App\Http\Controllers\Controller;
+use App\Jobs\UpdateUtrRatingsJob;
 
 class PlayerController extends Controller
 {
@@ -82,6 +83,13 @@ class PlayerController extends Controller
      */
     public function destroy(string $id)
     {
-        //
+      //
+    }
+
+    public function updateUtrRatings()
+    {
+      UpdateUtrRatingsJob::dispatch();
+
+      return redirect()->route('players.index')->with('status', '✅ UTR update job has been dispatched!');
     }
 }

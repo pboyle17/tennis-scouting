@@ -26,8 +26,13 @@
             </div>
 
             <div class="mb-4">
-                <label class="block text-gray-700 font-semibold mb-2" for="utr_rating">UTR Rating</label>
-                <input class="w-full border border-gray-300 p-2 rounded" type="number" step="0.01" name="utr_rating" id="utr_rating">
+                <label class="block text-gray-700 font-semibold mb-2" for="utr_singles_rating">UTR Singles Rating</label>
+                <input class="w-full border border-gray-300 p-2 rounded" type="number" step="0.01" name="utr_singles_rating" id="utr_singles_rating">
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 font-semibold mb-2" for="utr_doubles_rating">UTR Doubles Rating</label>
+                <input class="w-full border border-gray-300 p-2 rounded" type="number" step="0.01" name="utr_doubles_rating" id="utr_doubles_rating">
             </div>
 
             <div class="mb-6">
