@@ -28,9 +28,21 @@
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">First Name</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Last Name</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR ID</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR Singles Rating</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR Doubles Rating</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">USTA Rating</th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                      <a href="{{ route('players.index', ['sort' => 'utr_singles_rating', 'direction' => ($sortField == 'utr_singles_rating' && $sortDirection == 'asc') ? 'desc' : 'asc']) }}">
+                        UTR Singles Rating
+                      </a>
+                    </th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                      <a href="{{ route('players.index', ['sort' => 'utr_doubles_rating', 'direction' => ($sortField == 'utr_doubles_rating' && $sortDirection == 'asc') ? 'desc' : 'asc']) }}">
+                        UTR Doubles Rating
+                      </a>
+                    </th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                      <a href="{{ route('players.index', ['sort' => 'USTA_rating', 'direction' => ($sortField == 'USTA_rating' && $sortDirection == 'asc') ? 'desc' : 'asc']) }}">
+                        USTA Rating
+                      </a>
+                    </th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase"></th>
                 </tr>
             </thead>

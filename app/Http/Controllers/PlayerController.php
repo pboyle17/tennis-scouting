@@ -12,10 +12,14 @@ class PlayerController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-        $players = Player::all();
-        return view('players.index', compact('players'));
+      $sortField = $request->get('sort', 'id'); // default sort field
+      $sortDirection = $request->get('direction', 'asc'); // default sort direction
+  
+      $players = Player::orderBy($sortField, $sortDirection)->get();
+  
+      return view('players.index', compact('players', 'sortField', 'sortDirection'));
     }
 
     /**
