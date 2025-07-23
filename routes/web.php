@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\ConfigurationController;
+use App\Http\Controllers\TeamController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -14,5 +15,5 @@ Route::post('/players', [PlayerController::class, 'store'])->name('players.store
 Route::get('/players/{player}/edit', [PlayerController::class, 'edit'])->name('players.edit');
 Route::post('/players/update-utr', [PlayerController::class, 'updateUtrRatings'])->name('players.updateUtr');
 
-
+Route::resource('teams', TeamController::class);
 Route::resource('configurations', ConfigurationController::class);
