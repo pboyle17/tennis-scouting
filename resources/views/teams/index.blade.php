@@ -25,7 +25,6 @@
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             Tennis Record Link
                     </th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Players</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -43,13 +42,6 @@
                             @if($team->tennis_record_link)
                                 <a href="{{ $team->tennis_record_link }}" target="_blank" rel="noopener noreferrer">Link</a>
                             @endif
-                        </td>
-                        <td class="px-4 py-2 text-sm text-gray-700">
-                            @foreach ($team->players as $player)
-                                <span class="inline-block bg-gray-100 rounded px-2 py-1 text-xs text-gray-800 mr-1 mb-1">
-                                    {{ $player->first_name }} {{ $player->last_name }}
-                                </span>
-                            @endforeach
                         </td>
                     </tr>
                 @endforeach

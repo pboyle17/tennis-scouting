@@ -45,23 +45,31 @@ class TeamController extends Controller
      */
     public function show(string $id)
     {
-        //
+
     }
 
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(string $id)
+    public function edit(Team $team)
     {
-        //
+        return view('teams.edit', compact('team'));
     }
 
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function update(Request $request, Team $team)
     {
-        //
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'usta_link' => 'nullable|string|max:255',
+            'tennis_record_link' => 'nullable|string|max:255',
+        ]);
+
+        $team->update($request->only(['name', 'usta_link', 'tennis_record_link']));
+
+        return redirect()->route('teams.index')->with('success', 'Team updated successfully.');
     }
 
     /**
