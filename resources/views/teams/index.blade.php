@@ -5,7 +5,7 @@
 @section('content')
 <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Teams List</h1>
-
+    @include('partials.tabs')
     <div class="flex justify-end mb-4">
         <a href="{{ route('teams.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
             + Add Team

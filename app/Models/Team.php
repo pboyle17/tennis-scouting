@@ -12,4 +12,9 @@ class Team extends Model
     {
         return $this->belongsToMany(Player::class);
     }
+
+    public function league()
+    {
+        return $this->belongsTo(League::class);
+    }
 }

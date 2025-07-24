@@ -5,11 +5,9 @@
 @section('content')
 <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Configurations List</h1>
+    @include('partials.tabs')
 
     <div class="flex justify-end mb-4">
-        <a href="{{ route('players.index') }}" class="mr-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
-            👥 Back to Players
-        </a>
         <a href="{{ route('configurations.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
             + Add Configuration
         </a>
