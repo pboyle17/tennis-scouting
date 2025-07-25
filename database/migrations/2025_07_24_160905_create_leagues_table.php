@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('leagues', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('usta_link')->nullabe();
+            $table->string('usta_link')->nullable();
             $table->string('tennis_record_link')->nullable();
             $table->timestamps();
         });

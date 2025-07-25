@@ -1,14 +1,14 @@
 @extends('layouts.app')
 
-@section('title', 'Teams List')
+@section('title', 'Leagues List')
 
 @section('content')
 <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Teams List</h1>
     @include('partials.tabs')
     <div class="flex justify-end mb-4">
-        <a href="{{ route('teams.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
-            + Add Team
+        <a href="{{ route('leagues.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
+            + Add League
         </a>
     </div>
 
@@ -28,19 +28,19 @@
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
-                @foreach ($teams as $team)
-                    <tr ondblclick="window.location='{{ route('teams.edit', $team->id) }}'" class="hover:bg-gray-50 cursor-pointer">
-                        <td class="px-4 py-2 text-sm text-gray-700">{{ $team->name }}</td>
-                        <td class="py-2 text-sm">
-                            @if($team->usta_link)
-                                <a class='inline-block' href="{{ $team->usta_link }}" target="_blank" rel="noopener noreferrer">
+                @foreach ($leagues as $league)
+                    <tr ondblclick="window.location='{{ route('leagues.edit', $league->id) }}'" class="hover:bg-gray-50 cursor-pointer">
+                        <td class="px-4 py-2 text-sm text-gray-700">{{ $league->name }}</td>
+                        <td class="py-2 text-sm text-blue-600">
+                            @if($league->usta_link)
+                                <a class='inline-block' href="{{ $league->usta_link }}" target="_blank" rel="noopener noreferrer">
                                     <img src="{{ asset('images/usta_logo.png') }}" alt="USTA Link" class="h-10 w-15">
                                 </a>
                             @endif
                         </td>
                         <td class="px-4 py-2 text-xl text-blue-600">
-                            @if($team->tennis_record_link)
-                                <a href="{{ $team->tennis_record_link }}" target="_blank" rel="noopener noreferrer">
+                            @if($league->tennis_record_link)
+                                <a href="{{ $league->tennis_record_link }}" target="_blank" rel="noopener noreferrer">
                                   🎾
                                 </a>
                             @endif

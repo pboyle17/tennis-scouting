@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\ConfigurationController;
+use App\Http\Controllers\LeagueController;
 use App\Http\Controllers\TeamController;
 
 Route::get('/', function () {
@@ -17,3 +18,4 @@ Route::post('/players/update-utr', [PlayerController::class, 'updateUtrRatings']
 
 Route::resource('teams', TeamController::class);
 Route::resource('configurations', ConfigurationController::class);
+Route::resource('leagues', LeagueController::class);
