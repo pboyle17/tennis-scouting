@@ -14,11 +14,11 @@ class PlayerController extends Controller
      */
     public function index(Request $request)
     {
-      $sortField = $request->get('sort', 'id'); // default sort field
-      $sortDirection = $request->get('direction', 'asc'); // default sort direction
-  
+      $sortField = $request->get('sort', 'utr_singles_rating');
+      $sortDirection = $request->get('direction', 'desc');
+
       $players = Player::orderBy($sortField, $sortDirection)->get();
-  
+
       return view('players.index', compact('players', 'sortField', 'sortDirection'));
     }
 
