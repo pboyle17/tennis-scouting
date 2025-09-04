@@ -3,6 +3,16 @@
 @section('title', 'Edit Player')
 
 @section('content')
+@if(session('success'))
+    <div class="bg-green-100 text-green-700 p-2 rounded mb-4">
+        {{ session('success') }}
+    </div>
+@endif
+@if(session('error'))
+    <div class="bg-red-100 text-red-700 p-2 rounded mb-4">
+        {{ session('error') }}
+    </div>
+@endif
 <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold mb-6 text-center">Edit Player</h1>
 
@@ -42,6 +52,12 @@
 
         <div class="flex justify-between">
           <a href="{{ route('players.index') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded">Back to list</a>
+          <form method="POST" action="{{ route('players.updateUtrSingle', $player->id) }}">
+                @csrf
+                <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
+                    🔄 Update UTR
+                </button>
+            </form>
           <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Update Player</button>
         </div>
     </form>

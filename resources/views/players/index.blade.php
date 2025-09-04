@@ -6,7 +6,22 @@
 <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Players List</h1>
     @include('partials.tabs')
-    <div class="flex justify-between mb-4">
+        <div class="flex justify-between mb-4">
+            <div class="flex items-center space-x-2">
+            <input
+                id="playerSearch"
+                type="text"
+                placeholder="Search by name…"
+                class="border rounded px-3 py-2 w-64"
+            />
+            <button
+                id="clearSearch"
+                type="button"
+                class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-3 rounded"
+            >
+                ✖ Clear
+            </button>
+        </div>
         <form method="POST" action="{{ route('players.updateUtr') }}">
             @csrf
             <button type="submit" class="mr-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
@@ -46,7 +61,7 @@
             </thead>
             <tbody class="divide-y divide-gray-200">
                 @foreach ($players as $player)
-                    <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}'" class="hover:bg-gray-50 cursor-pointer group relative">
+                    <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}'" class="hover:bg-gray-50 cursor-pointer group relative" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}">
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_id }}</td>
@@ -71,4 +86,39 @@
         </table>
     </div>
 </div>
+<script>
+    (function () {
+    const input = document.getElementById('playerSearch');
+    const clearBtn = document.getElementById('clearSearch');
+    const rows = Array.from(document.querySelectorAll('tbody tr'));
+    let t;
+
+    function applyFilter(term) {
+        const q = term.trim().toLowerCase();
+        let anyHidden = false;
+
+        rows.forEach(row => {
+        const name = row.getAttribute('data-name') || '';
+        const show = !q || name.includes(q);
+        row.style.display = show ? '' : 'none';
+        if (!show) anyHidden = true;
+        });
+
+        // Show clear button only when there's an active filter
+        clearBtn.classList.toggle('hidden', q.length === 0);
+    }
+
+    function debouncedFilter() {
+        clearTimeout(t);
+        t = setTimeout(() => applyFilter(input.value), 150);
+    }
+
+    input.addEventListener('input', debouncedFilter);
+    clearBtn.addEventListener('click', () => {
+        input.value = '';
+        applyFilter('');
+        input.focus();
+    });
+    })();
+</script>
 @endsection

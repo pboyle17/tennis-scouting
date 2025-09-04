@@ -96,4 +96,25 @@ class PlayerController extends Controller
 
       return redirect()->route('players.index')->with('status', '✅ UTR update job has been dispatched!');
     }
+
+    public function updateUtr(Player $player)
+    {
+        try {
+            $utrService = app(\App\Services\UtrService::class);
+            $data = $utrService->fetchUtrRating($player->utr_id);
+
+            $player->update([
+                'utr_singles_rating' => $data['singlesUtr'],
+                'utr_doubles_rating' => $data['doublesUtr']
+            ]);
+
+            return redirect()
+                ->back()
+                ->with('success', "UTR ratings updated for {$player->first_name} {$player->last_name}");
+        } catch (\Exception $e) {
+            return redirect()
+                ->back()
+                ->with('error', "Failed to update UTR: " . $e->getMessage());
+        }
+    }
 }
