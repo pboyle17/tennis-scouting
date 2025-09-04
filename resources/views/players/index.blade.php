@@ -46,7 +46,7 @@
             </thead>
             <tbody class="divide-y divide-gray-200">
                 @foreach ($players as $player)
-                    <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}'" class="hover:bg-gray-50 cursor-pointer">
+                    <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}'" class="hover:bg-gray-50 cursor-pointer group relative">
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_id }}</td>
@@ -57,6 +57,13 @@
                             <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
                                 <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
                             </a>
+                            <!-- Tooltip -->
+                            <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                        opacity-0 group-hover:opacity-100 transition
+                                        bg-gray-800 text-white text-xs rounded py-1 px-2
+                                        whitespace-nowrap z-10">
+                                Updated: {{ $player->updated_at->format('M d, Y h:i A') }}
+                            </div>
                         </td>
                     </tr>
                 @endforeach
