@@ -38,5 +38,7 @@ class UpdateUtrRatingsJob implements ShouldQueue
               Log::error("UTR update failed for player {$player->id}: " . $e->getMessage());
           }
       }
+
+            Log::info("Sample UTR data (last player)", $data);
     }
 }
