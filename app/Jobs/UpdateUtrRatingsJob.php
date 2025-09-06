@@ -32,17 +32,17 @@ class UpdateUtrRatingsJob implements ShouldQueue
       $query = Player::query();
 
         if (!empty($this->playerIds)) {
-            $query->whereIn('id', $this->playerIds);
+            $query->whereIn('utr_id', $this->playerIds);
         }
 
       // Only include players created > 24h ago AND updated > 24h ago (or never updated)
-        $cutoff = Carbon::now()->subDay();
+        // $cutoff = Carbon::now()->subDay();
 
-        $query->where('created_at', '<', $cutoff)
-              ->where(function ($q) use ($cutoff) {
-                  $q->whereNull('updated_at')
-                    ->orWhere('updated_at', '<', $cutoff);
-              });
+        // $query->where('created_at', '<', $cutoff)
+        //       ->where(function ($q) use ($cutoff) {
+        //           $q->whereNull('updated_at')
+        //             ->orWhere('updated_at', '<', $cutoff);
+        //       });
 
       $players = $query->get();
 
@@ -57,7 +57,10 @@ class UpdateUtrRatingsJob implements ShouldQueue
           }
       }
 
-            Log::info("Sample UTR data for " . ($data['firstName'] ?? 'Unknown') . " " . ($data['lastName'] ?? 'Unknown'), $data ?? ['note' => 'No data returned']
-);
+      Log::info(
+        "Sample UTR data for IDs: " . json_encode($this->playerIds) . 
+        " Name: " . ($data['firstName'] ?? 'Unknown') . " " . ($data['lastName'] ?? 'Unknown'),
+        $data ?? ['note' => 'No data returned']
+    );   
     }
 }

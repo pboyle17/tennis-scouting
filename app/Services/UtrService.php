@@ -26,8 +26,6 @@ class UtrService
 
         $jwt = $config->jwt;
 
-        // Log::info("JWT: {$jwt}: ");
-
         $response = Http::withHeaders([
           'Authorization' => 'Bearer ' . $jwt
         ])->get("https://api.utrsports.net/v1/player/{$utrId}/profile");
