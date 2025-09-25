@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Player;
 use App\Http\Controllers\Controller;
 use App\Jobs\UpdateUtrRatingsJob;
+use App\Jobs\FetchMissingUtrIdsJob;
 
 class PlayerController extends Controller
 {
@@ -103,5 +104,39 @@ class PlayerController extends Controller
       UpdateUtrRatingsJob::dispatchSync([$player->utr_id]);
 
       return back();
+    }
+
+    public function fetchMissingUtrIds()
+    {
+        // Check if a job is already running
+        if (Cache::has('utr_search_running')) {
+            $message = '⏳ UTR ID search is already in progress. Please wait for it to complete.';
+            return redirect()->route('players.index')->with('error', $message);
+        }
+
+        // Mark job as running
+        Cache::put('utr_search_running', true, 300); // 5 minutes
+
+        $job = FetchMissingUtrIdsJob::dispatch();
+
+        return redirect()->route('players.index')->with([
+            'status' => '🔍 UTR ID search job has been dispatched!',
+            'search_job_id' => $job->getJobId()
+        ]);
+    }
+
+    public function getUtrSearchProgress(Request $request)
+    {
+        $jobId = $request->get('job_id');
+        if (!$jobId) {
+            return response()->json(['error' => 'Job ID required'], 400);
+        }
+
+        $progress = Cache::get("utr_search_progress_{$jobId}");
+        if (!$progress) {
+            return response()->json(['error' => 'Job not found'], 404);
+        }
+
+        return response()->json($progress);
     }
 }

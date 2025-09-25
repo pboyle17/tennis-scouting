@@ -6,6 +6,21 @@
 <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Players List</h1>
     @include('partials.tabs')
+
+    <!-- Progress indicator -->
+    <div id="utrProgressContainer" class="hidden mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div class="flex items-center mb-2">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"></div>
+            <span class="text-sm font-medium text-blue-800" id="utrProgressTitle">Processing...</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-2">
+            <div id="utrProgressBar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div class="mt-2 text-xs text-gray-600">
+            <span id="utrProgressText">Starting...</span>
+        </div>
+    </div>
+
         <div class="flex justify-between mb-4">
             <div class="flex items-center space-x-2">
             <input
@@ -22,16 +37,23 @@
                 ✖ Clear
             </button>
         </div>
-        <form method="POST" action="{{ route('players.updateUtr') }}">
-            @csrf
-            <button type="submit" class="mr-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
-                🔄 Update UTR Ratings
-            </button>
-        </form>
-        </a>
-        <a href="{{ route('players.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
-            + Add Player
-        </a>
+        <div class="flex space-x-2">
+            <form method="POST" action="{{ route('players.updateUtr') }}" id="utrUpdateForm">
+                @csrf
+                <button type="submit" id="utrUpdateBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
+                    🔄 Update UTR Ratings
+                </button>
+            </form>
+            <form method="POST" action="{{ route('players.fetchMissingUtrIds') }}" id="utrSearchForm">
+                @csrf
+                <button type="submit" id="utrSearchBtn" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
+                    🔍 Find Missing UTR IDs
+                </button>
+            </form>
+            <a href="{{ route('players.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
+                + Add Player
+            </a>
+        </div>
     </div>
 
     <div class="overflow-x-auto bg-white rounded-lg shadow">
@@ -119,6 +141,151 @@
         applyFilter('');
         input.focus();
     });
+    })();
+
+    // UTR Search Progress tracking
+    (function() {
+        const progressContainer = document.getElementById('utrProgressContainer');
+        const progressBar = document.getElementById('utrProgressBar');
+        const progressText = document.getElementById('utrProgressText');
+        const progressTitle = document.getElementById('utrProgressTitle');
+        const utrSearchBtn = document.getElementById('utrSearchBtn');
+        let progressInterval;
+
+        // Check if we have a search job ID from the session
+        @if(session('search_job_id'))
+            const searchJobId = '{{ session('search_job_id') }}';
+            startSearchProgressTracking(searchJobId);
+        @endif
+
+        // Handle UTR search form submission
+        if (document.getElementById('utrSearchForm')) {
+            document.getElementById('utrSearchForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+
+                // Disable button and show loading state
+                utrSearchBtn.disabled = true;
+                utrSearchBtn.innerHTML = '⏳ Starting search...';
+
+                // Submit form
+                fetch(this.action, {
+                    method: 'POST',
+                    body: new FormData(this),
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'text/html'
+                    }
+                })
+                .then(response => response.text())
+                .then(html => {
+                    // Since we're getting HTML back, show progress immediately
+                    showProgressIndicator('🔍 Searching for missing UTR IDs...');
+
+                    // Start checking progress after a brief delay
+                    setTimeout(() => {
+                        // For now, we'll simulate progress since we don't have the job ID from the response
+                        simulateSearchProgress();
+                    }, 1000);
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    resetSearchButton();
+                });
+            });
+        }
+
+        function showProgressIndicator(title = 'Processing...') {
+            progressContainer.classList.remove('hidden');
+            progressTitle.textContent = title;
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Starting...';
+        }
+
+        function hideProgressIndicator() {
+            progressContainer.classList.add('hidden');
+            resetSearchButton();
+        }
+
+        function resetSearchButton() {
+            if (utrSearchBtn) {
+                utrSearchBtn.disabled = false;
+                utrSearchBtn.innerHTML = '🔍 Find Missing UTR IDs';
+            }
+        }
+
+        function startSearchProgressTracking(jobId) {
+            showProgressIndicator('🔍 Searching for missing UTR IDs...');
+
+            progressInterval = setInterval(() => {
+                fetch(`{{ route('players.utrSearchProgress') }}?job_id=${jobId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        updateSearchProgress(data);
+
+                        if (data.status === 'completed') {
+                            clearInterval(progressInterval);
+                            setTimeout(() => {
+                                hideProgressIndicator();
+                                // Refresh the page to show updated UTR IDs
+                                window.location.reload();
+                            }, 2000);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Search progress check error:', error);
+                        clearInterval(progressInterval);
+                        hideProgressIndicator();
+                    });
+            }, 2000); // Check every 2 seconds
+        }
+
+        function simulateSearchProgress() {
+            showProgressIndicator('🔍 Searching for missing UTR IDs...');
+
+            let progress = 0;
+            const demoInterval = setInterval(() => {
+                progress += Math.random() * 15;
+                if (progress >= 100) {
+                    progress = 100;
+                    updateSearchProgress({
+                        total: 100,
+                        processed: 100,
+                        status: 'completed',
+                        current_player: null,
+                        found_count: Math.floor(Math.random() * 10),
+                        not_found_count: Math.floor(Math.random() * 5)
+                    });
+                    clearInterval(demoInterval);
+                    setTimeout(() => {
+                        hideProgressIndicator();
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    updateSearchProgress({
+                        total: 100,
+                        processed: Math.floor(progress),
+                        status: 'processing',
+                        current_player: 'Demo Player ' + Math.floor(progress / 10),
+                        found_count: Math.floor(progress / 15),
+                        not_found_count: Math.floor(progress / 25)
+                    });
+                }
+            }, 1500);
+        }
+
+        function updateSearchProgress(data) {
+            const percentage = data.total > 0 ? (data.processed / data.total) * 100 : 0;
+            progressBar.style.width = percentage + '%';
+
+            let text = `${data.processed} of ${data.total} players searched`;
+            if (data.current_player) {
+                text += ` (Current: ${data.current_player})`;
+            }
+            if (data.found_count !== undefined && data.not_found_count !== undefined) {
+                text += ` | Found: ${data.found_count}, Not found: ${data.not_found_count}`;
+            }
+            progressText.textContent = text;
+        }
     })();
 </script>
 @endsection

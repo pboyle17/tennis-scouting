@@ -16,11 +16,15 @@ Route::post('/players', [PlayerController::class, 'store'])->name('players.store
 Route::get('/players/{player}/edit', [PlayerController::class, 'edit'])->name('players.edit');
 Route::put('/players/{player}', [PlayerController::class, 'update'])->name('players.update');
 Route::post('/players/update-utr', [PlayerController::class, 'updateUtrRatings'])->name('players.updateUtr');
+Route::post('/players/fetch-missing-utr-ids', [PlayerController::class, 'fetchMissingUtrIds'])->name('players.fetchMissingUtrIds');
+Route::get('/players/utr-search-progress', [PlayerController::class, 'getUtrSearchProgress'])->name('players.utrSearchProgress');
 Route::post('/players/{player}/update-utr', [PlayerController::class, 'updateUtr'])
     ->name('players.updateUtrSingle');
 
 Route::resource('teams', TeamController::class);
 Route::post('/teams/{team}/add-player', [TeamController::class, 'addPlayer'])->name('teams.addPlayer');
 Route::delete('/teams/{team}/remove-player/{player}', [TeamController::class, 'removePlayer'])->name('teams.removePlayer');
+Route::post('/teams/create-from-usta', [TeamController::class, 'createFromUstaLink'])->name('teams.createFromUstaLink');
+Route::get('/teams/usta-creation-progress', [TeamController::class, 'getUstaCreationProgress'])->name('teams.ustaCreationProgress');
 Route::resource('configurations', ConfigurationController::class);
 Route::resource('leagues', LeagueController::class);

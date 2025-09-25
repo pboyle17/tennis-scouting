@@ -40,4 +40,37 @@ class UtrService
           "Body: " . json_encode($response->json())
       );
     }
+
+    public function searchPlayers($playerName, $top = 10)
+    {
+        $config = Configuration::first();
+
+        if (!$config || !$config->jwt) {
+            throw new \Exception("No JWT configured in configurations table.");
+        }
+
+        $jwt = $config->jwt;
+
+        // Format the query like the JavaScript example
+        $queryName = trim($playerName);
+        $queryName = str_replace(' ', '+', $queryName);
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $jwt
+        ])->get("https://api.utrsports.net/v2/search", [
+            'query' => $queryName,
+            'top' => $top,
+            'skip' => 0
+        ]);
+
+        if ($response->successful()) {
+            return $response->json();
+        }
+
+        throw new \Exception(
+            "Failed to search for player '{$playerName}'. " .
+            "Status: {$response->status()}. " .
+            "Body: " . json_encode($response->json())
+        );
+    }
 }

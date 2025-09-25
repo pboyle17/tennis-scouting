@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Team;
 use App\Models\Player;
+use App\Jobs\CreateTeamByUstaLinkJob;
+use Illuminate\Support\Facades\Cache;
 
 class TeamController extends Controller
 {
@@ -142,5 +144,63 @@ class TeamController extends Controller
         $team->players()->detach($player->id);
 
         return back()->with('success', $player->first_name . ' ' . $player->last_name . ' has been removed from the team.');
+    }
+
+    /**
+     * Create team from USTA link
+     */
+    public function createFromUstaLink(Request $request)
+    {
+        $request->validate([
+            'usta_link' => 'required|url|regex:/tennislink\.usta\.com/'
+        ]);
+
+        // Check if a job is already running
+        if (Cache::has('usta_team_creation_running')) {
+            $message = '⏳ USTA team creation is already in progress. Please wait for it to complete.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['error' => $message], 409);
+            }
+
+            return redirect()->route('teams.index')->with('error', $message);
+        }
+
+        // Mark job as running
+        Cache::put('usta_team_creation_running', true, 600); // 10 minutes
+
+        $job = CreateTeamByUstaLinkJob::dispatch($request->usta_link);
+
+        $message = '🚀 Creating team from USTA link... This may take a few minutes.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => $message,
+                'job_id' => $job->getJobId()
+            ]);
+        }
+
+        return redirect()->route('teams.index')->with([
+            'status' => $message,
+            'usta_job_id' => $job->getJobId()
+        ]);
+    }
+
+    /**
+     * Get USTA team creation progress
+     */
+    public function getUstaCreationProgress(Request $request)
+    {
+        $jobId = $request->get('job_id');
+        if (!$jobId) {
+            return response()->json(['error' => 'Job ID required'], 400);
+        }
+
+        $progress = Cache::get("usta_team_creation_progress_{$jobId}");
+        if (!$progress) {
+            return response()->json(['error' => 'Job not found'], 404);
+        }
+
+        return response()->json($progress);
     }
 }
