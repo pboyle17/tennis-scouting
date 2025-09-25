@@ -20,5 +20,7 @@ Route::post('/players/{player}/update-utr', [PlayerController::class, 'updateUtr
     ->name('players.updateUtrSingle');
 
 Route::resource('teams', TeamController::class);
+Route::post('/teams/{team}/add-player', [TeamController::class, 'addPlayer'])->name('teams.addPlayer');
+Route::delete('/teams/{team}/remove-player/{player}', [TeamController::class, 'removePlayer'])->name('teams.removePlayer');
 Route::resource('configurations', ConfigurationController::class);
 Route::resource('leagues', LeagueController::class);
