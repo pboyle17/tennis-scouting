@@ -27,6 +27,7 @@ Route::post('/teams/{team}/add-player', [TeamController::class, 'addPlayer'])->n
 Route::delete('/teams/{team}/remove-player/{player}', [TeamController::class, 'removePlayer'])->name('teams.removePlayer');
 Route::post('/teams/{team}/update-utr', [TeamController::class, 'updateUtr'])->name('teams.updateUtr');
 Route::post('/teams/{team}/find-missing-utr-ids', [TeamController::class, 'findMissingUtrIds'])->name('teams.findMissingUtrIds');
+Route::post('/teams/{team}/players/{player}/set-utr-data', [TeamController::class, 'setPlayerUtrData'])->name('teams.setPlayerUtrData');
 Route::post('/teams/create-from-usta', [TeamController::class, 'createFromUstaLink'])->name('teams.createFromUstaLink');
 Route::get('/teams/usta-creation-progress', [TeamController::class, 'getUstaCreationProgress'])->name('teams.ustaCreationProgress');
 Route::post('/teams/create-from-tennis-record', [TeamController::class, 'createFromTennisRecordLink'])->name('teams.createFromTennisRecord');

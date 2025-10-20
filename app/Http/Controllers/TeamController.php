@@ -310,28 +310,81 @@ class TeamController extends Controller
     {
         $team->load('players');
 
-        // Get player IDs for players without UTR IDs
-        $playerIds = $team->players()
-                          ->whereNull('utr_id')
-                          ->pluck('id')
-                          ->toArray();
+        // Get players without UTR IDs
+        $playersWithoutUtrIds = $team->players()
+                                     ->whereNull('utr_id')
+                                     ->get();
 
-        if (empty($playerIds)) {
+        if ($playersWithoutUtrIds->isEmpty()) {
             return back()->with('status', 'All players on this team already have UTR IDs!');
         }
 
-        // Generate a unique job key
-        $jobKey = 'utr_search_' . uniqid();
+        // Search for UTR profiles for each player
+        $utrService = app(\App\Services\UtrService::class);
+        $searchResults = [];
 
-        // Dispatch job to search for UTR IDs
-        FetchMissingUtrIdsJob::dispatch($playerIds, $jobKey);
+        foreach ($playersWithoutUtrIds as $player) {
+            try {
+                $playerName = $player->first_name . ' ' . $player->last_name;
+                $results = $utrService->searchPlayers($playerName, 10);
 
-        $playerCount = count($playerIds);
-        $message = "🔍 Searching for UTR IDs for {$playerCount} player" . ($playerCount > 1 ? 's' : '') . "...";
+                // Handle nested structure
+                $hits = $results['players']['hits'] ?? $results['hits'] ?? [];
+
+                if (!empty($hits)) {
+                    $searchResults[] = [
+                        'player' => [
+                            'id' => $player->id,
+                            'first_name' => $player->first_name,
+                            'last_name' => $player->last_name
+                        ],
+                        'results' => $hits
+                    ];
+                }
+
+                \Illuminate\Support\Facades\Log::info("UTR Search for team player: {$playerName}", [
+                    'player_id' => $player->id,
+                    'team_id' => $team->id,
+                    'results_count' => count($hits)
+                ]);
+
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("UTR search failed for player {$player->id}: " . $e->getMessage());
+            }
+        }
 
         return back()->with([
-            'status' => $message,
-            'utr_search_job_key' => $jobKey
+            'utr_search_results' => $searchResults,
+            'status' => 'Found ' . count($searchResults) . ' player(s) with potential UTR matches. Review and select the correct profiles below.'
         ]);
+    }
+
+    /**
+     * Set UTR data for a player from team search
+     */
+    public function setPlayerUtrData(Request $request, Team $team, Player $player)
+    {
+        $request->validate([
+            'utr_id' => 'required|integer',
+            'singles_utr' => 'nullable|numeric',
+            'doubles_utr' => 'nullable|numeric'
+        ]);
+
+        $player->utr_id = $request->utr_id;
+        $player->utr_singles_rating = $request->singles_utr;
+        $player->utr_doubles_rating = $request->doubles_utr;
+        $player->save();
+
+        // Return JSON for AJAX requests
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "UTR data saved for {$player->first_name} {$player->last_name}!",
+                'player_id' => $player->id,
+                'player_name' => "{$player->first_name} {$player->last_name}"
+            ]);
+        }
+
+        return back()->with('success', "UTR data saved for {$player->first_name} {$player->last_name}!");
     }
 }
