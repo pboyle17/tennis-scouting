@@ -36,10 +36,23 @@
 
         <div class="flex space-x-2">
             @if($team->players->count() > 0)
+                @php
+                    $playersWithoutUtrId = $team->players->whereNull('utr_id')->count();
+                @endphp
+
+                @if($playersWithoutUtrId > 0)
+                    <form method="POST" action="{{ route('teams.findMissingUtrIds', $team->id) }}" style="display:inline;">
+                        @csrf
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
+                            🔍 Find Missing UTR IDs ({{ $playersWithoutUtrId }})
+                        </button>
+                    </form>
+                @endif
+
                 <form method="POST" action="{{ route('teams.updateUtr', $team->id) }}" style="display:inline;">
                     @csrf
                     <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
-                        Update All UTRs
+                        🔄 Update All UTRs
                     </button>
                 </form>
             @endif
@@ -128,7 +141,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @foreach ($team->players->sortByDesc('utr_singles_rating') as $player)
-                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}'" class="hover:bg-gray-50 cursor-pointer group relative">
+                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('teams.show', $team->id)) }}'" class="hover:bg-gray-50 cursor-pointer group relative">
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating }}</td>

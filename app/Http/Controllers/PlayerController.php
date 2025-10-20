@@ -7,6 +7,8 @@ use App\Models\Player;
 use App\Http\Controllers\Controller;
 use App\Jobs\UpdateUtrRatingsJob;
 use App\Jobs\FetchMissingUtrIdsJob;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Cache;
 
 class PlayerController extends Controller
 {
@@ -60,9 +62,10 @@ class PlayerController extends Controller
     /**
      * Show the form for editing the specified resource.
      */
-    public function edit(Player $player)
+    public function edit(Request $request, Player $player)
     {
-        return view('players.edit', compact('player'));
+        $returnUrl = $request->query('return_url');
+        return view('players.edit', compact('player', 'returnUrl'));
     }
 
     /**
@@ -80,6 +83,13 @@ class PlayerController extends Controller
         ]);
 
         $player->update($validated);
+
+        // Check if there's a return URL, otherwise go to players index
+        $returnUrl = $request->input('return_url');
+
+        if ($returnUrl) {
+            return redirect($returnUrl)->with('success', 'Player updated successfully!');
+        }
 
         return redirect()->route('players.index')->with('success', 'Player updated successfully!');
     }
@@ -157,5 +167,70 @@ class PlayerController extends Controller
         }
 
         return response()->json($progress);
+    }
+
+    public function searchUtrId(Request $request, Player $player)
+    {
+        try {
+            $utrService = app(\App\Services\UtrService::class);
+            $playerName = $player->first_name . ' ' . $player->last_name;
+
+            Log::info("Searching UTR ID for player: {$playerName}", [
+                'player_id' => $player->id,
+                'first_name' => $player->first_name,
+                'last_name' => $player->last_name
+            ]);
+
+            $searchResults = $utrService->searchPlayers($playerName, 10);
+
+            // Handle nested structure
+            $hits = $searchResults['players']['hits'] ?? $searchResults['hits'] ?? [];
+
+            Log::info("UTR Search Results for {$playerName}", [
+                'player_id' => $player->id,
+                'total_hits' => count($hits),
+                'results' => $searchResults
+            ]);
+
+            // Log each result individually for easier reading
+            if (count($hits) > 0) {
+                foreach ($hits as $index => $hit) {
+                    $source = $hit['source'] ?? [];
+                    Log::info("UTR Search Result #{$index} for {$playerName}", [
+                        'player_id' => $player->id,
+                        'utr_id' => $source['id'] ?? 'N/A',
+                        'name' => ($source['firstName'] ?? '') . ' ' . ($source['lastName'] ?? ''),
+                        'location' => $source['location']['display'] ?? 'N/A',
+                        'singles_utr' => $source['singlesUtr'] ?? 0,
+                        'doubles_utr' => $source['doublesUtr'] ?? 0,
+                        'gender' => $source['gender'] ?? 'N/A',
+                        'full_data' => $source
+                    ]);
+                }
+            }
+
+            // Preserve return_url if it exists
+            $returnUrl = $request->query('return_url');
+            $redirectUrl = route('players.edit', $player->id);
+            if ($returnUrl) {
+                $redirectUrl .= '?return_url=' . urlencode($returnUrl);
+            }
+
+            return redirect($redirectUrl)->with([
+                'status' => "Found " . count($hits) . " UTR profile(s) for {$playerName}",
+                'utr_search_results' => $searchResults
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("UTR search failed for player {$player->id}: " . $e->getMessage());
+
+            $returnUrl = $request->query('return_url');
+            $redirectUrl = route('players.edit', $player->id);
+            if ($returnUrl) {
+                $redirectUrl .= '?return_url=' . urlencode($returnUrl);
+            }
+
+            return redirect($redirectUrl)->with('error', 'Failed to search for UTR ID: ' . $e->getMessage());
+        }
     }
 }

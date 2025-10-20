@@ -19,13 +19,14 @@ Route::post('/players/update-utr', [PlayerController::class, 'updateUtrRatings']
 Route::post('/players/fetch-missing-utr-ids', [PlayerController::class, 'fetchMissingUtrIds'])->name('players.fetchMissingUtrIds');
 Route::get('/players/utr-search-progress', [PlayerController::class, 'getUtrSearchProgress'])->name('players.utrSearchProgress');
 Route::get('/players/utr-update-progress', [PlayerController::class, 'getUtrUpdateProgress'])->name('players.utrUpdateProgress');
-Route::post('/players/{player}/update-utr', [PlayerController::class, 'updateUtr'])
-    ->name('players.updateUtrSingle');
+Route::post('/players/{player}/update-utr', [PlayerController::class, 'updateUtr'])->name('players.updateUtrSingle');
+Route::post('/players/{player}/search-utr-id', [PlayerController::class, 'searchUtrId'])->name('players.searchUtrId');
 
 Route::resource('teams', TeamController::class);
 Route::post('/teams/{team}/add-player', [TeamController::class, 'addPlayer'])->name('teams.addPlayer');
 Route::delete('/teams/{team}/remove-player/{player}', [TeamController::class, 'removePlayer'])->name('teams.removePlayer');
 Route::post('/teams/{team}/update-utr', [TeamController::class, 'updateUtr'])->name('teams.updateUtr');
+Route::post('/teams/{team}/find-missing-utr-ids', [TeamController::class, 'findMissingUtrIds'])->name('teams.findMissingUtrIds');
 Route::post('/teams/create-from-usta', [TeamController::class, 'createFromUstaLink'])->name('teams.createFromUstaLink');
 Route::get('/teams/usta-creation-progress', [TeamController::class, 'getUstaCreationProgress'])->name('teams.ustaCreationProgress');
 Route::post('/teams/create-from-tennis-record', [TeamController::class, 'createFromTennisRecordLink'])->name('teams.createFromTennisRecord');

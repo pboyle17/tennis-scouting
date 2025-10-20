@@ -8,6 +8,7 @@ use App\Models\Player;
 use App\Jobs\CreateTeamByUstaLinkJob;
 use App\Jobs\CreateTeamByTennisRecordLinkJob;
 use App\Jobs\UpdateUtrRatingsJob;
+use App\Jobs\FetchMissingUtrIdsJob;
 use Illuminate\Support\Facades\Cache;
 
 class TeamController extends Controller
@@ -292,5 +293,37 @@ class TeamController extends Controller
         $message = "UTR update job has been dispatched for {$playerCount} player" . ($playerCount > 1 ? 's' : '') . "!";
 
         return back()->with('status', $message);
+    }
+
+    /**
+     * Find missing UTR IDs for players on the team
+     */
+    public function findMissingUtrIds(Team $team)
+    {
+        $team->load('players');
+
+        // Get player IDs for players without UTR IDs
+        $playerIds = $team->players()
+                          ->whereNull('utr_id')
+                          ->pluck('id')
+                          ->toArray();
+
+        if (empty($playerIds)) {
+            return back()->with('status', 'All players on this team already have UTR IDs!');
+        }
+
+        // Generate a unique job key
+        $jobKey = 'utr_search_' . uniqid();
+
+        // Dispatch job to search for UTR IDs
+        FetchMissingUtrIdsJob::dispatch($playerIds, $jobKey);
+
+        $playerCount = count($playerIds);
+        $message = "🔍 Searching for UTR IDs for {$playerCount} player" . ($playerCount > 1 ? 's' : '') . "...";
+
+        return back()->with([
+            'status' => $message,
+            'utr_search_job_key' => $jobKey
+        ]);
     }
 }
