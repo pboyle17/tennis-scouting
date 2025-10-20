@@ -7,6 +7,22 @@
     <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Players List</h1>
     @include('partials.tabs')
 
+    @if(session('success'))
+        <div class="bg-green-100 text-green-700 p-2 rounded mb-4">
+            {{ session('success') }}
+        </div>
+    @endif
+    @if(session('status'))
+        <div class="bg-blue-100 text-blue-700 p-2 rounded mb-4">
+            {{ session('status') }}
+        </div>
+    @endif
+    @if(session('error'))
+        <div class="bg-red-100 text-red-700 p-2 rounded mb-4">
+            {{ session('error') }}
+        </div>
+    @endif
+
     <!-- Progress indicator -->
     <div id="utrProgressContainer" class="hidden mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4">
         <div class="flex items-center mb-2">
@@ -141,6 +157,61 @@
         applyFilter('');
         input.focus();
     });
+    })();
+
+    // UTR Update Progress tracking
+    (function() {
+        const progressContainer = document.getElementById('utrProgressContainer');
+        const progressBar = document.getElementById('utrProgressBar');
+        const progressText = document.getElementById('utrProgressText');
+        const progressTitle = document.getElementById('utrProgressTitle');
+        let progressInterval;
+
+        // Check if we have a UTR update job key from the session
+        @if(session('utr_job_key'))
+            const utrJobKey = '{{ session('utr_job_key') }}';
+            startUtrUpdateProgressTracking(utrJobKey);
+        @endif
+
+        function startUtrUpdateProgressTracking(jobKey) {
+            progressContainer.classList.remove('hidden');
+            progressTitle.textContent = '🔄 Updating UTR Ratings...';
+            progressBar.style.width = '0%';
+            progressText.textContent = 'Starting...';
+
+            progressInterval = setInterval(() => {
+                fetch(`{{ route('players.utrUpdateProgress') }}?job_key=${jobKey}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const percentage = data.total > 0 ? (data.processed / data.total) * 100 : 0;
+                        progressBar.style.width = percentage + '%';
+
+                        let text = `${data.processed} of ${data.total} players processed`;
+                        if (data.updated !== undefined) {
+                            text += ` | Updated: ${data.updated}`;
+                        }
+                        if (data.failed !== undefined && data.failed > 0) {
+                            text += ` | Failed: ${data.failed}`;
+                        }
+                        progressText.textContent = text;
+
+                        if (data.status === 'completed') {
+                            clearInterval(progressInterval);
+                            progressTitle.textContent = '✅ UTR Update Complete!';
+                            setTimeout(() => {
+                                progressContainer.classList.add('hidden');
+                                // Refresh the page to show updated ratings
+                                window.location.reload();
+                            }, 2000);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('UTR update progress check error:', error);
+                        clearInterval(progressInterval);
+                        progressContainer.classList.add('hidden');
+                    });
+            }, 2000); // Check every 2 seconds
+        }
     })();
 
     // UTR Search Progress tracking

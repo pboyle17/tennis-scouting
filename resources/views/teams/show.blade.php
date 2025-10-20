@@ -18,6 +18,11 @@
             {{ session('success') }}
         </div>
     @endif
+    @if(session('status'))
+        <div class="bg-blue-100 text-blue-700 p-2 rounded mb-4">
+            {{ session('status') }}
+        </div>
+    @endif
     @if(session('error'))
         <div class="bg-red-100 text-red-700 p-2 rounded mb-4">
             {{ session('error') }}
@@ -30,6 +35,15 @@
         </div>
 
         <div class="flex space-x-2">
+            @if($team->players->count() > 0)
+                <form method="POST" action="{{ route('teams.updateUtr', $team->id) }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
+                        Update All UTRs
+                    </button>
+                </form>
+            @endif
+
             @if($team->usta_link)
                 <a href="{{ $team->usta_link }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
                     <img src="{{ asset('images/usta_logo.png') }}" alt="USTA" class="h-4 w-6 mr-2">

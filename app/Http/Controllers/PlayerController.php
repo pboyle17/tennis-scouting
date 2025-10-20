@@ -94,9 +94,13 @@ class PlayerController extends Controller
 
     public function updateUtrRatings()
     {
-      UpdateUtrRatingsJob::dispatch();
+      $jobKey = 'utr_update_' . uniqid();
+      UpdateUtrRatingsJob::dispatch([], $jobKey);
 
-      return redirect()->route('players.index')->with('status', '✅ UTR update job has been dispatched!');
+      return redirect()->route('players.index')->with([
+          'status' => '✅ UTR update job has been dispatched!',
+          'utr_job_key' => $jobKey
+      ]);
     }
 
     public function updateUtr(Player $player)
@@ -133,6 +137,21 @@ class PlayerController extends Controller
         }
 
         $progress = Cache::get("utr_search_progress_{$jobId}");
+        if (!$progress) {
+            return response()->json(['error' => 'Job not found'], 404);
+        }
+
+        return response()->json($progress);
+    }
+
+    public function getUtrUpdateProgress(Request $request)
+    {
+        $jobKey = $request->get('job_key');
+        if (!$jobKey) {
+            return response()->json(['error' => 'Job key required'], 400);
+        }
+
+        $progress = Cache::get($jobKey);
         if (!$progress) {
             return response()->json(['error' => 'Job not found'], 404);
         }

@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Team;
 use App\Models\Player;
 use App\Jobs\CreateTeamByUstaLinkJob;
+use App\Jobs\UpdateUtrRatingsJob;
 use Illuminate\Support\Facades\Cache;
 
 class TeamController extends Controller
@@ -202,5 +203,32 @@ class TeamController extends Controller
         }
 
         return response()->json($progress);
+    }
+
+    /**
+     * Update UTR ratings for all players on the team
+     */
+    public function updateUtr(Team $team)
+    {
+        $team->load('players');
+
+        // Get UTR IDs for all players on the team who have a UTR ID
+        $utrIds = $team->players()
+                       ->whereNotNull('utr_id')
+                       ->pluck('utr_id')
+                       ->toArray();
+
+        if (empty($utrIds)) {
+            return back()->with('error', 'No players with UTR IDs found on this team.');
+        }
+
+        // Dispatch job to update UTRs for this team's players
+        $jobKey = 'utr_update_' . uniqid();
+        UpdateUtrRatingsJob::dispatch($utrIds, $jobKey);
+
+        $playerCount = count($utrIds);
+        $message = "UTR update job has been dispatched for {$playerCount} player" . ($playerCount > 1 ? 's' : '') . "!";
+
+        return back()->with('status', $message);
     }
 }
