@@ -6,9 +6,18 @@
 <div class="container mx-auto p-6">
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-3xl font-bold text-center text-gray-800">{{ $team->name }} - Players</h1>
-        <a href="{{ route('teams.index') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded">
-            ← Back to Teams
-        </a>
+        <div class="flex space-x-2">
+            <form method="POST" action="{{ route('teams.destroy', $team->id) }}" onsubmit="return confirm('Are you sure you want to delete this team? This will not delete the players, only remove them from this team.');">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded">
+                    🗑️ Delete Team
+                </button>
+            </form>
+            <a href="{{ route('teams.index') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded">
+                ← Back to Teams
+            </a>
+        </div>
     </div>
 
     @include('partials.tabs')

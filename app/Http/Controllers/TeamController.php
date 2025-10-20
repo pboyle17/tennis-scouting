@@ -89,9 +89,17 @@ class TeamController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Team $team)
     {
-        //
+        $teamName = $team->name;
+
+        // Detach all players from the team (removes relationships, doesn't delete players)
+        $team->players()->detach();
+
+        // Delete the team
+        $team->delete();
+
+        return redirect()->route('teams.index')->with('success', "Team '{$teamName}' has been deleted successfully.");
     }
 
     /**
