@@ -40,7 +40,7 @@
 
     <div class="flex justify-between items-center mb-4">
         <div class="text-sm text-gray-600">
-            💡 <strong>Single-click</strong> to view players | <strong>Double-click</strong> to edit team
+            💡 <strong>Click</strong> a team name to view players
         </div>
         <div class="flex space-x-2">
             <button onclick="openUstaModal()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
@@ -65,13 +65,18 @@
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             Tennis Record Link
                     </th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            Actions
+                    </th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
                 @foreach ($teams as $team)
-                    <tr onclick="window.location='{{ route('teams.show', $team->id) }}'" ondblclick="window.location='{{ route('teams.edit', $team->id) }}'" class="hover:bg-gray-50 cursor-pointer">
+                    <tr class="hover:bg-gray-50">
                         <td class="px-4 py-2 text-sm text-gray-700">
-                            {{ $team->name }}
+                            <a href="{{ route('teams.show', $team->id) }}" class="text-blue-600 hover:text-blue-800 hover:underline">
+                                {{ $team->name }}
+                            </a>
                             <span class="text-xs text-gray-500 ml-2">({{ $team->players->count() }} players)</span>
                         </td>
                         <td class="py-2 text-sm">
@@ -87,6 +92,11 @@
                                   🎾
                                 </a>
                             @endif
+                        </td>
+                        <td class="px-4 py-2 text-sm">
+                            <a href="{{ route('teams.edit', $team->id) }}" class="text-blue-600 hover:text-blue-800 text-sm">
+                                Edit
+                            </a>
                         </td>
                     </tr>
                 @endforeach
