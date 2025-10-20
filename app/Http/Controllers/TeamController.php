@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\Team;
 use App\Models\Player;
 use App\Jobs\CreateTeamByUstaLinkJob;
+use App\Jobs\CreateTeamByTennisRecordLinkJob;
 use App\Jobs\UpdateUtrRatingsJob;
 use Illuminate\Support\Facades\Cache;
 
@@ -198,6 +199,67 @@ class TeamController extends Controller
         }
 
         $progress = Cache::get("usta_team_creation_progress_{$jobId}");
+        if (!$progress) {
+            return response()->json(['error' => 'Job not found'], 404);
+        }
+
+        return response()->json($progress);
+    }
+
+    /**
+     * Create team from Tennis Record link
+     */
+    public function createFromTennisRecordLink(Request $request)
+    {
+        $request->validate([
+            'tennis_record_link' => 'required|url|regex:/tennisrecord\.com/'
+        ]);
+
+        // Check if a job is already running
+        if (Cache::has('tennis_record_team_creation_running')) {
+            $message = '⏳ Tennis Record team creation is already in progress. Please wait for it to complete.';
+
+            if ($request->expectsJson()) {
+                return response()->json(['error' => $message], 409);
+            }
+
+            return redirect()->route('teams.index')->with('error', $message);
+        }
+
+        // Generate a unique job key
+        $jobKey = 'tennis_record_job_' . uniqid();
+
+        // Mark job as running
+        Cache::put('tennis_record_team_creation_running', true, 600); // 10 minutes
+
+        CreateTeamByTennisRecordLinkJob::dispatch($request->tennis_record_link, $jobKey);
+
+        $message = '🚀 Creating team from Tennis Record link... This may take a few minutes.';
+
+        if ($request->expectsJson()) {
+            return response()->json([
+                'status' => $message,
+                'job_key' => $jobKey
+            ]);
+        }
+
+        return redirect()->route('teams.index')->with([
+            'status' => $message,
+            'tennis_record_job_key' => $jobKey
+        ]);
+    }
+
+    /**
+     * Get Tennis Record team creation progress
+     */
+    public function getTennisRecordCreationProgress(Request $request)
+    {
+        $jobKey = $request->get('job_key');
+        if (!$jobKey) {
+            return response()->json(['error' => 'Job key required'], 400);
+        }
+
+        $progress = Cache::get("tennis_record_team_creation_progress_{$jobKey}");
         if (!$progress) {
             return response()->json(['error' => 'Job not found'], 404);
         }

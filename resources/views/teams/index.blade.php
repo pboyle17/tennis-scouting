@@ -43,6 +43,9 @@
             💡 <strong>Click</strong> a team name to view players
         </div>
         <div class="flex space-x-2">
+            <button onclick="openTennisRecordModal()" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
+                🎾 Create from Tennis Record
+            </button>
             <button onclick="openUstaModal()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
                 🏆 Create from USTA Link
             </button>
@@ -150,6 +153,58 @@
                     Cancel
                 </button>
                 <button type="submit" id="ustaSubmitBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
+                    🚀 Create Team
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Tennis Record Link Modal -->
+<div id="tennisRecordModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900">Create Team from Tennis Record</h3>
+            <button onclick="closeTennisRecordModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="sr-only">Close</span>
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <form id="tennisRecordForm" method="POST" action="{{ route('teams.createFromTennisRecord') }}">
+            @csrf
+            <div class="mb-4">
+                <label for="tennis_record_link" class="block text-sm font-medium text-gray-700 mb-2">
+                    Tennis Record Team URL
+                </label>
+                <input type="url" name="tennis_record_link" id="tennis_record_link" required
+                       placeholder="https://www.tennisrecord.com/adult/teamprofile.aspx?teamname=..."
+                       class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-purple-500 focus:border-purple-500">
+                <p class="mt-1 text-xs text-gray-500">
+                    Paste the Tennis Record team profile page URL
+                </p>
+            </div>
+
+            <div class="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
+                <h4 class="text-sm font-medium text-blue-800 mb-1">What this will do:</h4>
+                <ul class="text-xs text-blue-700 list-disc list-inside space-y-1">
+                    <li>Scrape team name and player list from Tennis Record</li>
+                    <li>Create team and add all players</li>
+                    <li>Search for UTR IDs for each player</li>
+                    <li>Fetch UTR ratings for found players</li>
+                </ul>
+                <p class="text-xs text-blue-600 mt-2">
+                    <strong>Note:</strong> This process may take a few minutes to complete.
+                </p>
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <button type="button" onclick="closeTennisRecordModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-4 rounded">
+                    Cancel
+                </button>
+                <button type="submit" id="tennisRecordSubmitBtn" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
                     🚀 Create Team
                 </button>
             </div>
@@ -341,5 +396,25 @@
             }, 15000); // 15 seconds per step
         }
     })();
+
+    // Tennis Record Team Creation functionality
+    function openTennisRecordModal() {
+        document.getElementById('tennisRecordModal').classList.remove('hidden');
+        document.getElementById('tennisRecordModal').classList.add('flex');
+        document.getElementById('tennis_record_link').focus();
+    }
+
+    function closeTennisRecordModal() {
+        document.getElementById('tennisRecordModal').classList.add('hidden');
+        document.getElementById('tennisRecordModal').classList.remove('flex');
+        document.getElementById('tennis_record_link').value = '';
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('tennisRecordModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeTennisRecordModal();
+        }
+    });
 </script>
 @endsection

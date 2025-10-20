@@ -28,5 +28,7 @@ Route::delete('/teams/{team}/remove-player/{player}', [TeamController::class, 'r
 Route::post('/teams/{team}/update-utr', [TeamController::class, 'updateUtr'])->name('teams.updateUtr');
 Route::post('/teams/create-from-usta', [TeamController::class, 'createFromUstaLink'])->name('teams.createFromUstaLink');
 Route::get('/teams/usta-creation-progress', [TeamController::class, 'getUstaCreationProgress'])->name('teams.ustaCreationProgress');
+Route::post('/teams/create-from-tennis-record', [TeamController::class, 'createFromTennisRecordLink'])->name('teams.createFromTennisRecord');
+Route::get('/teams/tennis-record-creation-progress', [TeamController::class, 'getTennisRecordCreationProgress'])->name('teams.tennisRecordCreationProgress');
 Route::resource('configurations', ConfigurationController::class);
 Route::resource('leagues', LeagueController::class);
