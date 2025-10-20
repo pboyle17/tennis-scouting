@@ -49,8 +49,11 @@ class TeamController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(Team $team)
+    public function show(Request $request, Team $team)
     {
+        $sortField = $request->get('sort', 'utr_singles_rating');
+        $sortDirection = $request->get('direction', 'desc');
+
         $team->load('players');
 
         // Get players not on this team for the add player functionality
@@ -59,7 +62,7 @@ class TeamController extends Controller
                                   ->orderBy('last_name')
                                   ->get();
 
-        return view('teams.show', compact('team', 'availablePlayers'));
+        return view('teams.show', compact('team', 'availablePlayers', 'sortField', 'sortDirection'));
     }
 
     /**

@@ -209,18 +209,53 @@
             <table class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">First Name</th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Last Name</th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR Singles Rating</th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR Doubles Rating</th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">USTA Rating</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('teams.show', ['team' => $team->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="hover:text-gray-900">
+                                First Name
+                                @if($sortField === 'first_name')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('teams.show', ['team' => $team->id, 'sort' => 'last_name', 'direction' => ($sortField === 'last_name' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="hover:text-gray-900">
+                                Last Name
+                                @if($sortField === 'last_name')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('teams.show', ['team' => $team->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField === 'utr_singles_rating' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="hover:text-gray-900">
+                                UTR Singles Rating
+                                @if($sortField === 'utr_singles_rating')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('teams.show', ['team' => $team->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField === 'utr_doubles_rating' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="hover:text-gray-900">
+                                UTR Doubles Rating
+                                @if($sortField === 'utr_doubles_rating')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('teams.show', ['team' => $team->id, 'sort' => 'USTA_rating', 'direction' => ($sortField === 'USTA_rating' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="hover:text-gray-900">
+                                USTA Rating
+                                @if($sortField === 'USTA_rating')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR Profile</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
-                    @foreach ($team->players->sortByDesc('utr_singles_rating') as $player)
-                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('teams.show', $team->id)) }}'" class="hover:bg-gray-50 cursor-pointer group relative">
+                    @foreach ($sortDirection === 'asc' ? $team->players->sortBy($sortField) : $team->players->sortByDesc($sortField) as $player)
+                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('teams.show', $team->id)) }}'" class="hover:bg-gray-50 cursor-pointer">
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating }}</td>
@@ -228,15 +263,17 @@
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_rating }}</td>
                             <td class="px-4 py-2 text-sm text-center">
                                 @if($player->utr_id)
-                                    <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
-                                        <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
-                                    </a>
-                                    <!-- Tooltip -->
-                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
-                                                opacity-0 group-hover:opacity-100 transition
-                                                bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                whitespace-nowrap z-10">
-                                        Updated: {{ $player->updated_at->format('M d, Y h:i A') }}
+                                    <div class="relative inline-block group">
+                                        <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
+                                            <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
+                                        </a>
+                                        <!-- Tooltip -->
+                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                    whitespace-nowrap z-50">
+                                            Updated: {{ $player->updated_at->format('M d, Y h:i A') }}
+                                        </div>
                                     </div>
                                 @endif
                             </td>
