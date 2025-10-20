@@ -54,18 +54,6 @@
             </button>
         </div>
         <div class="flex space-x-2">
-            <form method="POST" action="{{ route('players.updateUtr') }}" id="utrUpdateForm">
-                @csrf
-                <button type="submit" id="utrUpdateBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
-                    🔄 Update UTR Ratings
-                </button>
-            </form>
-            <form method="POST" action="{{ route('players.fetchMissingUtrIds') }}" id="utrSearchForm">
-                @csrf
-                <button type="submit" id="utrSearchBtn" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
-                    🔍 Find Missing UTR IDs
-                </button>
-            </form>
             <a href="{{ route('players.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
                 + Add Player
             </a>

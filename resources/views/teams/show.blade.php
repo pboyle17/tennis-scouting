@@ -153,8 +153,19 @@
 
     <!-- Add Player Section -->
     @if($availablePlayers->count() > 0)
-        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-            <h3 class="text-lg font-semibold text-gray-800 mb-3">Add Player to Team</h3>
+        <div class="mb-6">
+            <button type="button" id="toggleAddPlayerBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
+                + Add Players to Team
+            </button>
+        </div>
+
+        <div id="addPlayerSection" class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6 hidden">
+            <div class="flex justify-between items-center mb-3">
+                <h3 class="text-lg font-semibold text-gray-800">Add Player to Team</h3>
+                <button type="button" id="closeAddPlayerBtn" class="text-gray-500 hover:text-gray-700 text-xl font-bold">
+                    &times;
+                </button>
+            </div>
             <form method="POST" action="{{ route('teams.addPlayer', $team->id) }}">
                 @csrf
                 <div class="flex-1">
@@ -302,6 +313,25 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Toggle Add Player Section
+        const toggleAddPlayerBtn = document.getElementById('toggleAddPlayerBtn');
+        const closeAddPlayerBtn = document.getElementById('closeAddPlayerBtn');
+        const addPlayerSection = document.getElementById('addPlayerSection');
+
+        if (toggleAddPlayerBtn) {
+            toggleAddPlayerBtn.addEventListener('click', function() {
+                addPlayerSection.classList.remove('hidden');
+                toggleAddPlayerBtn.classList.add('hidden');
+            });
+        }
+
+        if (closeAddPlayerBtn) {
+            closeAddPlayerBtn.addEventListener('click', function() {
+                addPlayerSection.classList.add('hidden');
+                toggleAddPlayerBtn.classList.remove('hidden');
+            });
+        }
+
         const searchInput = document.getElementById('playerSearch');
         const playerOptions = document.querySelectorAll('.player-option');
         const checkboxes = document.querySelectorAll('input[name="player_ids[]"]');
