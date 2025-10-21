@@ -177,14 +177,6 @@
                             </a>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'USTA_rating', 'direction' => ($sortField === 'USTA_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
-                                USTA Rating
-                                @if($sortField === 'USTA_rating')
-                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                                @endif
-                            </a>
-                        </th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField === 'USTA_dynamic_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
                                 USTA Dynamic
                                 @if($sortField === 'USTA_dynamic_rating')
@@ -192,6 +184,7 @@
                                 @endif
                             </a>
                         </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR Profile</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -210,8 +203,23 @@
                             </td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating ? number_format($player->utr_singles_rating, 2) : '-' }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_doubles_rating ? number_format($player->utr_doubles_rating, 2) : '-' }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_rating ?? '-' }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_dynamic_rating ?? '-' }}</td>
+                            <td class="px-4 py-2 text-sm text-center">
+                                @if($player->utr_id)
+                                    <div class="relative inline-block group">
+                                        <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
+                                            <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
+                                        </a>
+                                        <!-- Tooltip -->
+                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                    whitespace-nowrap z-50">
+                                            Updated: {{ $player->updated_at->format('M d, Y h:i A') }}
+                                        </div>
+                                    </div>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
