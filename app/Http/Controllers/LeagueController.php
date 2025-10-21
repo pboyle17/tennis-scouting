@@ -44,9 +44,12 @@ class LeagueController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(League $league)
+    public function show(Request $request, League $league)
     {
-        $league->load('teams');
+        $sortField = $request->get('sort', 'utr_singles_rating');
+        $sortDirection = $request->get('direction', 'desc');
+
+        $league->load('teams.players');
 
         // Get teams not in this league
         $availableTeams = Team::where('league_id', null)
@@ -54,7 +57,18 @@ class LeagueController extends Controller
                              ->orderBy('name')
                              ->get();
 
-        return view('leagues.show', compact('league', 'availableTeams'));
+        // Get all players from all teams in the league
+        $players = collect();
+        foreach ($league->teams as $team) {
+            foreach ($team->players as $player) {
+                // Add team name to player for display
+                $player->team_name = $team->name;
+                $player->team_id = $team->id;
+                $players->push($player);
+            }
+        }
+
+        return view('leagues.show', compact('league', 'availableTeams', 'players', 'sortField', 'sortDirection'));
     }
 
     /**

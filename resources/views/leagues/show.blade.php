@@ -83,7 +83,7 @@
     </div>
 
     <!-- Teams Table -->
-    <div class="overflow-x-auto bg-white rounded-lg shadow">
+    <div class="overflow-x-auto bg-white rounded-lg shadow mb-6">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
@@ -121,6 +121,103 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Players Table -->
+    @if($players->count() > 0)
+        <div class="mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">All Players in League</h2>
+            <div class="text-sm text-gray-600 mt-1">
+                <strong>{{ $players->count() }}</strong> {{ $players->count() === 1 ? 'player' : 'players' }} across {{ $league->teams->count() }} {{ $league->teams->count() === 1 ? 'team' : 'teams' }}
+            </div>
+        </div>
+
+        <div class="overflow-x-auto bg-white rounded-lg shadow">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                First Name
+                                @if($sortField === 'first_name')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'last_name', 'direction' => ($sortField === 'last_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                Last Name
+                                @if($sortField === 'last_name')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'team_name', 'direction' => ($sortField === 'team_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                Team
+                                @if($sortField === 'team_name')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField === 'utr_singles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                UTR Singles
+                                @if($sortField === 'utr_singles_rating')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField === 'utr_doubles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                UTR Doubles
+                                @if($sortField === 'utr_doubles_rating')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'USTA_rating', 'direction' => ($sortField === 'USTA_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                USTA Rating
+                                @if($sortField === 'USTA_rating')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField === 'USTA_dynamic_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                USTA Dynamic
+                                @if($sortField === 'USTA_dynamic_rating')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    @php
+                        $rank = 1;
+                    @endphp
+                    @foreach ($sortDirection === 'asc' ? $players->sortBy($sortField) : $players->sortByDesc($sortField) as $player)
+                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer">
+                            <td class="px-4 py-2 text-sm text-gray-700 font-semibold">{{ $rank++ }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">
+                                <a href="{{ route('teams.show', $player->team_id) }}" class="text-blue-600 hover:underline">
+                                    {{ $player->team_name }}
+                                </a>
+                            </td>
+                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating ? number_format($player->utr_singles_rating, 2) : '-' }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_doubles_rating ? number_format($player->utr_doubles_rating, 2) : '-' }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_rating ?? '-' }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_dynamic_rating ?? '-' }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
 </div>
 
 <script>
