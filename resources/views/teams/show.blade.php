@@ -76,6 +76,11 @@
                                         $singlesUtr = $source['singlesUtr'] ?? 0;
                                         $doublesUtr = $source['doublesUtr'] ?? 0;
                                         $utrId = $source['id'] ?? '';
+
+                                        // Check if this is a single result with matching names (auto-selected)
+                                        $isSingleMatch = count($results) === 1 &&
+                                                        strtolower(trim($firstName)) === strtolower(trim($player['first_name'])) &&
+                                                        strtolower(trim($lastName)) === strtolower(trim($player['last_name']));
                                     @endphp
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-2 text-sm">{{ $firstName }} {{ $lastName }}</td>
@@ -88,15 +93,21 @@
                                             </a>
                                         </td>
                                         <td class="px-4 py-2 text-sm">
-                                            <form class="utr-selection-form" data-player-id="{{ $player['id'] }}" data-player-name="{{ $player['first_name'] }} {{ $player['last_name'] }}" data-action="{{ route('teams.setPlayerUtrData', ['team' => $team->id, 'player' => $player['id']]) }}" style="display:inline;">
-                                                @csrf
-                                                <input type="hidden" name="utr_id" value="{{ $utrId }}">
-                                                <input type="hidden" name="singles_utr" value="{{ $singlesUtr }}">
-                                                <input type="hidden" name="doubles_utr" value="{{ $doublesUtr }}">
-                                                <button type="submit" class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded">
-                                                    Use This
-                                                </button>
-                                            </form>
+                                            @if($isSingleMatch)
+                                                <span class="bg-gray-400 text-white text-xs px-3 py-1 rounded cursor-not-allowed">
+                                                    Auto-Selected
+                                                </span>
+                                            @else
+                                                <form class="utr-selection-form" data-player-id="{{ $player['id'] }}" data-player-name="{{ $player['first_name'] }} {{ $player['last_name'] }}" data-action="{{ route('teams.setPlayerUtrData', ['team' => $team->id, 'player' => $player['id']]) }}" style="display:inline;">
+                                                    @csrf
+                                                    <input type="hidden" name="utr_id" value="{{ $utrId }}">
+                                                    <input type="hidden" name="singles_utr" value="{{ $singlesUtr }}">
+                                                    <input type="hidden" name="doubles_utr" value="{{ $doublesUtr }}">
+                                                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded">
+                                                        Use This
+                                                    </button>
+                                                </form>
+                                            @endif
                                         </td>
                                     </tr>
                                 @endforeach

@@ -379,6 +379,31 @@ class TeamController extends Controller
                 $hits = $results['players']['hits'] ?? $results['hits'] ?? [];
 
                 if (!empty($hits)) {
+                    // Check if there's exactly one result with matching names - auto-save it
+                    if (count($hits) === 1) {
+                        $source = $hits[0]['source'] ?? [];
+                        $firstName = strtolower(trim($source['firstName'] ?? ''));
+                        $lastName = strtolower(trim($source['lastName'] ?? ''));
+                        $playerFirstName = strtolower(trim($player->first_name));
+                        $playerLastName = strtolower(trim($player->last_name));
+
+                        if ($firstName === $playerFirstName && $lastName === $playerLastName) {
+                            // Auto-save the UTR data
+                            $player->utr_id = $source['id'] ?? null;
+                            $player->utr_singles_rating = $source['singlesUtr'] ?? null;
+                            $player->utr_doubles_rating = $source['doublesUtr'] ?? null;
+                            $player->save();
+
+                            \Illuminate\Support\Facades\Log::info("Auto-selected and saved UTR data for {$playerName}", [
+                                'player_id' => $player->id,
+                                'utr_id' => $player->utr_id,
+                                'singles' => $player->utr_singles_rating,
+                                'doubles' => $player->utr_doubles_rating
+                            ]);
+                        }
+                    }
+
+                    // Still add to search results to show in UI
                     $searchResults[] = [
                         'player' => [
                             'id' => $player->id,

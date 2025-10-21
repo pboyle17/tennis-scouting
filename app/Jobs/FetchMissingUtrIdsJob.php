@@ -69,10 +69,12 @@ class FetchMissingUtrIdsJob implements ShouldQueue
 
                 if ($bestMatch) {
                     $player->utr_id = $bestMatch['id'];
+                    $player->utr_singles_rating = $bestMatch['singlesUtr'] ?? null;
+                    $player->utr_doubles_rating = $bestMatch['doublesUtr'] ?? null;
                     $player->save();
                     $foundCount++;
 
-                    Log::info("Found UTR ID for {$playerName}: {$bestMatch['id']} (Match: {$bestMatch['displayName']})");
+                    Log::info("Found UTR ID for {$playerName}: {$bestMatch['id']} (Match: {$bestMatch['displayName']}, Singles: {$bestMatch['singlesUtr']}, Doubles: {$bestMatch['doublesUtr']})");
                 } else {
                     $notFoundCount++;
                     Log::info("No UTR match found for {$playerName}");
@@ -117,6 +119,19 @@ class FetchMissingUtrIdsJob implements ShouldQueue
 
         $playerFirstName = strtolower(trim($player->first_name));
         $playerLastName = strtolower(trim($player->last_name));
+
+        // If there's only one result and names match, use it automatically
+        if (count($searchResults['hits']) === 1 && isset($searchResults['hits'][0]['source'])) {
+            $source = $searchResults['hits'][0]['source'];
+            $resultFirstName = strtolower(trim($source['firstName'] ?? ''));
+            $resultLastName = strtolower(trim($source['lastName'] ?? ''));
+
+            // Check if names match
+            if ($resultFirstName === $playerFirstName && $resultLastName === $playerLastName) {
+                Log::info("Auto-selecting single matching UTR result for {$player->first_name} {$player->last_name}");
+                return $source;
+            }
+        }
 
         foreach ($searchResults['hits'] as $result) {
             if (!isset($result['source'])) {
