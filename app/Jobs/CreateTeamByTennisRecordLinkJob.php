@@ -75,16 +75,35 @@ class CreateTeamByTennisRecordLinkJob implements ShouldQueue
                                        ->first();
 
                 if ($existingPlayer) {
+                    // Update USTA ratings if they exist in the scraped data
+                    if (isset($playerData['USTA_rating']) && $playerData['USTA_rating']) {
+                        $existingPlayer->USTA_rating = $playerData['USTA_rating'];
+                    }
+                    if (isset($playerData['USTA_dynamic_rating']) && $playerData['USTA_dynamic_rating']) {
+                        $existingPlayer->USTA_dynamic_rating = $playerData['USTA_dynamic_rating'];
+                    }
+                    $existingPlayer->save();
+
                     // Assign existing player to team
                     $team->players()->syncWithoutDetaching([$existingPlayer->id]);
                     $playersFound++;
                     $createdPlayerIds[] = $existingPlayer->id;
                 } else {
-                    // Create new player
-                    $player = Player::create([
+                    // Create new player with USTA ratings
+                    $newPlayerData = [
                         'first_name' => $playerData['first_name'],
                         'last_name' => $playerData['last_name']
-                    ]);
+                    ];
+
+                    // Add USTA ratings if they exist
+                    if (isset($playerData['USTA_rating']) && $playerData['USTA_rating']) {
+                        $newPlayerData['USTA_rating'] = $playerData['USTA_rating'];
+                    }
+                    if (isset($playerData['USTA_dynamic_rating']) && $playerData['USTA_dynamic_rating']) {
+                        $newPlayerData['USTA_dynamic_rating'] = $playerData['USTA_dynamic_rating'];
+                    }
+
+                    $player = Player::create($newPlayerData);
 
                     // Assign to team
                     $team->players()->attach($player->id);

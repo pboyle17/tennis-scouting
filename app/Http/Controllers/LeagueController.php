@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\League;
+use App\Models\Team;
 
 class LeagueController extends Controller
 {
@@ -43,9 +44,17 @@ class LeagueController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(League $league)
     {
-        //
+        $league->load('teams');
+
+        // Get teams not in this league
+        $availableTeams = Team::where('league_id', null)
+                             ->orWhere('league_id', '!=', $league->id)
+                             ->orderBy('name')
+                             ->get();
+
+        return view('leagues.show', compact('league', 'availableTeams'));
     }
 
     /**
@@ -75,8 +84,73 @@ class LeagueController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(League $league)
     {
-        //
+        $leagueName = $league->name;
+
+        // Set league_id to null for all teams in this league
+        $league->teams()->update(['league_id' => null]);
+
+        // Delete the league
+        $league->delete();
+
+        return redirect()->route('leagues.index')->with('success', "League '{$leagueName}' has been deleted successfully.");
+    }
+
+    /**
+     * Add teams to the league.
+     */
+    public function addTeams(Request $request, League $league)
+    {
+        $request->validate([
+            'team_ids' => 'required|array|min:1',
+            'team_ids.*' => 'exists:teams,id'
+        ]);
+
+        $teamIds = $request->team_ids;
+        $teams = Team::whereIn('id', $teamIds)->get();
+
+        $addedTeams = [];
+        $skippedTeams = [];
+
+        foreach ($teams as $team) {
+            // Check if team is already in this league
+            if ($team->league_id === $league->id) {
+                $skippedTeams[] = $team->name;
+            } else {
+                $team->league_id = $league->id;
+                $team->save();
+                $addedTeams[] = $team->name;
+            }
+        }
+
+        $messages = [];
+        if (count($addedTeams) > 0) {
+            $teamsList = implode(', ', $addedTeams);
+            $messages[] = count($addedTeams) === 1
+                ? "$teamsList has been added to the league!"
+                : count($addedTeams) . " teams have been added: $teamsList";
+        }
+
+        if (count($skippedTeams) > 0) {
+            $skippedList = implode(', ', $skippedTeams);
+            $messages[] = count($skippedTeams) === 1
+                ? "$skippedList is already in this league."
+                : "These teams are already in this league: $skippedList";
+        }
+
+        $messageType = count($addedTeams) > 0 ? 'success' : 'error';
+        return back()->with($messageType, implode(' ', $messages));
+    }
+
+    /**
+     * Remove a team from the league.
+     */
+    public function removeTeam(League $league, Team $team)
+    {
+        $team->league_id = null;
+        $team->save();
+
+        return back()->with('success', $team->name . ' has been removed from the league.');
     }
 }

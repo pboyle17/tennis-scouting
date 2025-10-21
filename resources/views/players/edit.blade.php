@@ -139,7 +139,29 @@
           <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">Update Player</button>
         </div>
       </form>
-      <div class="max-w-lg mx-auto mb-4 text-right">
+
+      @if($player->teams->count() > 0)
+        <div class="max-w-lg mx-auto mt-6 bg-white p-6 rounded shadow">
+          <h3 class="text-lg font-semibold mb-3">Teams</h3>
+          <div class="space-y-2">
+            @foreach($player->teams as $team)
+              <a href="{{ route('teams.show', $team->id) }}" class="block p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                <div class="font-medium text-gray-800">{{ $team->name }}</div>
+              </a>
+            @endforeach
+          </div>
+        </div>
+      @endif
+
+      <div class="max-w-lg mx-auto mt-6">
+        <form method="POST" action="{{ route('players.destroy', $player->id) }}" onsubmit="return confirm('Are you sure you want to delete {{ $player->first_name }} {{ $player->last_name }}? This action cannot be undone.');">
+          @csrf
+          @method('DELETE')
+          <button type="submit" class="w-full bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded">
+            Delete Player
+          </button>
+        </form>
+      </div>
   </div>
 </div>
 

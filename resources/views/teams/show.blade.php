@@ -147,6 +147,12 @@
                 <a href="{{ $team->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
                     🎾 Tennis Record
                 </a>
+                <form method="POST" action="{{ route('teams.syncFromTennisRecord', $team->id) }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded">
+                        🔄 Sync from Tennis Record
+                    </button>
+                </form>
             @endif
         </div>
     </div>
@@ -254,8 +260,16 @@
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <a href="{{ route('teams.show', ['team' => $team->id, 'sort' => 'USTA_rating', 'direction' => ($sortField === 'USTA_rating' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="hover:text-gray-900">
-                                USTA Rating
+                                USTA Rating (NTRP)
                                 @if($sortField === 'USTA_rating')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('teams.show', ['team' => $team->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField === 'USTA_dynamic_rating' && $sortDirection === 'asc') ? 'desc' : 'asc']) }}" class="hover:text-gray-900">
+                                USTA Dynamic Rating
+                                @if($sortField === 'USTA_dynamic_rating')
                                     <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
                                 @endif
                             </a>
@@ -272,6 +286,7 @@
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_doubles_rating }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_rating }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_dynamic_rating }}</td>
                             <td class="px-4 py-2 text-sm text-center">
                                 @if($player->utr_id)
                                     <div class="relative inline-block group">

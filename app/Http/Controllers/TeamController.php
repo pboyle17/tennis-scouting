@@ -280,6 +280,50 @@ class TeamController extends Controller
     }
 
     /**
+     * Sync team from Tennis Record link
+     */
+    public function syncFromTennisRecord(Team $team)
+    {
+        if (!$team->tennis_record_link) {
+            return back()->with('error', 'This team does not have a Tennis Record link.');
+        }
+
+        // Check if a sync job is already running for this team
+        if (Cache::has('tennis_record_team_sync_running_' . $team->id)) {
+            return back()->with('error', '⏳ Team sync is already in progress. Please wait for it to complete.');
+        }
+
+        // Mark job as running
+        Cache::put('tennis_record_team_sync_running_' . $team->id, true, 600); // 10 minutes
+
+        $jobKey = 'tennis_record_sync_' . uniqid();
+        \App\Jobs\SyncTeamFromTennisRecordJob::dispatch($team, $jobKey);
+
+        return back()->with([
+            'status' => '🔄 Syncing team from Tennis Record... This may take a few minutes.',
+            'tennis_record_sync_job_key' => $jobKey
+        ]);
+    }
+
+    /**
+     * Get Tennis Record team sync progress
+     */
+    public function getTennisRecordSyncProgress(Request $request)
+    {
+        $jobKey = $request->get('job_key');
+        if (!$jobKey) {
+            return response()->json(['error' => 'Job key required'], 400);
+        }
+
+        $progress = Cache::get("tennis_record_team_sync_progress_{$jobKey}");
+        if (!$progress) {
+            return response()->json(['error' => 'Job not found'], 404);
+        }
+
+        return response()->json($progress);
+    }
+
+    /**
      * Update UTR ratings for all players on the team
      */
     public function updateUtr(Team $team)

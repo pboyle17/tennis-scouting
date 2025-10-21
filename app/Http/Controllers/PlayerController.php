@@ -64,6 +64,7 @@ class PlayerController extends Controller
      */
     public function edit(Request $request, Player $player)
     {
+        $player->load('teams');
         $returnUrl = $request->query('return_url');
         return view('players.edit', compact('player', 'returnUrl'));
     }
@@ -97,9 +98,17 @@ class PlayerController extends Controller
     /**
      * Remove the specified resource from storage.
      */
-    public function destroy(string $id)
+    public function destroy(Player $player)
     {
-      //
+        $playerName = $player->first_name . ' ' . $player->last_name;
+
+        // Detach from all teams
+        $player->teams()->detach();
+
+        // Delete the player
+        $player->delete();
+
+        return redirect()->route('players.index')->with('success', "Player '{$playerName}' has been deleted successfully.");
     }
 
     public function updateUtrRatings()

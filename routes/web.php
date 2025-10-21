@@ -15,6 +15,7 @@ Route::get('/players/create', [PlayerController::class, 'create'])->name('player
 Route::post('/players', [PlayerController::class, 'store'])->name('players.store');
 Route::get('/players/{player}/edit', [PlayerController::class, 'edit'])->name('players.edit');
 Route::put('/players/{player}', [PlayerController::class, 'update'])->name('players.update');
+Route::delete('/players/{player}', [PlayerController::class, 'destroy'])->name('players.destroy');
 Route::post('/players/update-utr', [PlayerController::class, 'updateUtrRatings'])->name('players.updateUtr');
 Route::post('/players/fetch-missing-utr-ids', [PlayerController::class, 'fetchMissingUtrIds'])->name('players.fetchMissingUtrIds');
 Route::get('/players/utr-search-progress', [PlayerController::class, 'getUtrSearchProgress'])->name('players.utrSearchProgress');
@@ -32,5 +33,9 @@ Route::post('/teams/create-from-usta', [TeamController::class, 'createFromUstaLi
 Route::get('/teams/usta-creation-progress', [TeamController::class, 'getUstaCreationProgress'])->name('teams.ustaCreationProgress');
 Route::post('/teams/create-from-tennis-record', [TeamController::class, 'createFromTennisRecordLink'])->name('teams.createFromTennisRecord');
 Route::get('/teams/tennis-record-creation-progress', [TeamController::class, 'getTennisRecordCreationProgress'])->name('teams.tennisRecordCreationProgress');
+Route::post('/teams/{team}/sync-from-tennis-record', [TeamController::class, 'syncFromTennisRecord'])->name('teams.syncFromTennisRecord');
+Route::get('/teams/tennis-record-sync-progress', [TeamController::class, 'getTennisRecordSyncProgress'])->name('teams.tennisRecordSyncProgress');
 Route::resource('configurations', ConfigurationController::class);
 Route::resource('leagues', LeagueController::class);
+Route::post('/leagues/{league}/add-teams', [LeagueController::class, 'addTeams'])->name('leagues.addTeams');
+Route::delete('/leagues/{league}/remove-team/{team}', [LeagueController::class, 'removeTeam'])->name('leagues.removeTeam');
