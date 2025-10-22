@@ -119,6 +119,15 @@
         </div>
     @endif
 
+    @if($team->league)
+        <div class="max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-3">Leagues</h3>
+            <a href="{{ route('leagues.show', $team->league->id) }}" class="block p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                <div class="font-medium text-gray-800">{{ $team->league->name }}</div>
+            </a>
+        </div>
+    @endif
+
     <div class="mb-4 flex justify-between items-center">
         <div class="text-sm text-gray-600">
             <strong>{{ $team->players->count() }}</strong> players on this team

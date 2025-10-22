@@ -54,7 +54,7 @@ class TeamController extends Controller
         $sortField = $request->get('sort', 'utr_singles_rating');
         $sortDirection = $request->get('direction', 'desc');
 
-        $team->load('players');
+        $team->load('players', 'league');
 
         // Get players not on this team for the add player functionality
         $availablePlayers = Player::whereNotIn('id', $team->players->pluck('id'))
@@ -70,6 +70,7 @@ class TeamController extends Controller
      */
     public function edit(Team $team)
     {
+        $team->load('league');
         return view('teams.edit', compact('team'));
     }
 

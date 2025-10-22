@@ -51,5 +51,14 @@
             </div>
         </form>
     </div>
+
+    @if($team->league)
+        <div class="max-w-lg mx-auto mt-6 bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-3">League</h3>
+            <a href="{{ route('leagues.show', $team->league->id) }}" class="block p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                <div class="font-medium text-gray-800">{{ $team->league->name }}</div>
+            </a>
+        </div>
+    @endif
 </div>
 @endsection
