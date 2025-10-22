@@ -279,14 +279,6 @@
                             </a>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('teams.show', ['team' => $team->id, 'sort' => 'USTA_rating', 'direction' => ($sortField === 'USTA_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
-                                USTA Rating (NTRP)
-                                @if($sortField === 'USTA_rating')
-                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                                @endif
-                            </a>
-                        </th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <a href="{{ route('teams.show', ['team' => $team->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField === 'USTA_dynamic_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
                                 USTA Dynamic Rating
                                 @if($sortField === 'USTA_dynamic_rating')
@@ -305,7 +297,6 @@
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_doubles_rating }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_rating }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_dynamic_rating }}</td>
                             <td class="px-4 py-2 text-sm text-center">
                                 @if($player->utr_id)
