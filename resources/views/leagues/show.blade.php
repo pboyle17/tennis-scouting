@@ -23,6 +23,16 @@
         <button id="toggleAddTeams" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
             + Add Teams
         </button>
+        @if($league->usta_link)
+            <a href="{{ $league->usta_link }}" target="_blank" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded">
+                🔗 USTA Link
+            </a>
+        @endif
+        @if($league->tennis_record_link)
+            <a href="{{ $league->tennis_record_link }}" target="_blank" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded">
+                🔗 Tennis Record
+            </a>
+        @endif
         <a href="{{ route('leagues.edit', $league->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
             Edit League
         </a>

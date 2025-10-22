@@ -6,6 +6,16 @@
 <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Edit League</h1>
 
+    @if ($errors->any())
+        <div class="max-w-lg mx-auto mb-4 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+            <ul>
+                @foreach ($errors->all() as $error)
+                    <li>{{ $error }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     <div class="max-w-lg mx-auto bg-white p-6 rounded-lg shadow">
         <form action="{{ route('leagues.update', $league->id) }}" method="POST">
             @csrf
