@@ -100,8 +100,6 @@ class TennisRecordScrapingService
      */
     private function extractPlayers($html)
     {
-        Log::info("=== extractPlayers method called ===");
-
         $players = [];
 
         try {
@@ -110,8 +108,6 @@ class TennisRecordScrapingService
             // Find the main roster table (looking for table with player links)
             $tables = $crawler->filter('table');
             $tableCount = $tables->count();
-
-            Log::info("Found tables", ['count' => $tableCount]);
 
             foreach ($tables as $table) {
                 $tableCrawler = new Crawler($table);
@@ -188,8 +184,6 @@ class TennisRecordScrapingService
                         }
 
                         $players[] = $playerData;
-
-                        Log::info("Extracted player", $playerData);
                     }
                 });
 
