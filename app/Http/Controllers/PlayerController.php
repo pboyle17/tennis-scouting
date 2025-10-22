@@ -20,7 +20,7 @@ class PlayerController extends Controller
       $sortField = $request->get('sort', 'utr_singles_rating');
       $sortDirection = $request->get('direction', 'desc');
 
-      $players = Player::orderBy($sortField, $sortDirection)->get();
+      $players = Player::with('teams')->orderBy($sortField, $sortDirection)->get();
 
       return view('players.index', compact('players', 'sortField', 'sortDirection'));
     }

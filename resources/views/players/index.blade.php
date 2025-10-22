@@ -77,12 +77,8 @@
                         UTR Doubles Rating
                       </a>
                     </th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                      <a href="{{ route('players.index', ['sort' => 'USTA_rating', 'direction' => ($sortField == 'USTA_rating' && $sortDirection == 'asc') ? 'desc' : 'asc']) }}">
-                        USTA Rating
-                      </a>
-                    </th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase"></th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Teams</th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR Profile</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -93,7 +89,15 @@
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_id }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_doubles_rating }}</td>
-                        <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_rating }}</td>
+                        <td class="px-4 py-2 text-sm text-center">
+                            @if($player->teams->count() > 0)
+                                <span onclick="toggleTeams({{ $player->id }}); event.stopPropagation();" class="cursor-pointer hover:opacity-70 transition">
+                                    👥 {{ $player->teams->count() }}
+                                </span>
+                            @else
+                                <span class="text-gray-400 text-xs">-</span>
+                            @endif
+                        </td>
                         <td class="px-4 py-2 text-sm text-center">
                             <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
                                 <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
@@ -107,12 +111,51 @@
                             </div>
                         </td>
                     </tr>
+                    @if($player->teams->count() > 0)
+                        <tr id="teams-{{ $player->id }}" class="teams-row hidden bg-gray-50">
+                            <td colspan="7" class="px-4 py-3">
+                                <div class="text-sm font-semibold text-gray-700 mb-2">Teams:</div>
+                                <div class="space-y-1">
+                                    @foreach($player->teams as $team)
+                                        <a href="{{ route('teams.show', $team->id) }}" class="block p-2 bg-white hover:bg-gray-100 rounded border border-gray-200 transition text-sm text-blue-600 hover:underline" onclick="event.stopPropagation();">
+                                            {{ $team->name }}
+                                        </a>
+                                    @endforeach
+                                </div>
+                            </td>
+                        </tr>
+                    @endif
                 @endforeach
             </tbody>
         </table>
     </div>
 </div>
 <script>
+    // Toggle teams slide-down
+    let currentOpenTeamRow = null;
+
+    function toggleTeams(playerId) {
+        const teamsRow = document.getElementById('teams-' + playerId);
+
+        if (!teamsRow) return; // No teams for this player
+
+        // If clicking the same row that's already open, close it
+        if (currentOpenTeamRow === teamsRow && !teamsRow.classList.contains('hidden')) {
+            teamsRow.classList.add('hidden');
+            currentOpenTeamRow = null;
+            return;
+        }
+
+        // Close any currently open team row
+        if (currentOpenTeamRow && currentOpenTeamRow !== teamsRow) {
+            currentOpenTeamRow.classList.add('hidden');
+        }
+
+        // Toggle the clicked row
+        teamsRow.classList.toggle('hidden');
+        currentOpenTeamRow = teamsRow.classList.contains('hidden') ? null : teamsRow;
+    }
+
     (function () {
     const input = document.getElementById('playerSearch');
     const clearBtn = document.getElementById('clearSearch');
