@@ -134,10 +134,27 @@
 
     <!-- Players Table -->
     @if($players->count() > 0)
-        <div class="mb-4">
-            <h2 class="text-2xl font-bold text-gray-800">All Players in League</h2>
-            <div class="text-sm text-gray-600 mt-1">
-                <strong>{{ $players->count() }}</strong> {{ $players->count() === 1 ? 'player' : 'players' }} across {{ $league->teams->count() }} {{ $league->teams->count() === 1 ? 'team' : 'teams' }}
+        <div class="mb-4 flex justify-between items-center">
+            <div>
+                <h2 class="text-2xl font-bold text-gray-800">All Players in League</h2>
+                <div class="text-sm text-gray-600 mt-1">
+                    <strong>{{ $players->count() }}</strong> {{ $players->count() === 1 ? 'player' : 'players' }} across {{ $league->teams->count() }} {{ $league->teams->count() === 1 ? 'team' : 'teams' }}
+                </div>
+            </div>
+            <div class="flex items-center space-x-2">
+                <input
+                    id="playerSearch"
+                    type="text"
+                    placeholder="Search by name or team…"
+                    class="border rounded px-3 py-2 w-64"
+                />
+                <button
+                    id="clearSearch"
+                    type="button"
+                    class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-3 rounded"
+                >
+                    ✖ Clear
+                </button>
             </div>
         </div>
 
@@ -202,7 +219,7 @@
                         $rank = 1;
                     @endphp
                     @foreach ($sortDirection === 'asc' ? $players->sortBy($sortField) : $players->sortByDesc($sortField) as $player)
-                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer">
+                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}">
                             <td class="px-4 py-2 text-sm text-gray-700 font-semibold">{{ $rank++ }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
@@ -314,5 +331,38 @@
 
     // Initialize count
     updateSelectedCount();
+
+    // Player search functionality
+    (function () {
+        const input = document.getElementById('playerSearch');
+        const clearBtn = document.getElementById('clearSearch');
+        const rows = Array.from(document.querySelectorAll('tbody tr[data-name]'));
+        let t;
+
+        function applyFilter(term) {
+            const q = term.trim().toLowerCase();
+
+            rows.forEach(row => {
+                const name = row.getAttribute('data-name') || '';
+                const show = !q || name.includes(q);
+                row.style.display = show ? '' : 'none';
+            });
+
+            // Show clear button only when there's an active filter
+            clearBtn.classList.toggle('hidden', q.length === 0);
+        }
+
+        function debouncedFilter() {
+            clearTimeout(t);
+            t = setTimeout(() => applyFilter(input.value), 150);
+        }
+
+        input.addEventListener('input', debouncedFilter);
+        clearBtn.addEventListener('click', () => {
+            input.value = '';
+            applyFilter('');
+            input.focus();
+        });
+    })();
 </script>
 @endsection

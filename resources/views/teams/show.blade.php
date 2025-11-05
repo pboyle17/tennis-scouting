@@ -242,8 +242,24 @@
     @endif
 
     @if($team->players->count() > 0)
+        <div class="mb-4 flex items-center space-x-2">
+            <input
+                id="playerTableSearch"
+                type="text"
+                placeholder="Search by name…"
+                class="border rounded px-3 py-2 w-64"
+            />
+            <button
+                id="clearPlayerTableSearch"
+                type="button"
+                class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-3 rounded"
+            >
+                ✖ Clear
+            </button>
+        </div>
+
         <div class="overflow-x-auto bg-white rounded-lg shadow">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table id="playersTable" class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
@@ -292,7 +308,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @foreach ($sortDirection === 'asc' ? $team->players->sortBy($sortField) : $team->players->sortByDesc($sortField) as $player)
-                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('teams.show', $team->id)) }}'" class="hover:bg-gray-50 cursor-pointer">
+                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('teams.show', $team->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}">
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating }}</td>
@@ -418,6 +434,43 @@
             // Initialize UI
             updateUI();
         }
+
+        // Player table search functionality
+        (function () {
+            const input = document.getElementById('playerTableSearch');
+            const clearBtn = document.getElementById('clearPlayerTableSearch');
+            const playersTable = document.getElementById('playersTable');
+
+            if (!input || !clearBtn || !playersTable) return;
+
+            const rows = Array.from(playersTable.querySelectorAll('tbody tr[data-name]'));
+            let t;
+
+            function applyFilter(term) {
+                const q = term.trim().toLowerCase();
+
+                rows.forEach(row => {
+                    const name = row.getAttribute('data-name') || '';
+                    const show = !q || name.includes(q);
+                    row.style.display = show ? '' : 'none';
+                });
+
+                // Show clear button only when there's an active filter
+                clearBtn.classList.toggle('hidden', q.length === 0);
+            }
+
+            function debouncedFilter() {
+                clearTimeout(t);
+                t = setTimeout(() => applyFilter(input.value), 150);
+            }
+
+            input.addEventListener('input', debouncedFilter);
+            clearBtn.addEventListener('click', () => {
+                input.value = '';
+                applyFilter('');
+                input.focus();
+            });
+        })();
 
         // Handle AJAX form submissions for UTR selection
         const utrForms = document.querySelectorAll('.utr-selection-form');
