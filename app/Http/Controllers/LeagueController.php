@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\League;
 use App\Models\Team;
+use App\Models\Player;
 
 class LeagueController extends Controller
 {
@@ -249,5 +250,124 @@ class LeagueController extends Controller
         }
 
         return response()->json($progress);
+    }
+
+    /**
+     * Find missing UTR IDs for players on a specific team in the league
+     */
+    public function findMissingUtrIdsForTeam(League $league, Team $team)
+    {
+        // Verify the team belongs to the league
+        if ($team->league_id !== $league->id) {
+            return back()->with('error', 'This team does not belong to this league.');
+        }
+
+        $team->load('players');
+
+        // Get players without UTR IDs
+        $playersWithoutUtrIds = $team->players()
+                                     ->whereNull('utr_id')
+                                     ->get();
+
+        if ($playersWithoutUtrIds->isEmpty()) {
+            return back()->with('status', "All players on {$team->name} already have UTR IDs!");
+        }
+
+        // Search for UTR profiles for each player
+        $utrService = app(\App\Services\UtrService::class);
+        $searchResults = [];
+
+        foreach ($playersWithoutUtrIds as $player) {
+            try {
+                $playerName = $player->first_name . ' ' . $player->last_name;
+                $results = $utrService->searchPlayers($playerName, 10);
+
+                // Handle nested structure
+                $hits = $results['players']['hits'] ?? $results['hits'] ?? [];
+
+                if (!empty($hits)) {
+                    // Check if there's exactly one result with matching names - auto-save it
+                    if (count($hits) === 1) {
+                        $source = $hits[0]['source'] ?? [];
+                        $firstName = strtolower(trim($source['firstName'] ?? ''));
+                        $lastName = strtolower(trim($source['lastName'] ?? ''));
+                        $playerFirstName = strtolower(trim($player->first_name));
+                        $playerLastName = strtolower(trim($player->last_name));
+
+                        if ($firstName === $playerFirstName && $lastName === $playerLastName) {
+                            // Auto-save the UTR data
+                            $player->utr_id = $source['id'] ?? null;
+                            $player->utr_singles_rating = $source['singlesUtr'] ?? null;
+                            $player->utr_doubles_rating = $source['doublesUtr'] ?? null;
+                            $player->save();
+
+                            \Illuminate\Support\Facades\Log::info("Auto-selected and saved UTR data for {$playerName}", [
+                                'player_id' => $player->id,
+                                'utr_id' => $player->utr_id,
+                                'singles' => $player->utr_singles_rating,
+                                'doubles' => $player->utr_doubles_rating
+                            ]);
+                        }
+                    }
+
+                    // Still add to search results to show in UI
+                    $searchResults[] = [
+                        'player' => [
+                            'id' => $player->id,
+                            'first_name' => $player->first_name,
+                            'last_name' => $player->last_name,
+                            'team_name' => $team->name,
+                            'team_id' => $team->id
+                        ],
+                        'results' => $hits
+                    ];
+                }
+
+                \Illuminate\Support\Facades\Log::info("UTR Search for team player: {$playerName}", [
+                    'player_id' => $player->id,
+                    'team_id' => $team->id,
+                    'team_name' => $team->name,
+                    'league_id' => $league->id,
+                    'results_count' => count($hits)
+                ]);
+
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error("UTR search failed for player {$player->id}: " . $e->getMessage());
+            }
+        }
+
+        return back()->with([
+            'utr_search_results' => $searchResults,
+            'status' => 'Found ' . count($searchResults) . ' player(s) from ' . $team->name . ' with potential UTR matches. Review and select the correct profiles below.'
+        ]);
+    }
+
+    /**
+     * Set UTR data for a player from league search
+     */
+    public function setPlayerUtrData(Request $request, League $league, Player $player)
+    {
+        $request->validate([
+            'utr_id' => 'required|integer',
+            'singles_utr' => 'nullable|numeric',
+            'doubles_utr' => 'nullable|numeric'
+        ]);
+
+        $player->utr_id = $request->utr_id;
+        $player->utr_singles_rating = $request->singles_utr;
+        $player->utr_doubles_rating = $request->doubles_utr;
+        $player->save();
+
+        // Return JSON for AJAX requests
+        if ($request->expectsJson() || $request->ajax()) {
+            return response()->json([
+                'success' => true,
+                'message' => "UTR data saved for {$player->first_name} {$player->last_name}!",
+                'player_id' => $player->id,
+                'player_name' => "{$player->first_name} {$player->last_name}"
+            ]);
+        }
+
+        return back()->with('success', "UTR data saved for {$player->first_name} {$player->last_name}!");
     }
 }
