@@ -1,0 +1,72 @@
+{
+  "name": "Tennis Scouting App",
+  "description": "A Laravel application for scouting tennis players and managing tournaments",
+  "repository": "https://github.com/yourusername/tennis-scouting",
+  "keywords": ["laravel", "php", "tennis", "scouting", "tournaments", "utr"],
+  "success_url": "/",
+  "env": {
+    "APP_NAME": {
+      "description": "The name of your application",
+      "value": "Tennis Scouting"
+    },
+    "APP_ENV": {
+      "description": "The application environment",
+      "value": "production"
+    },
+    "APP_DEBUG": {
+      "description": "Enable debug mode (set to false for production)",
+      "value": "false"
+    },
+    "APP_KEY": {
+      "description": "Application encryption key (will be generated automatically)",
+      "generator": "secret"
+    },
+    "QUEUE_CONNECTION": {
+      "description": "Queue driver",
+      "value": "database"
+    },
+    "SESSION_DRIVER": {
+      "description": "Session storage driver",
+      "value": "database"
+    },
+    "CACHE_DRIVER": {
+      "description": "Cache storage driver",
+      "value": "database"
+    },
+    "LOG_CHANNEL": {
+      "description": "Log channel",
+      "value": "errorlog"
+    },
+    "LOG_LEVEL": {
+      "description": "Minimum log level",
+      "value": "error"
+    },
+    "UTR_API_KEY": {
+      "description": "UTR API Key for fetching player ratings (optional)",
+      "required": false
+    }
+  },
+  "formation": {
+    "web": {
+      "quantity": 1,
+      "size": "eco"
+    },
+    "worker": {
+      "quantity": 1,
+      "size": "eco"
+    }
+  },
+  "addons": [
+    {
+      "plan": "heroku-postgresql:essential-0"
+    }
+  ],
+  "buildpacks": [
+    {
+      "url": "heroku/nodejs"
+    },
+    {
+      "url": "heroku/php"
+    }
+  ]
+}
