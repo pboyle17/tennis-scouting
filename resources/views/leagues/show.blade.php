@@ -8,14 +8,20 @@
     @include('partials.tabs')
 
     @if(session('success'))
-        <div class="bg-green-100 text-green-700 p-2 rounded mb-4">
-            {{ session('success') }}
+        <div class="bg-green-100 text-green-700 p-4 rounded mb-4 font-semibold">
+            ✓ {{ session('success') }}
+        </div>
+    @endif
+
+    @if(session('status'))
+        <div class="bg-blue-100 text-blue-700 p-4 rounded mb-4 font-semibold">
+            ℹ {{ session('status') }}
         </div>
     @endif
 
     @if(session('error'))
-        <div class="bg-red-100 text-red-700 p-2 rounded mb-4">
-            {{ session('error') }}
+        <div class="bg-red-100 text-red-700 p-4 rounded mb-4 font-semibold">
+            ✖ {{ session('error') }}
         </div>
     @endif
 
@@ -134,14 +140,34 @@
 
     <!-- Players Table -->
     @if($players->count() > 0)
+        @php
+            $playersWithUtr = $players->filter(fn($p) => $p->utr_id !== null)->count();
+        @endphp
         <div class="mb-4 flex justify-between items-center">
             <div>
                 <h2 class="text-2xl font-bold text-gray-800">All Players in League</h2>
                 <div class="text-sm text-gray-600 mt-1">
                     <strong>{{ $players->count() }}</strong> {{ $players->count() === 1 ? 'player' : 'players' }} across {{ $league->teams->count() }} {{ $league->teams->count() === 1 ? 'team' : 'teams' }}
+                    @if($playersWithUtr > 0)
+                        | <strong>{{ $playersWithUtr }}</strong> with UTR IDs
+                    @else
+                        | <span class="text-orange-600 font-semibold">No players with UTR IDs</span>
+                    @endif
                 </div>
             </div>
             <div class="flex items-center space-x-2">
+                @if($playersWithUtr > 0)
+                    <form method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;" onsubmit="return confirm('This will update UTR ratings for {{ $playersWithUtr }} player(s) across all teams in this league.\n\nThis may take a few minutes to complete. Continue?');">
+                        @csrf
+                        <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded" title="Update UTR ratings for all {{ $playersWithUtr }} players with UTR IDs in this league">
+                            🔄 Update All UTRs ({{ $playersWithUtr }})
+                        </button>
+                    </form>
+                @else
+                    <button type="button" disabled class="bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed" title="No players with UTR IDs found in this league">
+                        🔄 Update All UTRs (0)
+                    </button>
+                @endif
                 <input
                     id="playerSearch"
                     type="text"

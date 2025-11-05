@@ -167,4 +167,43 @@ class LeagueController extends Controller
 
         return back()->with('success', $team->name . ' has been removed from the league.');
     }
+
+    /**
+     * Update UTR ratings for all players in the league
+     */
+    public function updateUtr(League $league)
+    {
+        $league->load('teams.players');
+
+        // Get UTR IDs for all players in all teams in the league who have a UTR ID
+        $utrIds = [];
+        $teamCount = $league->teams->count();
+
+        foreach ($league->teams as $team) {
+            $teamUtrIds = $team->players()
+                               ->whereNotNull('utr_id')
+                               ->pluck('utr_id')
+                               ->toArray();
+            $utrIds = array_merge($utrIds, $teamUtrIds);
+        }
+
+        // Remove duplicates
+        $utrIds = array_unique($utrIds);
+
+        if (empty($utrIds)) {
+            return back()->with('error', 'No players with UTR IDs found in this league. Please add UTR IDs to players first.');
+        }
+
+        // Dispatch job to update UTRs for all players in the league
+        $jobKey = 'utr_update_' . uniqid();
+        \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, $jobKey);
+
+        $playerCount = count($utrIds);
+        $teamText = $teamCount === 1 ? '1 team' : "{$teamCount} teams";
+        $playerText = $playerCount === 1 ? '1 player' : "{$playerCount} players";
+
+        $message = "🔄 UTR update started! Updating ratings for {$playerText} across {$teamText} in \"{$league->name}\". This may take a few minutes.";
+
+        return back()->with('status', $message);
+    }
 }

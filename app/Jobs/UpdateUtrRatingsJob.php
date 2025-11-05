@@ -14,6 +14,20 @@ class UpdateUtrRatingsJob implements ShouldQueue
 {
     use Queueable;
 
+    /**
+     * The number of seconds the job can run before timing out.
+     *
+     * @var int
+     */
+    public $timeout = 1800; // 30 minutes
+
+    /**
+     * The number of times the job may be attempted.
+     *
+     * @var int
+     */
+    public $tries = 3;
+
     protected $playerIds;
     protected $jobKey;
 

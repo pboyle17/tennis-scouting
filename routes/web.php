@@ -39,3 +39,4 @@ Route::resource('configurations', ConfigurationController::class);
 Route::resource('leagues', LeagueController::class);
 Route::post('/leagues/{league}/add-teams', [LeagueController::class, 'addTeams'])->name('leagues.addTeams');
 Route::delete('/leagues/{league}/remove-team/{team}', [LeagueController::class, 'removeTeam'])->name('leagues.removeTeam');
+Route::post('/leagues/{league}/update-utr', [LeagueController::class, 'updateUtr'])->name('leagues.updateUtr');
