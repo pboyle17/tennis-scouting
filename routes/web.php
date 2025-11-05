@@ -5,6 +5,7 @@ use App\Http\Controllers\PlayerController;
 use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\LeagueController;
 use App\Http\Controllers\TeamController;
+use App\Http\Controllers\TournamentController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -40,3 +41,8 @@ Route::resource('leagues', LeagueController::class);
 Route::post('/leagues/{league}/add-teams', [LeagueController::class, 'addTeams'])->name('leagues.addTeams');
 Route::delete('/leagues/{league}/remove-team/{team}', [LeagueController::class, 'removeTeam'])->name('leagues.removeTeam');
 Route::post('/leagues/{league}/update-utr', [LeagueController::class, 'updateUtr'])->name('leagues.updateUtr');
+
+Route::resource('tournaments', TournamentController::class);
+Route::post('/tournaments/{tournament}/add-player', [TournamentController::class, 'addPlayer'])->name('tournaments.addPlayer');
+Route::delete('/tournaments/{tournament}/remove-player/{player}', [TournamentController::class, 'removePlayer'])->name('tournaments.removePlayer');
+Route::post('/tournaments/create-from-usta', [TournamentController::class, 'createFromUstaLink'])->name('tournaments.createFromUstaLink');
