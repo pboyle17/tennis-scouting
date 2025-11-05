@@ -206,4 +206,48 @@ class LeagueController extends Controller
 
         return back()->with('status', $message);
     }
+
+    /**
+     * Create teams from Tennis Record league link
+     */
+    public function createTeamsFromLeague(League $league)
+    {
+        if (!$league->tennis_record_link) {
+            return back()->with('error', 'This league does not have a Tennis Record link.');
+        }
+
+        // Check if a job is already running for this league
+        if (\Illuminate\Support\Facades\Cache::has('tennis_record_league_creation_running_' . $league->id)) {
+            return back()->with('error', '⏳ Team creation from league is already in progress. Please wait for it to complete.');
+        }
+
+        // Mark job as running
+        \Illuminate\Support\Facades\Cache::put('tennis_record_league_creation_running_' . $league->id, true, 1800); // 30 minutes
+
+        $jobKey = 'tennis_record_league_' . uniqid();
+        \App\Jobs\CreateTeamsFromTennisRecordLeagueJob::dispatch($league->id, $jobKey);
+
+        return back()->with([
+            'status' => '🚀 Creating teams from Tennis Record league... This may take several minutes.',
+            'tennis_record_league_job_key' => $jobKey
+        ]);
+    }
+
+    /**
+     * Get Tennis Record league team creation progress
+     */
+    public function getLeagueCreationProgress(Request $request)
+    {
+        $jobKey = $request->get('job_key');
+        if (!$jobKey) {
+            return response()->json(['error' => 'Job key required'], 400);
+        }
+
+        $progress = \Illuminate\Support\Facades\Cache::get("tennis_record_league_creation_progress_{$jobKey}");
+        if (!$progress) {
+            return response()->json(['error' => 'Job not found'], 404);
+        }
+
+        return response()->json($progress);
+    }
 }

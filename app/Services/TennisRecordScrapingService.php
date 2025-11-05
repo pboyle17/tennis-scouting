@@ -253,4 +253,85 @@ class TennisRecordScrapingService
         // Keep original capitalization from Tennis Record
         return $name;
     }
+
+    /**
+     * Scrape league data to get all team links
+     */
+    public function scrapeLeagueTeams($tennisRecordLeagueLink)
+    {
+        try {
+            Log::info("Starting to scrape Tennis Record league link: {$tennisRecordLeagueLink}");
+
+            // Make request to Tennis Record league page
+            $response = Http::withHeaders([
+                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            ])
+            ->timeout(120)
+            ->connectTimeout(30)
+            ->get($tennisRecordLeagueLink);
+
+            if (!$response->successful()) {
+                throw new \Exception("Failed to fetch Tennis Record league page. Status: {$response->status()}");
+            }
+
+            $html = $response->body();
+
+            // Parse the HTML to extract team links
+            $teams = $this->extractTeamLinksFromLeague($html);
+
+            Log::info("Scraped Tennis Record league data", [
+                'team_count' => count($teams),
+                'teams' => $teams
+            ]);
+
+            return $teams;
+        } catch (\Exception $e) {
+            Log::error("Tennis Record league scraping failed: " . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Extract team links from league HTML
+     */
+    private function extractTeamLinksFromLeague($html)
+    {
+        $teams = [];
+
+        try {
+            $crawler = new Crawler($html);
+
+            // Find all team profile links
+            $teamLinks = $crawler->filter('a.link[href*="teamprofile.aspx"]');
+
+            $teamLinks->each(function (Crawler $link) use (&$teams) {
+                $teamName = trim($link->text());
+                $href = $link->attr('href');
+
+                // Build full URL if needed
+                if (!str_starts_with($href, 'http')) {
+                    $href = 'https://www.tennisrecord.com' . (str_starts_with($href, '/') ? '' : '/') . $href;
+                }
+
+                // Avoid duplicates
+                $key = strtolower($teamName);
+                if (!isset($teams[$key]) && $teamName && strlen($teamName) > 3) {
+                    $teams[$key] = [
+                        'name' => $teamName,
+                        'link' => $href
+                    ];
+                }
+            });
+
+            Log::info("Extracted team links from league", [
+                'count' => count($teams)
+            ]);
+
+        } catch (\Exception $e) {
+            Log::error("Error extracting team links from league: " . $e->getMessage());
+            throw $e;
+        }
+
+        return array_values($teams);
+    }
 }

@@ -41,6 +41,8 @@ Route::resource('leagues', LeagueController::class);
 Route::post('/leagues/{league}/add-teams', [LeagueController::class, 'addTeams'])->name('leagues.addTeams');
 Route::delete('/leagues/{league}/remove-team/{team}', [LeagueController::class, 'removeTeam'])->name('leagues.removeTeam');
 Route::post('/leagues/{league}/update-utr', [LeagueController::class, 'updateUtr'])->name('leagues.updateUtr');
+Route::post('/leagues/{league}/create-teams-from-league', [LeagueController::class, 'createTeamsFromLeague'])->name('leagues.createTeamsFromLeague');
+Route::get('/leagues/league-creation-progress', [LeagueController::class, 'getLeagueCreationProgress'])->name('leagues.leagueCreationProgress');
 
 Route::resource('tournaments', TournamentController::class);
 Route::post('/tournaments/{tournament}/add-player', [TournamentController::class, 'addPlayer'])->name('tournaments.addPlayer');

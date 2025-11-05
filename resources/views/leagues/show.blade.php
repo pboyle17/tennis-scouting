@@ -25,6 +25,21 @@
         </div>
     @endif
 
+    <!-- Tennis Record League Creation Progress -->
+    <div id="leagueProgressContainer" class="hidden mb-4 bg-purple-50 border border-purple-200 rounded-lg p-4">
+        <div class="flex items-center mb-2">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600 mr-2"></div>
+            <span class="text-sm font-medium text-purple-800" id="leagueProgressTitle">Creating teams from Tennis Record league...</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+            <div id="leagueProgressBar" class="bg-purple-600 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div class="text-xs text-gray-600">
+            <div id="leagueProgressMessage">Starting...</div>
+            <div id="leagueProgressDetails" class="mt-1 text-gray-500"></div>
+        </div>
+    </div>
+
     <div class="flex justify-end mb-4 space-x-2">
         <button id="toggleAddTeams" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
             + Add Teams
@@ -38,6 +53,12 @@
             <a href="{{ $league->tennis_record_link }}" target="_blank" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded">
                 🔗 Tennis Record
             </a>
+            <form method="POST" action="{{ route('leagues.createTeamsFromLeague', $league->id) }}" style="display:inline;" onsubmit="return confirm('This will scrape all teams from the Tennis Record league page and create them if they don\'t exist.\n\nThis may take several minutes. Continue?');">
+                @csrf
+                <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
+                    🎾 Import League Teams
+                </button>
+            </form>
         @endif
         <a href="{{ route('leagues.edit', $league->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
             Edit League
@@ -389,6 +410,86 @@
             applyFilter('');
             input.focus();
         });
+    })();
+
+    // Tennis Record League Creation Progress tracking
+    (function() {
+        const progressContainer = document.getElementById('leagueProgressContainer');
+        const progressBar = document.getElementById('leagueProgressBar');
+        const progressTitle = document.getElementById('leagueProgressTitle');
+        const progressMessage = document.getElementById('leagueProgressMessage');
+        const progressDetails = document.getElementById('leagueProgressDetails');
+        let progressInterval;
+
+        // Check if we have a league job key from the session
+        @if(session('tennis_record_league_job_key'))
+            const leagueJobKey = '{{ session('tennis_record_league_job_key') }}';
+            startLeagueProgressTracking(leagueJobKey);
+        @endif
+
+        function showLeagueProgress() {
+            progressContainer.classList.remove('hidden');
+        }
+
+        function hideLeagueProgress() {
+            progressContainer.classList.add('hidden');
+        }
+
+        function startLeagueProgressTracking(jobKey) {
+            showLeagueProgress();
+
+            progressInterval = setInterval(() => {
+                fetch(`{{ route('leagues.leagueCreationProgress') }}?job_key=${jobKey}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        updateLeagueProgress(data);
+
+                        if (data.status === 'completed') {
+                            clearInterval(progressInterval);
+                            setTimeout(() => {
+                                hideLeagueProgress();
+                                window.location.reload();
+                            }, 3000);
+                        } else if (data.status === 'failed') {
+                            clearInterval(progressInterval);
+                            hideLeagueProgress();
+                            alert('League team creation failed. Please check the URL and try again.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Progress check error:', error);
+                        clearInterval(progressInterval);
+                        hideLeagueProgress();
+                    });
+            }, 2000); // Check every 2 seconds
+        }
+
+        function updateLeagueProgress(data) {
+            progressBar.style.width = data.percentage + '%';
+            progressMessage.textContent = data.message;
+
+            let details = '';
+            if (data.data && data.data.league_name) {
+                details += `League: ${data.data.league_name}`;
+            }
+            if (data.data && data.data.current_team) {
+                details += ` | Current: ${data.data.current_team}`;
+            }
+            if (data.data && data.data.total_teams) {
+                details += ` | Progress: ${data.data.teams_processed || 0}/${data.data.total_teams}`;
+            }
+            if (data.data && data.data.teams_created !== undefined) {
+                details += ` | Created: ${data.data.teams_created}`;
+            }
+            if (data.data && data.data.teams_existing !== undefined) {
+                details += ` | Existing: ${data.data.teams_existing}`;
+            }
+            if (data.data && data.data.current_action) {
+                details += ` | ${data.data.current_action}`;
+            }
+
+            progressDetails.textContent = details;
+        }
     })();
 </script>
 @endsection
