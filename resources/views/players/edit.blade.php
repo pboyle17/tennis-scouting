@@ -52,20 +52,32 @@
                                 $location = $source['location']['display'] ?? '';
                                 $singlesUtr = $source['singlesUtr'] ?? 0;
                                 $doublesUtr = $source['doublesUtr'] ?? 0;
+                                $singlesReliability = $source['ratingProgressSingles'] ?? 0;
+                                $doublesReliability = $source['ratingProgressDoubles'] ?? 0;
                                 $utrId = $source['id'] ?? '';
                             @endphp
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-2 text-sm">{{ $firstName }} {{ $lastName }}</td>
                                 <td class="px-4 py-2 text-sm">{{ $location }}</td>
-                                <td class="px-4 py-2 text-sm">{{ number_format($singlesUtr, 2) }}</td>
-                                <td class="px-4 py-2 text-sm">{{ number_format($doublesUtr, 2) }}</td>
+                                <td class="px-4 py-2 text-sm">
+                                    {{ number_format($singlesUtr, 2) }}
+                                    @if($singlesReliability == 100)
+                                        <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-sm">
+                                    {{ number_format($doublesUtr, 2) }}
+                                    @if($doublesReliability == 100)
+                                        <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                    @endif
+                                </td>
                                 <td class="px-4 py-2 text-sm">
                                     <a href="https://app.utrsports.net/profiles/{{ $utrId }}" target="_blank" class="text-blue-600 hover:underline">
                                         {{ $utrId }}
                                     </a>
                                 </td>
                                 <td class="px-4 py-2 text-sm">
-                                    <button onclick="setUtrData({{ $utrId }}, {{ $singlesUtr }}, {{ $doublesUtr }})" class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded">
+                                    <button onclick="setUtrData({{ $utrId }}, {{ $singlesUtr }}, {{ $doublesUtr }}, {{ $singlesReliability }}, {{ $doublesReliability }})" class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded">
                                         Use This
                                     </button>
                                 </td>
@@ -121,12 +133,46 @@
 
         <div class="mb-4">
             <label class="block mb-1" for="utr_singles_rating">UTR Singles Rating</label>
-            <input type="number" step=".01" name="utr_singles_rating" id="utr_singles_rating" value="{{ old('utr_singles_rating', $player->utr_singles_rating) }}" class="w-full border rounded p-2">
+            <div class="flex items-center space-x-2">
+                <input type="number" step=".01" name="utr_singles_rating" id="utr_singles_rating" value="{{ old('utr_singles_rating', $player->utr_singles_rating) }}" class="flex-1 border rounded p-2">
+                @if($player->utr_singles_reliable)
+                    <span class="flex items-center text-green-600 font-semibold text-sm" title="100% Reliable Rating">
+                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        Verified
+                    </span>
+                @elseif($player->utr_singles_rating)
+                    <span class="flex items-center text-yellow-600 font-semibold text-sm" title="Rating reliability less than 100%">
+                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                        Unverified
+                    </span>
+                @endif
+            </div>
         </div>
 
         <div class="mb-4">
             <label class="block mb-1" for="utr_doubles_rating">UTR Doubles Rating</label>
-            <input type="number" step=".01" name="utr_doubles_rating" id="utr_doubles_rating" value="{{ old('utr_doubles_rating', $player->utr_doubles_rating) }}" class="w-full border rounded p-2">
+            <div class="flex items-center space-x-2">
+                <input type="number" step=".01" name="utr_doubles_rating" id="utr_doubles_rating" value="{{ old('utr_doubles_rating', $player->utr_doubles_rating) }}" class="flex-1 border rounded p-2">
+                @if($player->utr_doubles_reliable)
+                    <span class="flex items-center text-green-600 font-semibold text-sm" title="100% Reliable Rating">
+                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+                        </svg>
+                        Verified
+                    </span>
+                @elseif($player->utr_doubles_rating)
+                    <span class="flex items-center text-yellow-600 font-semibold text-sm" title="Rating reliability less than 100%">
+                        <svg class="w-5 h-5 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"/>
+                        </svg>
+                        Unverified
+                    </span>
+                @endif
+            </div>
         </div>
 
         <div class="mb-4">
@@ -166,7 +212,7 @@
 </div>
 
 <script>
-    function setUtrData(utrId, singlesUtr, doublesUtr) {
+    function setUtrData(utrId, singlesUtr, doublesUtr, singlesReliability = 0, doublesReliability = 0) {
         // Set UTR ID
         document.getElementById('utr_id').value = utrId;
 
@@ -186,6 +232,29 @@
             field.classList.add('ring-2', 'ring-green-500');
             field.focus();
         });
+
+        // Show a message about reliability
+        let reliabilityMessage = '';
+        if (singlesReliability == 100 && doublesReliability == 100) {
+            reliabilityMessage = '✓ Both ratings are 100% verified!';
+        } else if (singlesReliability == 100) {
+            reliabilityMessage = '✓ Singles rating is 100% verified!';
+        } else if (doublesReliability == 100) {
+            reliabilityMessage = '✓ Doubles rating is 100% verified!';
+        } else {
+            reliabilityMessage = 'Note: These ratings are not yet 100% verified';
+        }
+
+        // Display reliability message as a temporary notification
+        const notification = document.createElement('div');
+        notification.className = 'fixed top-4 right-4 bg-blue-100 border border-blue-300 text-blue-800 px-4 py-3 rounded shadow-lg z-50';
+        notification.innerHTML = `<p class="font-semibold">${reliabilityMessage}</p>`;
+        document.body.appendChild(notification);
+
+        // Remove notification after 3 seconds
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
 
         // Remove highlight after 2 seconds
         setTimeout(() => {

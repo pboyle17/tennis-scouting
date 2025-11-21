@@ -52,15 +52,6 @@ class UpdateUtrRatingsJob implements ShouldQueue
             $query->whereIn('utr_id', $this->playerIds);
         }
 
-      // Only include players created > 24h ago AND updated > 24h ago (or never updated)
-        // $cutoff = Carbon::now()->subDay();
-
-        // $query->where('created_at', '<', $cutoff)
-        //       ->where(function ($q) use ($cutoff) {
-        //           $q->whereNull('updated_at')
-        //             ->orWhere('updated_at', '<', $cutoff);
-        //       });
-
       $players = $query->get();
       $total = $players->count();
       $processed = 0;
@@ -81,6 +72,11 @@ class UpdateUtrRatingsJob implements ShouldQueue
             $data = $utrService->fetchUtrRating($player->utr_id);
             $player->utr_singles_rating = $data['singlesUtr'];
             $player->utr_doubles_rating = $data['doublesUtr'];
+
+            // Set reliability flags - only true if reliability is exactly 100
+            $player->utr_singles_reliable = isset($data['ratingProgressSingles']) && $data['ratingProgressSingles'] == 100;
+            $player->utr_doubles_reliable = isset($data['ratingProgressDoubles']) && $data['ratingProgressDoubles'] == 100;
+
             $player->save();
             $updated++;
           } catch (\Exception $e) {

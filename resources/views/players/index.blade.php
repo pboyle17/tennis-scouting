@@ -90,8 +90,26 @@
                     <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}">
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
-                        <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating }}</td>
-                        <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_doubles_rating }}</td>
+                        <td class="px-4 py-2 text-sm text-gray-700">
+                            @if($player->utr_singles_rating)
+                                {{ number_format($player->utr_singles_rating, 2) }}
+                                @if($player->utr_singles_reliable)
+                                    <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                @endif
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-700">
+                            @if($player->utr_doubles_rating)
+                                {{ number_format($player->utr_doubles_rating, 2) }}
+                                @if($player->utr_doubles_reliable)
+                                    <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                @endif
+                            @else
+                                -
+                            @endif
+                        </td>
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_dynamic_rating }}</td>
                         <td class="px-4 py-2 text-sm text-center">
                             @if($player->teams->count() > 0)

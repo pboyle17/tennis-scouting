@@ -71,6 +71,11 @@ class FetchMissingUtrIdsJob implements ShouldQueue
                     $player->utr_id = $bestMatch['id'];
                     $player->utr_singles_rating = $bestMatch['singlesUtr'] ?? null;
                     $player->utr_doubles_rating = $bestMatch['doublesUtr'] ?? null;
+
+                    // Set reliability flags - only true if reliability is exactly 100
+                    $player->utr_singles_reliable = isset($bestMatch['ratingProgressSingles']) && $bestMatch['ratingProgressSingles'] == 100;
+                    $player->utr_doubles_reliable = isset($bestMatch['ratingProgressDoubles']) && $bestMatch['ratingProgressDoubles'] == 100;
+
                     $player->save();
                     $foundCount++;
 

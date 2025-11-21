@@ -8,8 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class Player extends Model
 {
     protected $fillable = [
-      'name', 'utr_id', 'utr_singles_rating', 'utr_doubles_rating', 'first_name', 'last_name', 'USTA_rating',
-      'USTA_dynamic_rating'
+      'name', 'utr_id', 'utr_singles_rating', 'utr_doubles_rating', 'utr_singles_reliable', 'utr_doubles_reliable',
+      'first_name', 'last_name', 'USTA_rating', 'USTA_dynamic_rating'
     ];
 
     public function teams()

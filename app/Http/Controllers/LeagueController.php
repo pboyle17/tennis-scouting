@@ -299,6 +299,11 @@ class LeagueController extends Controller
                             $player->utr_id = $source['id'] ?? null;
                             $player->utr_singles_rating = $source['singlesUtr'] ?? null;
                             $player->utr_doubles_rating = $source['doublesUtr'] ?? null;
+
+                            // Set reliability flags - only true if reliability is exactly 100
+                            $player->utr_singles_reliable = isset($source['ratingProgressSingles']) && $source['ratingProgressSingles'] == 100;
+                            $player->utr_doubles_reliable = isset($source['ratingProgressDoubles']) && $source['ratingProgressDoubles'] == 100;
+
                             $player->save();
 
                             \Illuminate\Support\Facades\Log::info("Auto-selected and saved UTR data for {$playerName}", [
@@ -350,12 +355,19 @@ class LeagueController extends Controller
         $request->validate([
             'utr_id' => 'required|integer',
             'singles_utr' => 'nullable|numeric',
-            'doubles_utr' => 'nullable|numeric'
+            'doubles_utr' => 'nullable|numeric',
+            'singles_reliability' => 'nullable|numeric',
+            'doubles_reliability' => 'nullable|numeric'
         ]);
 
         $player->utr_id = $request->utr_id;
         $player->utr_singles_rating = $request->singles_utr;
         $player->utr_doubles_rating = $request->doubles_utr;
+
+        // Set reliability flags - only true if reliability is exactly 100
+        $player->utr_singles_reliable = $request->singles_reliability == 100;
+        $player->utr_doubles_reliable = $request->doubles_reliability == 100;
+
         $player->save();
 
         // Return JSON for AJAX requests

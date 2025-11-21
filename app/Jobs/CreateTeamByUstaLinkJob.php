@@ -178,6 +178,11 @@ class CreateTeamByUstaLinkJob implements ShouldQueue
                         $data = $utrService->fetchUtrRating($player->utr_id);
                         $player->utr_singles_rating = $data['singlesUtr'];
                         $player->utr_doubles_rating = $data['doublesUtr'];
+
+                        // Set reliability flags - only true if reliability is exactly 100
+                        $player->utr_singles_reliable = isset($data['ratingProgressSingles']) && $data['ratingProgressSingles'] == 100;
+                        $player->utr_doubles_reliable = isset($data['ratingProgressDoubles']) && $data['ratingProgressDoubles'] == 100;
+
                         $player->save();
                         $ratingsUpdated++;
 

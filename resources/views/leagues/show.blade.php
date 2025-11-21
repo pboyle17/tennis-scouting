@@ -79,6 +79,8 @@
                                         $location = $source['location']['display'] ?? '';
                                         $singlesUtr = $source['singlesUtr'] ?? 0;
                                         $doublesUtr = $source['doublesUtr'] ?? 0;
+                                        $singlesReliability = $source['ratingProgressSingles'] ?? 0;
+                                        $doublesReliability = $source['ratingProgressDoubles'] ?? 0;
                                         $utrId = $source['id'] ?? '';
 
                                         // Check if this is a single result with matching names (auto-selected)
@@ -89,8 +91,18 @@
                                     <tr class="hover:bg-gray-50">
                                         <td class="px-4 py-2 text-sm">{{ $firstName }} {{ $lastName }}</td>
                                         <td class="px-4 py-2 text-sm">{{ $location }}</td>
-                                        <td class="px-4 py-2 text-sm">{{ number_format($singlesUtr, 2) }}</td>
-                                        <td class="px-4 py-2 text-sm">{{ number_format($doublesUtr, 2) }}</td>
+                                        <td class="px-4 py-2 text-sm">
+                                            {{ number_format($singlesUtr, 2) }}
+                                            @if($singlesReliability == 100)
+                                                <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                            @endif
+                                        </td>
+                                        <td class="px-4 py-2 text-sm">
+                                            {{ number_format($doublesUtr, 2) }}
+                                            @if($doublesReliability == 100)
+                                                <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                            @endif
+                                        </td>
                                         <td class="px-4 py-2 text-sm">
                                             <a href="https://app.utrsports.net/profiles/{{ $utrId }}" target="_blank" class="text-blue-600 hover:underline">
                                                 {{ $utrId }}
@@ -107,6 +119,8 @@
                                                     <input type="hidden" name="utr_id" value="{{ $utrId }}">
                                                     <input type="hidden" name="singles_utr" value="{{ $singlesUtr }}">
                                                     <input type="hidden" name="doubles_utr" value="{{ $doublesUtr }}">
+                                                    <input type="hidden" name="singles_reliability" value="{{ $singlesReliability }}">
+                                                    <input type="hidden" name="doubles_reliability" value="{{ $doublesReliability }}">
                                                     <button type="submit" class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded">
                                                         Use This
                                                     </button>
@@ -371,8 +385,26 @@
                                     {{ $player->team_name }}
                                 </a>
                             </td>
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating ? number_format($player->utr_singles_rating, 2) : '-' }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_doubles_rating ? number_format($player->utr_doubles_rating, 2) : '-' }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">
+                                @if($player->utr_singles_rating)
+                                    {{ number_format($player->utr_singles_rating, 2) }}
+                                    @if($player->utr_singles_reliable)
+                                        <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                    @endif
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td class="px-4 py-2 text-sm text-gray-700">
+                                @if($player->utr_doubles_rating)
+                                    {{ number_format($player->utr_doubles_rating, 2) }}
+                                    @if($player->utr_doubles_reliable)
+                                        <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                    @endif
+                                @else
+                                    -
+                                @endif
+                            </td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_dynamic_rating ?? '-' }}</td>
                             <td class="px-4 py-2 text-sm text-center">
                                 @if($player->utr_id)
