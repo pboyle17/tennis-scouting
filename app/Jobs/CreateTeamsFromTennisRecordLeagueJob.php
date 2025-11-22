@@ -200,20 +200,24 @@ class CreateTeamsFromTennisRecordLeagueJob implements ShouldQueue
                                    ->first();
 
             if ($existingPlayer) {
-                // Update USTA ratings if they exist in the scraped data
+                // Update USTA ratings and Tennis Record link if they exist in the scraped data
                 if (isset($playerData['USTA_rating']) && $playerData['USTA_rating']) {
                     $existingPlayer->USTA_rating = $playerData['USTA_rating'];
                 }
                 if (isset($playerData['USTA_dynamic_rating']) && $playerData['USTA_dynamic_rating']) {
                     $existingPlayer->USTA_dynamic_rating = $playerData['USTA_dynamic_rating'];
                 }
+                if (isset($playerData['tennis_record_link']) && $playerData['tennis_record_link']) {
+                    $existingPlayer->tennis_record_link = $playerData['tennis_record_link'];
+                }
+                $existingPlayer->tennis_record_last_sync = now();
                 $existingPlayer->save();
 
                 // Assign existing player to team
                 $team->players()->syncWithoutDetaching([$existingPlayer->id]);
                 $playersFound++;
             } else {
-                // Create new player with USTA ratings
+                // Create new player with USTA ratings and Tennis Record link
                 $newPlayerData = [
                     'first_name' => $playerData['first_name'],
                     'last_name' => $playerData['last_name']
@@ -226,6 +230,10 @@ class CreateTeamsFromTennisRecordLeagueJob implements ShouldQueue
                 if (isset($playerData['USTA_dynamic_rating']) && $playerData['USTA_dynamic_rating']) {
                     $newPlayerData['USTA_dynamic_rating'] = $playerData['USTA_dynamic_rating'];
                 }
+                if (isset($playerData['tennis_record_link']) && $playerData['tennis_record_link']) {
+                    $newPlayerData['tennis_record_link'] = $playerData['tennis_record_link'];
+                }
+                $newPlayerData['tennis_record_last_sync'] = now();
 
                 $player = Player::create($newPlayerData);
 

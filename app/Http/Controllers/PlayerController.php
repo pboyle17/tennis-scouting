@@ -78,6 +78,7 @@ class PlayerController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'required|string|max:255',
             'utr_id' => 'nullable|integer',
+            'tennis_record_link' => 'nullable|string|max:500',
             'utr_singles_rating' => 'nullable|numeric',
             'utr_doubles_rating' => 'nullable|numeric',
             'USTA_rating' => 'nullable|numeric'

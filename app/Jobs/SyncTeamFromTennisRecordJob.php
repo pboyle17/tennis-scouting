@@ -77,7 +77,7 @@ class SyncTeamFromTennisRecordJob implements ShouldQueue
                 if ($existingPlayer) {
                     $player = $existingPlayer;
 
-                    // Update USTA ratings
+                    // Update USTA ratings and Tennis Record link
                     $updated = false;
                     if (isset($playerData['USTA_rating']) && $playerData['USTA_rating']) {
                         $player->USTA_rating = $playerData['USTA_rating'];
@@ -87,8 +87,13 @@ class SyncTeamFromTennisRecordJob implements ShouldQueue
                         $player->USTA_dynamic_rating = $playerData['USTA_dynamic_rating'];
                         $updated = true;
                     }
+                    if (isset($playerData['tennis_record_link']) && $playerData['tennis_record_link']) {
+                        $player->tennis_record_link = $playerData['tennis_record_link'];
+                        $updated = true;
+                    }
 
                     if ($updated) {
+                        $player->tennis_record_last_sync = now();
                         $player->save();
                         $playersUpdated++;
                     }
@@ -111,6 +116,10 @@ class SyncTeamFromTennisRecordJob implements ShouldQueue
                     if (isset($playerData['USTA_dynamic_rating']) && $playerData['USTA_dynamic_rating']) {
                         $newPlayerData['USTA_dynamic_rating'] = $playerData['USTA_dynamic_rating'];
                     }
+                    if (isset($playerData['tennis_record_link']) && $playerData['tennis_record_link']) {
+                        $newPlayerData['tennis_record_link'] = $playerData['tennis_record_link'];
+                    }
+                    $newPlayerData['tennis_record_last_sync'] = now();
 
                     $player = Player::create($newPlayerData);
                     $team->players()->attach($player->id);

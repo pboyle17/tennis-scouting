@@ -165,7 +165,7 @@
 
             @if($team->tennis_record_link)
                 <a href="{{ $team->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
-                    🎾 Tennis Record
+                    🎾 Tennis Record Link
                 </a>
                 <form method="POST" action="{{ route('teams.syncFromTennisRecord', $team->id) }}" style="display:inline;">
                     @csrf
@@ -302,7 +302,7 @@
                                 @endif
                             </a>
                         </th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR Profile</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Player Links</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
                     </tr>
                 </thead>
@@ -331,22 +331,57 @@
                                     -
                                 @endif
                             </td>
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_dynamic_rating }}</td>
-                            <td class="px-4 py-2 text-sm text-center">
-                                @if($player->utr_id)
+                            <td class="px-4 py-2 text-sm text-gray-700">
+                                @if($player->USTA_dynamic_rating)
                                     <div class="relative inline-block group">
-                                        <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
-                                            <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
-                                        </a>
-                                        <!-- Tooltip -->
-                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
-                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
-                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                    whitespace-nowrap z-50">
-                                            Updated: {{ $player->updated_at->format('M d, Y h:i A') }}
-                                        </div>
+                                        <span>{{ $player->USTA_dynamic_rating }}</span>
+                                        @if($player->tennis_record_last_sync)
+                                            <!-- Tooltip -->
+                                            <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                        opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                        bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                        whitespace-nowrap z-50">
+                                                Last synced: {{ $player->tennis_record_last_sync->format('M d, Y h:i A') }}
+                                            </div>
+                                        @endif
                                     </div>
+                                @else
+                                    -
                                 @endif
+                            </td>
+                            <td class="px-4 py-2 text-sm text-center">
+                                <div class="flex items-center justify-center space-x-2">
+                                    @if($player->utr_id)
+                                        <div class="relative inline-block group">
+                                            <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
+                                                <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
+                                            </a>
+                                            <!-- Tooltip -->
+                                            <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                        opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                        bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                        whitespace-nowrap z-50">
+                                                Updated: {{ $player->updated_at->format('M d, Y h:i A') }}
+                                            </div>
+                                        </div>
+                                    @endif
+                                    @if($player->tennis_record_link)
+                                        <div class="relative inline-block group">
+                                            <a href="{{ $player->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="text-green-600 hover:text-green-800 text-lg">
+                                                🎾
+                                            </a>
+                                            @if($player->tennis_record_last_sync)
+                                                <!-- Tooltip -->
+                                                <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                            opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                            bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                            whitespace-nowrap z-50">
+                                                    Last synced: {{ $player->tennis_record_last_sync->format('M d, Y h:i A') }}
+                                                </div>
+                                            @endif
+                                        </div>
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-4 py-2 text-sm text-center">
                                 <form method="POST" action="{{ route('teams.removePlayer', [$team->id, $player->id]) }}" style="display:inline;"

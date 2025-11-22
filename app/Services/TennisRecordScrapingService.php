@@ -148,15 +148,31 @@ class TennisRecordScrapingService
                     // Extract player name from the name column
                     $fullName = null;
                     $rating = null;
+                    $playerProfileLink = null;
 
                     if ($nameColumnIndex !== null && $cells->count() > $nameColumnIndex) {
                         $nameCell = $cells->eq($nameColumnIndex);
                         $playerLink = $nameCell->filter('a.link[href*="profile.aspx"]');
 
+                        Log::info($playerLink->attr('href'));
+
                         if ($playerLink->count() > 0) {
                             $fullName = trim($playerLink->text());
+
+                            // Extract the player's Tennis Record profile link
+                            $href = $playerLink->attr('href');
+                            if ($href) {
+                                // Build full URL if needed
+                                if (!str_starts_with($href, 'http')) {
+                                    $playerProfileLink = 'https://www.tennisrecord.com' . (str_starts_with($href, '/') ? '' : '/') . $href;
+                                } else {
+                                    $playerProfileLink = $href;
+                                }
+                            }
                         }
                     }
+
+                    Log::info($playerProfileLink);
 
                     // Extract rating from the rating column
                     if ($ratingColumnIndex !== null && $cells->count() > $ratingColumnIndex) {
@@ -181,6 +197,9 @@ class TennisRecordScrapingService
                         $playerData = $nameParts;
                         if ($rating) {
                             $playerData['USTA_dynamic_rating'] = $rating;
+                        }
+                        if ($playerProfileLink) {
+                            $playerData['tennis_record_link'] = $playerProfileLink;
                         }
 
                         $players[] = $playerData;

@@ -132,6 +132,11 @@
         </div>
 
         <div class="mb-4">
+            <label class="block mb-1" for="tennis_record_link">Tennis Record Link</label>
+            <input type="url" name="tennis_record_link" id="tennis_record_link" value="{{ old('tennis_record_link', $player->tennis_record_link) }}" class="w-full border rounded p-2" placeholder="https://www.tennisrecord.com/...">
+        </div>
+
+        <div class="mb-4">
             <label class="block mb-1" for="utr_singles_rating">UTR Singles Rating</label>
             <div class="flex items-center space-x-2">
                 <input type="number" step=".01" name="utr_singles_rating" id="utr_singles_rating" value="{{ old('utr_singles_rating', $player->utr_singles_rating) }}" class="flex-1 border rounded p-2">

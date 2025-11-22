@@ -9,7 +9,11 @@ class Player extends Model
 {
     protected $fillable = [
       'name', 'utr_id', 'utr_singles_rating', 'utr_doubles_rating', 'utr_singles_reliable', 'utr_doubles_reliable',
-      'first_name', 'last_name', 'USTA_rating', 'USTA_dynamic_rating'
+      'first_name', 'last_name', 'USTA_rating', 'USTA_dynamic_rating', 'tennis_record_link', 'tennis_record_last_sync'
+    ];
+
+    protected $casts = [
+        'tennis_record_last_sync' => 'datetime',
     ];
 
     public function teams()

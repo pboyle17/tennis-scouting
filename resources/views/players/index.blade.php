@@ -82,7 +82,7 @@
                       </a>
                     </th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Teams</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR Profile</th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Player Links</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -110,7 +110,24 @@
                                 -
                             @endif
                         </td>
-                        <td class="px-4 py-2 text-sm text-gray-700">{{ $player->USTA_dynamic_rating }}</td>
+                        <td class="px-4 py-2 text-sm text-gray-700">
+                            @if($player->USTA_dynamic_rating)
+                                <div class="relative inline-block group">
+                                    <span>{{ $player->USTA_dynamic_rating }}</span>
+                                    @if($player->tennis_record_last_sync)
+                                        <!-- Tooltip -->
+                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                    whitespace-nowrap z-50">
+                                            Last synced: {{ $player->tennis_record_last_sync->format('M d, Y h:i A') }}
+                                        </div>
+                                    @endif
+                                </div>
+                            @else
+                                -
+                            @endif
+                        </td>
                         <td class="px-4 py-2 text-sm text-center">
                             @if($player->teams->count() > 0)
                                 <span onclick="toggleTeams({{ $player->id }}); event.stopPropagation();" class="cursor-pointer hover:opacity-70 transition">
@@ -121,22 +138,38 @@
                             @endif
                         </td>
                         <td class="px-4 py-2 text-sm text-center">
-                            @if($player->utr_id)
-                                <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center relative group">
-                                    <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
-                                    <!-- Tooltip -->
-                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
-                                                opacity-0 group-hover:opacity-100 transition
-                                                bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                whitespace-nowrap z-10 pointer-events-none">
-                                        Updated: {{ $player->updated_at->format('M d, Y h:i A') }}
+                            <div class="flex items-center justify-center space-x-2">
+                                @if($player->utr_id)
+                                    <div class="relative inline-block group">
+                                        <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
+                                            <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
+                                        </a>
+                                        <!-- Tooltip -->
+                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                    whitespace-nowrap z-50">
+                                            Updated: {{ $player->updated_at->format('M d, Y h:i A') }}
+                                        </div>
                                     </div>
-                                </a>
-                            @else
-                                <span class="inline-flex items-center opacity-30 cursor-not-allowed">
-                                    <img src="{{ asset('images/utr_logo.avif') }}" alt="No UTR Profile" class="h-5 w-5">
-                                </span>
-                            @endif
+                                @endif
+                                @if($player->tennis_record_link)
+                                    <div class="relative inline-block group">
+                                        <a href="{{ $player->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="text-green-600 hover:text-green-800 text-lg">
+                                            🎾
+                                        </a>
+                                        @if($player->tennis_record_last_sync)
+                                            <!-- Tooltip -->
+                                            <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                        opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                        bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                        whitespace-nowrap z-50">
+                                                Last synced: {{ $player->tennis_record_last_sync->format('M d, Y h:i A') }}
+                                            </div>
+                                        @endif
+                                    </div>
+                                @endif
+                            </div>
                         </td>
                     </tr>
                     @if($player->teams->count() > 0)
