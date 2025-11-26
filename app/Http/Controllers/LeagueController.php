@@ -304,6 +304,10 @@ class LeagueController extends Controller
                             $player->utr_singles_reliable = isset($source['ratingProgressSingles']) && $source['ratingProgressSingles'] == 100;
                             $player->utr_doubles_reliable = isset($source['ratingProgressDoubles']) && $source['ratingProgressDoubles'] == 100;
 
+                            // Set updated timestamps
+                            $player->utr_singles_updated_at = now();
+                            $player->utr_doubles_updated_at = now();
+
                             $player->save();
 
                             \Illuminate\Support\Facades\Log::info("Auto-selected and saved UTR data for {$playerName}", [

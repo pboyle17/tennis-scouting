@@ -92,20 +92,42 @@
                         <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">
                             @if($player->utr_singles_rating)
-                                {{ number_format($player->utr_singles_rating, 2) }}
-                                @if($player->utr_singles_reliable)
-                                    <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
-                                @endif
+                                <div class="relative inline-block group">
+                                    <span>{{ number_format($player->utr_singles_rating, 2) }}</span>
+                                    @if($player->utr_singles_reliable)
+                                        <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                    @endif
+                                    @if($player->utr_singles_updated_at)
+                                        <!-- Tooltip -->
+                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                    whitespace-nowrap z-50">
+                                            Last updated: {{ $player->utr_singles_updated_at->format('M d, Y h:i A') }}
+                                        </div>
+                                    @endif
+                                </div>
                             @else
                                 -
                             @endif
                         </td>
                         <td class="px-4 py-2 text-sm text-gray-700">
                             @if($player->utr_doubles_rating)
-                                {{ number_format($player->utr_doubles_rating, 2) }}
-                                @if($player->utr_doubles_reliable)
-                                    <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
-                                @endif
+                                <div class="relative inline-block group">
+                                    <span>{{ number_format($player->utr_doubles_rating, 2) }}</span>
+                                    @if($player->utr_doubles_reliable)
+                                        <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                    @endif
+                                    @if($player->utr_doubles_updated_at)
+                                        <!-- Tooltip -->
+                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                    whitespace-nowrap z-50">
+                                            Last updated: {{ $player->utr_doubles_updated_at->format('M d, Y h:i A') }}
+                                        </div>
+                                    @endif
+                                </div>
                             @else
                                 -
                             @endif

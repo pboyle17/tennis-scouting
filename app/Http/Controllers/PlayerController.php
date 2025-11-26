@@ -84,6 +84,14 @@ class PlayerController extends Controller
             'USTA_rating' => 'nullable|numeric'
         ]);
 
+        // Check if UTR ratings changed and set updated timestamps
+        if (isset($validated['utr_singles_rating']) && $validated['utr_singles_rating'] != $player->utr_singles_rating) {
+            $validated['utr_singles_updated_at'] = now();
+        }
+        if (isset($validated['utr_doubles_rating']) && $validated['utr_doubles_rating'] != $player->utr_doubles_rating) {
+            $validated['utr_doubles_updated_at'] = now();
+        }
+
         $player->update($validated);
 
         // Check if there's a return URL, otherwise go to players index

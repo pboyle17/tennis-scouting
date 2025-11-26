@@ -77,6 +77,10 @@ class UpdateUtrRatingsJob implements ShouldQueue
             $player->utr_singles_reliable = isset($data['ratingProgressSingles']) && $data['ratingProgressSingles'] == 100;
             $player->utr_doubles_reliable = isset($data['ratingProgressDoubles']) && $data['ratingProgressDoubles'] == 100;
 
+            // Set updated timestamps
+            $player->utr_singles_updated_at = now();
+            $player->utr_doubles_updated_at = now();
+
             $player->save();
             $updated++;
           } catch (\Exception $e) {
