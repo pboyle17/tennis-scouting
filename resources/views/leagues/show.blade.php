@@ -430,7 +430,17 @@
                             <td class="px-4 py-2 text-sm text-gray-700">
                                 @if($player->USTA_dynamic_rating)
                                     <div class="relative inline-block group">
-                                        <span>{{ $player->USTA_dynamic_rating }}</span>
+                                        @php
+                                            $ratingClass = '';
+                                            if ($league->NTRP_rating) {
+                                                if ($player->USTA_dynamic_rating >= $league->NTRP_rating) {
+                                                    $ratingClass = 'text-green-600 font-semibold';
+                                                } elseif ($league->NTRP_rating > 3.0 && $player->USTA_dynamic_rating <= $league->NTRP_rating - 0.5) {
+                                                    $ratingClass = 'text-red-600 font-semibold';
+                                                }
+                                            }
+                                        @endphp
+                                        <span class="{{ $ratingClass }}">{{ $player->USTA_dynamic_rating }}</span>
                                         @if($player->tennis_record_last_sync)
                                             <!-- Tooltip -->
                                             <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2

@@ -35,6 +35,7 @@ class LeagueController extends Controller
           'name' => 'required|string|max:255',
           'usta_link' => 'nullable|string|max:255',
           'tennis_record_link' => 'nullable|string|max:255',
+          'NTRP_rating' => 'nullable|numeric|min:1.0|max:7.0',
       ]);
 
       League::create($validated);
@@ -89,9 +90,10 @@ class LeagueController extends Controller
           'name' => 'required|string|max:255',
           'usta_link' => 'nullable|string|max:255',
           'tennis_record_link' => 'nullable|string|max:255',
+          'NTRP_rating' => 'nullable|numeric|min:1.0|max:7.0',
       ]);
 
-      $league->update($request->only(['name', 'usta_link', 'tennis_record_link']));
+      $league->update($request->only(['name', 'usta_link', 'tennis_record_link', 'NTRP_rating']));
 
       return redirect()->route('leagues.index')->with('success', 'League updated successfully.');
     }

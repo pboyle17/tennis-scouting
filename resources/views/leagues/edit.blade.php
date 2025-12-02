@@ -44,7 +44,7 @@
                 >
             </div>
 
-            <div class="mb-6">
+            <div class="mb-4">
                 <label class="block text-gray-700 font-semibold mb-2" for="tennis_record_link">Tennis Record Link</label>
                 <input
                     class="w-full border border-gray-300 p-2 rounded"
@@ -52,6 +52,21 @@
                     name="tennis_record_link"
                     id="tennis_record_link"
                     value="{{ old('tennis_record_link', $league->tennis_record_link) }}"
+                >
+            </div>
+
+            <div class="mb-6">
+                <label class="block text-gray-700 font-semibold mb-2" for="NTRP_rating">NTRP Rating</label>
+                <input
+                    class="w-full border border-gray-300 p-2 rounded"
+                    type="number"
+                    step="0.5"
+                    min="1.0"
+                    max="7.0"
+                    name="NTRP_rating"
+                    id="NTRP_rating"
+                    value="{{ old('NTRP_rating', $league->NTRP_rating) }}"
+                    placeholder="e.g., 3.5"
                 >
             </div>
 
