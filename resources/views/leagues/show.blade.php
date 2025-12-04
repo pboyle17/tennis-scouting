@@ -276,14 +276,21 @@
         @endphp
         <div class="mb-4 flex justify-between items-center">
             <div>
-                <h2 class="text-2xl font-bold text-gray-800">All Players in League</h2>
+                <h2 class="text-2xl font-bold text-gray-800">
+                    <span id="filterStatus">All Players in League</span>
+                </h2>
                 <div class="text-sm text-gray-600 mt-1">
-                    <strong>{{ $players->count() }}</strong> {{ $players->count() === 1 ? 'player' : 'players' }} across {{ $league->teams->count() }} {{ $league->teams->count() === 1 ? 'team' : 'teams' }}
-                    @if($playersWithUtr > 0)
-                        | <strong>{{ $playersWithUtr }}</strong> with UTR IDs
-                    @else
-                        | <span class="text-orange-600 font-semibold">No players with UTR IDs</span>
-                    @endif
+                    <strong id="visiblePlayersCount">{{ $players->count() }}</strong> <span id="playersLabel">players</span>
+                    <span id="totalPlayersText"></span>
+                    across <strong id="visibleTeamsCount">{{ $league->teams->count() }}</strong> <span id="teamsLabel">teams</span>
+                    <span id="totalTeamsText"></span>
+                    <span id="utrText">
+                        @if($playersWithUtr > 0)
+                            | <strong id="visibleUtrCount">{{ $playersWithUtr }}</strong> with UTR IDs <span id="totalUtrText"></span>
+                        @else
+                            | <span class="text-orange-600 font-semibold">No players with UTR IDs</span>
+                        @endif
+                    </span>
                 </div>
             </div>
             <div class="flex items-center space-x-2">
@@ -291,41 +298,68 @@
                     $teamsWithTennisRecord = $league->teams()->whereNotNull('tennis_record_link')->count();
                 @endphp
                 @if($teamsWithTennisRecord > 0)
-                    <form method="POST" action="{{ route('leagues.syncAllTeams', $league->id) }}" style="display:inline;" onsubmit="return confirm('This will sync {{ $teamsWithTennisRecord }} team(s) from Tennis Record.\n\nThis may take a few minutes to complete. Continue?');">
+                    <form id="syncTeamsForm" method="POST" action="{{ route('leagues.syncAllTeams', $league->id) }}" style="display:inline;">
                         @csrf
-                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded" title="Sync all teams with Tennis Record links in this league">
-                            🎾 Sync Teams Tennis Record ({{ $teamsWithTennisRecord }})
+                        <input type="hidden" id="syncTeamIds" name="team_ids" value="">
+                        <button type="submit" id="syncTeamsButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded" title="Sync filtered teams from Tennis Record">
+                            🎾 Sync Teams (<span id="syncTeamsCount">{{ $teamsWithTennisRecord }}</span>)
                         </button>
                     </form>
                 @else
                     <button type="button" disabled class="bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed" title="No teams with Tennis Record links found in this league">
-                        🎾 Sync All Teams (0)
+                        🎾 Sync Teams (0)
                     </button>
                 @endif
                 @if($playersWithUtr > 0)
-                    <form method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;" onsubmit="return confirm('This will update UTR ratings for {{ $playersWithUtr }} player(s) across all teams in this league.\n\nThis may take a few minutes to complete. Continue?');">
+                    <form id="updateUtrForm" method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;">
                         @csrf
-                        <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded" title="Update UTR ratings for all {{ $playersWithUtr }} players with UTR IDs in this league">
-                            🔄 Update All UTRs ({{ $playersWithUtr }})
+                        <input type="hidden" id="updateUtrTeamIds" name="team_ids" value="">
+                        <button type="submit" id="updateUtrButton" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded" title="Update UTR ratings for filtered teams">
+                            🔄 Update UTRs (<span id="updateUtrCount">{{ $playersWithUtr }}</span>)
                         </button>
                     </form>
                 @else
                     <button type="button" disabled class="bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed" title="No players with UTR IDs found in this league">
-                        🔄 Update All UTRs (0)
+                        🔄 Update UTRs (0)
                     </button>
                 @endif
+                <div class="relative inline-block">
+                    <button
+                        id="teamFilterButton"
+                        type="button"
+                        class="border rounded px-3 py-2 bg-white hover:bg-gray-50 flex items-center space-x-2"
+                    >
+                        <span id="teamFilterLabel">All Teams</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <div
+                        id="teamFilterDropdown"
+                        class="hidden absolute z-10 mt-1 w-64 bg-white border rounded shadow-lg max-h-64 overflow-y-auto"
+                    >
+                        <div class="p-2">
+                            @foreach($league->teams->sortBy('name') as $team)
+                                <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
+                                    <input type="checkbox" class="team-filter-checkbox rounded" value="{{ $team->id }}">
+                                    <span>{{ $team->name }}</span>
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
                 <input
                     id="playerSearch"
                     type="text"
-                    placeholder="Search by name or team…"
+                    placeholder="Search by name…"
                     class="border rounded px-3 py-2 w-64"
                 />
                 <button
-                    id="clearSearch"
+                    id="clearFilters"
                     type="button"
-                    class="hidden bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-3 rounded"
+                    class="invisible bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-3 rounded"
                 >
-                    ✖ Clear
+                    ✖ Clear All Filters
                 </button>
             </div>
         </div>
@@ -391,7 +425,7 @@
                         $rank = 1;
                     @endphp
                     @foreach ($sortDirection === 'asc' ? $players->sortBy($sortField) : $players->sortByDesc($sortField) as $player)
-                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}">
+                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}" data-team-id="{{ $player->team_id }}" data-has-utr="{{ $player->utr_id ? '1' : '0' }}">
                             <td class="px-4 py-2 text-sm text-gray-700 font-semibold">{{ $rank++ }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
@@ -589,36 +623,144 @@
     // Initialize count
     updateSelectedCount();
 
-    // Player search functionality
+    // Team filter dropdown functionality
+    (function () {
+        const button = document.getElementById('teamFilterButton');
+        const dropdown = document.getElementById('teamFilterDropdown');
+        const label = document.getElementById('teamFilterLabel');
+        const teamCheckboxes = Array.from(document.querySelectorAll('.team-filter-checkbox'));
+
+        // Toggle dropdown
+        button.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('hidden');
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target) && !button.contains(e.target)) {
+                dropdown.classList.add('hidden');
+            }
+        });
+
+        // Prevent dropdown from closing when clicking inside
+        dropdown.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        // Update label and apply filters when checkboxes change
+        function updateLabelAndFilter() {
+            const checkedBoxes = teamCheckboxes.filter(cb => cb.checked);
+
+            if (checkedBoxes.length === 0) {
+                label.textContent = 'All Teams';
+            } else if (checkedBoxes.length === teamCheckboxes.length) {
+                label.textContent = 'All Teams';
+            } else if (checkedBoxes.length === 1) {
+                label.textContent = '1 Team Selected';
+            } else {
+                label.textContent = `${checkedBoxes.length} Teams Selected`;
+            }
+
+            applyFilters();
+        }
+
+        // Individual checkbox changes
+        teamCheckboxes.forEach(cb => {
+            cb.addEventListener('change', updateLabelAndFilter);
+        });
+    })();
+
+    // Player search and filter functionality
     (function () {
         const input = document.getElementById('playerSearch');
-        const clearBtn = document.getElementById('clearSearch');
+        const teamCheckboxes = Array.from(document.querySelectorAll('.team-filter-checkbox'));
+        const clearFiltersBtn = document.getElementById('clearFilters');
         const rows = Array.from(document.querySelectorAll('tbody tr[data-name]'));
         let t;
 
-        function applyFilter(term) {
-            const q = term.trim().toLowerCase();
+        window.applyFilters = function() {
+            const searchTerm = input.value.trim().toLowerCase();
+            const selectedTeams = teamCheckboxes.filter(cb => cb.checked).map(cb => cb.value);
+            let visibleRank = 1;
+            let visiblePlayers = 0;
+            let visiblePlayersWithUtr = 0;
+            const visibleTeamIds = new Set();
+
+            const totalPlayers = rows.length;
+            const totalTeams = teamCheckboxes.length;
+            const totalPlayersWithUtr = rows.filter(row => row.getAttribute('data-has-utr') === '1').length;
 
             rows.forEach(row => {
                 const name = row.getAttribute('data-name') || '';
-                const show = !q || name.includes(q);
+                const teamId = row.getAttribute('data-team-id') || '';
+                const hasUtr = row.getAttribute('data-has-utr') === '1';
+
+                const matchesSearch = !searchTerm || name.includes(searchTerm);
+                const matchesTeam = selectedTeams.length === 0 || selectedTeams.length === teamCheckboxes.length || selectedTeams.includes(teamId);
+
+                const show = matchesSearch && matchesTeam;
                 row.style.display = show ? '' : 'none';
+
+                // Update rank and counts for visible rows
+                if (show) {
+                    const rankCell = row.querySelector('td:first-child');
+                    if (rankCell) {
+                        rankCell.textContent = visibleRank++;
+                    }
+                    visiblePlayers++;
+                    if (hasUtr) visiblePlayersWithUtr++;
+                    if (teamId) visibleTeamIds.add(teamId);
+                }
             });
 
-            // Show clear button only when there's an active filter
-            clearBtn.classList.toggle('hidden', q.length === 0);
+            // Update header text
+            const isFiltered = searchTerm.length > 0 || (selectedTeams.length > 0 && selectedTeams.length < teamCheckboxes.length);
+            document.getElementById('filterStatus').textContent = isFiltered ? 'Filtered Players' : 'All Players in League';
+            document.getElementById('visiblePlayersCount').textContent = visiblePlayers;
+            document.getElementById('playersLabel').textContent = visiblePlayers === 1 ? 'player' : 'players';
+            document.getElementById('totalPlayersText').textContent = isFiltered ? ` of ${totalPlayers}` : '';
+            document.getElementById('visibleTeamsCount').textContent = visibleTeamIds.size;
+            document.getElementById('teamsLabel').textContent = visibleTeamIds.size === 1 ? 'team' : 'teams';
+            document.getElementById('totalTeamsText').textContent = isFiltered ? ` of ${totalTeams}` : '';
+
+            // Update UTR counts
+            const visibleUtrCountEl = document.getElementById('visibleUtrCount');
+            const totalUtrTextEl = document.getElementById('totalUtrText');
+            if (visibleUtrCountEl) {
+                visibleUtrCountEl.textContent = visiblePlayersWithUtr;
+                if (totalUtrTextEl) {
+                    totalUtrTextEl.textContent = isFiltered ? ` of ${totalPlayersWithUtr}` : '';
+                }
+            }
+
+            // Update button counts and team IDs
+            const selectedTeamIdsForSync = Array.from(visibleTeamIds);
+            document.getElementById('syncTeamIds').value = selectedTeamIdsForSync.join(',');
+            document.getElementById('updateUtrTeamIds').value = selectedTeamIdsForSync.join(',');
+            document.getElementById('syncTeamsCount').textContent = selectedTeamIdsForSync.length;
+            document.getElementById('updateUtrCount').textContent = visiblePlayersWithUtr;
+
+            // Show clear all filters button when there's any active filter
+            const hasSearch = searchTerm.length > 0;
+            const hasTeamFilter = selectedTeams.length > 0 && selectedTeams.length < teamCheckboxes.length;
+            const hasAnyFilter = hasSearch || hasTeamFilter;
+            clearFiltersBtn.classList.toggle('invisible', !hasAnyFilter);
+            clearFiltersBtn.style.pointerEvents = hasAnyFilter ? 'auto' : 'none';
         }
 
         function debouncedFilter() {
             clearTimeout(t);
-            t = setTimeout(() => applyFilter(input.value), 150);
+            t = setTimeout(applyFilters, 150);
         }
 
         input.addEventListener('input', debouncedFilter);
-        clearBtn.addEventListener('click', () => {
+
+        clearFiltersBtn.addEventListener('click', () => {
             input.value = '';
-            applyFilter('');
-            input.focus();
+            teamCheckboxes.forEach(cb => cb.checked = false);
+            document.getElementById('teamFilterLabel').textContent = 'All Teams';
+            applyFilters();
         });
     })();
 

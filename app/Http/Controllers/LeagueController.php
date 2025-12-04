@@ -175,15 +175,23 @@ class LeagueController extends Controller
     /**
      * Update UTR ratings for all players in the league
      */
-    public function updateUtr(League $league)
+    public function updateUtr(Request $request, League $league)
     {
-        $league->load('teams.players');
+        // Get team IDs from request (filtered teams) or all teams
+        $teamIds = $request->input('team_ids') ? explode(',', $request->input('team_ids')) : null;
 
-        // Get UTR IDs for all players in all teams in the league who have a UTR ID
+        // Get teams to update UTRs for
+        $query = $league->teams();
+        if ($teamIds) {
+            $query->whereIn('id', $teamIds);
+        }
+        $teamsToUpdate = $query->get();
+
+        // Get UTR IDs for all players in filtered teams who have a UTR ID
         $utrIds = [];
-        $teamCount = $league->teams->count();
+        $teamCount = $teamsToUpdate->count();
 
-        foreach ($league->teams as $team) {
+        foreach ($teamsToUpdate as $team) {
             $teamUtrIds = $team->players()
                                ->whereNotNull('utr_id')
                                ->pluck('utr_id')
@@ -195,10 +203,10 @@ class LeagueController extends Controller
         $utrIds = array_unique($utrIds);
 
         if (empty($utrIds)) {
-            return back()->with('error', 'No players with UTR IDs found in this league. Please add UTR IDs to players first.');
+            return back()->with('error', 'No players with UTR IDs found in the selected teams. Please add UTR IDs to players first.');
         }
 
-        // Dispatch job to update UTRs for all players in the league
+        // Dispatch job to update UTRs for all players in the filtered teams
         $jobKey = 'utr_update_' . uniqid();
         \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, $jobKey);
 
@@ -357,7 +365,7 @@ class LeagueController extends Controller
     /**
      * Set UTR data for a player from league search
      */
-    public function setPlayerUtrData(Request $request, League $league, Player $player)
+    public function setPlayerUtrData(Request $request, Player $player)
     {
         $request->validate([
             'utr_id' => 'required|integer',
@@ -393,13 +401,20 @@ class LeagueController extends Controller
     /**
      * Sync all teams in the league from Tennis Record
      */
-    public function syncAllTeamsFromTennisRecord(League $league)
+    public function syncAllTeamsFromTennisRecord(Request $request, League $league)
     {
-        // Get all teams in the league that have a tennis_record_link
-        $teamsToSync = $league->teams()->whereNotNull('tennis_record_link')->get();
+        // Get team IDs from request (filtered teams) or all teams
+        $teamIds = $request->input('team_ids') ? explode(',', $request->input('team_ids')) : null;
+
+        // Get teams to sync
+        $query = $league->teams()->whereNotNull('tennis_record_link');
+        if ($teamIds) {
+            $query->whereIn('id', $teamIds);
+        }
+        $teamsToSync = $query->get();
 
         if ($teamsToSync->isEmpty()) {
-            return back()->with('error', 'No teams with Tennis Record links found in this league.');
+            return back()->with('error', 'No teams with Tennis Record links found to sync.');
         }
 
         // Dispatch sync jobs for each team
