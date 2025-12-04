@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use App\Models\League;
 use App\Models\Team;
 use App\Models\Player;
+use App\Jobs\SyncTeamFromTennisRecordJob;
 
 class LeagueController extends Controller
 {
@@ -387,5 +388,26 @@ class LeagueController extends Controller
         }
 
         return back()->with('success', "UTR data saved for {$player->first_name} {$player->last_name}!");
+    }
+
+    /**
+     * Sync all teams in the league from Tennis Record
+     */
+    public function syncAllTeamsFromTennisRecord(League $league)
+    {
+        // Get all teams in the league that have a tennis_record_link
+        $teamsToSync = $league->teams()->whereNotNull('tennis_record_link')->get();
+
+        if ($teamsToSync->isEmpty()) {
+            return back()->with('error', 'No teams with Tennis Record links found in this league.');
+        }
+
+        // Dispatch sync jobs for each team
+        foreach ($teamsToSync as $team) {
+            $jobKey = 'tennis_record_sync_' . uniqid();
+            SyncTeamFromTennisRecordJob::dispatch($team, $jobKey);
+        }
+
+        return back()->with('success', "Syncing {$teamsToSync->count()} team(s) from Tennis Record. This may take a few minutes.");
     }
 }
