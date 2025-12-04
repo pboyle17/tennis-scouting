@@ -287,6 +287,21 @@
                 </div>
             </div>
             <div class="flex items-center space-x-2">
+                @php
+                    $teamsWithTennisRecord = $league->teams()->whereNotNull('tennis_record_link')->count();
+                @endphp
+                @if($teamsWithTennisRecord > 0)
+                    <form method="POST" action="{{ route('leagues.syncAllTeams', $league->id) }}" style="display:inline;" onsubmit="return confirm('This will sync {{ $teamsWithTennisRecord }} team(s) from Tennis Record.\n\nThis may take a few minutes to complete. Continue?');">
+                        @csrf
+                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded" title="Sync all teams with Tennis Record links in this league">
+                            🎾 Sync Teams Tennis Record ({{ $teamsWithTennisRecord }})
+                        </button>
+                    </form>
+                @else
+                    <button type="button" disabled class="bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed" title="No teams with Tennis Record links found in this league">
+                        🎾 Sync All Teams (0)
+                    </button>
+                @endif
                 @if($playersWithUtr > 0)
                     <form method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;" onsubmit="return confirm('This will update UTR ratings for {{ $playersWithUtr }} player(s) across all teams in this league.\n\nThis may take a few minutes to complete. Continue?');">
                         @csrf
