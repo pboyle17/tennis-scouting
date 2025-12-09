@@ -339,9 +339,12 @@
                         class="hidden absolute z-10 mt-1 w-64 bg-white border rounded shadow-lg max-h-64 overflow-y-auto"
                     >
                         <div class="p-2">
+                            @php
+                                $selectedTeams = request('teams') ? explode(',', request('teams')) : [];
+                            @endphp
                             @foreach($league->teams->sortBy('name') as $team)
                                 <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="team-filter-checkbox rounded" value="{{ $team->id }}">
+                                    <input type="checkbox" class="team-filter-checkbox rounded" value="{{ $team->id }}" {{ in_array((string)$team->id, $selectedTeams) ? 'checked' : '' }}>
                                     <span>{{ $team->name }}</span>
                                 </label>
                             @endforeach
@@ -353,6 +356,7 @@
                     type="text"
                     placeholder="Search by name…"
                     class="border rounded px-3 py-2 w-64"
+                    value="{{ request('search', '') }}"
                 />
                 <button
                     id="clearFilters"
@@ -370,7 +374,7 @@
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified']))) }}" class="hover:text-gray-900">
                                 Name
                                 @if($sortField === 'first_name' || $sortField === 'last_name')
                                     <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -378,7 +382,7 @@
                             </a>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'team_name', 'direction' => ($sortField === 'team_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'team_name', 'direction' => ($sortField === 'team_name' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified']))) }}" class="hover:text-gray-900">
                                 Team
                                 @if($sortField === 'team_name')
                                     <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -387,8 +391,8 @@
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <div class="flex items-center gap-2">
-                                <span id="filterSinglesReliable" class="cursor-pointer text-lg font-bold {{ request('singles_verified') ? 'text-green-600' : 'text-gray-400' }}" onclick="event.stopPropagation()" title="Filter verified ratings">✓</span>
-                                <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField === 'utr_singles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                <span id="filterSinglesReliable" class="cursor-pointer text-lg font-bold {{ request('singles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified ratings">✓</span>
+                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField === 'utr_singles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified']))) }}" class="hover:text-gray-900">
                                     UTR Singles
                                     @if($sortField === 'utr_singles_rating')
                                         <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -398,8 +402,8 @@
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <div class="flex items-center gap-2">
-                                <span id="filterDoublesReliable" class="cursor-pointer text-lg font-bold {{ request('doubles_verified') ? 'text-green-600' : 'text-gray-400' }}" onclick="event.stopPropagation()" title="Filter verified ratings">✓</span>
-                                <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField === 'utr_doubles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                <span id="filterDoublesReliable" class="cursor-pointer text-lg font-bold {{ request('doubles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified ratings">✓</span>
+                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField === 'utr_doubles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified']))) }}" class="hover:text-gray-900">
                                     UTR Doubles
                                     @if($sortField === 'utr_doubles_rating')
                                         <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -408,7 +412,7 @@
                             </div>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField === 'USTA_dynamic_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField === 'USTA_dynamic_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified']))) }}" class="hover:text-gray-900">
                                 USTA Dynamic
                                 @if($sortField === 'USTA_dynamic_rating')
                                     <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -661,13 +665,33 @@
                 label.textContent = `${checkedBoxes.length} Teams Selected`;
             }
 
-            applyFilters();
+            updateTeamURL();
+        }
+
+        function updateTeamURL() {
+            const checkedBoxes = teamCheckboxes.filter(cb => cb.checked);
+            const url = new URL(window.location);
+
+            if (checkedBoxes.length === 0 || checkedBoxes.length === teamCheckboxes.length) {
+                url.searchParams.delete('teams');
+            } else {
+                const teamIds = checkedBoxes.map(cb => cb.value).join(',');
+                url.searchParams.set('teams', teamIds);
+            }
+
+            window.history.pushState({}, '', decodeURIComponent(url.toString()));
+            if (window.applyFilters) {
+                window.applyFilters();
+            }
         }
 
         // Individual checkbox changes
         teamCheckboxes.forEach(cb => {
             cb.addEventListener('change', updateLabelAndFilter);
         });
+
+        // Initialize label on page load
+        updateLabelAndFilter();
     })();
 
     // Player search and filter functionality
@@ -681,6 +705,12 @@
         window.applyFilters = function() {
             const searchTerm = input.value.trim().toLowerCase();
             const selectedTeams = teamCheckboxes.filter(cb => cb.checked).map(cb => cb.value);
+
+            // Get UTR verified filter states from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const singlesVerified = urlParams.get('singles_verified') === '1';
+            const doublesVerified = urlParams.get('doubles_verified') === '1';
+
             let visibleRank = 1;
             let visiblePlayers = 0;
             let visiblePlayersWithUtr = 0;
@@ -694,11 +724,15 @@
                 const name = row.getAttribute('data-name') || '';
                 const teamId = row.getAttribute('data-team-id') || '';
                 const hasUtr = row.getAttribute('data-has-utr') === '1';
+                const singlesReliable = row.getAttribute('data-singles-reliable') === '1';
+                const doublesReliable = row.getAttribute('data-doubles-reliable') === '1';
 
                 const matchesSearch = !searchTerm || name.includes(searchTerm);
                 const matchesTeam = selectedTeams.length === 0 || selectedTeams.length === teamCheckboxes.length || selectedTeams.includes(teamId);
+                const matchesSinglesVerified = !singlesVerified || singlesReliable;
+                const matchesDoublesVerified = !doublesVerified || doublesReliable;
 
-                const show = matchesSearch && matchesTeam;
+                const show = matchesSearch && matchesTeam && matchesSinglesVerified && matchesDoublesVerified;
                 row.style.display = show ? '' : 'none';
 
                 // Update rank and counts for visible rows
@@ -743,14 +777,30 @@
             // Show clear all filters button when there's any active filter
             const hasSearch = searchTerm.length > 0;
             const hasTeamFilter = selectedTeams.length > 0 && selectedTeams.length < teamCheckboxes.length;
-            const hasAnyFilter = hasSearch || hasTeamFilter;
+            const hasAnyFilter = hasSearch || hasTeamFilter || singlesVerified || doublesVerified;
             clearFiltersBtn.classList.toggle('invisible', !hasAnyFilter);
             clearFiltersBtn.style.pointerEvents = hasAnyFilter ? 'auto' : 'none';
         }
 
         function debouncedFilter() {
             clearTimeout(t);
-            t = setTimeout(applyFilters, 150);
+            t = setTimeout(() => {
+                updateSearchURL();
+            }, 150);
+        }
+
+        function updateSearchURL() {
+            const url = new URL(window.location);
+            const searchTerm = input.value.trim();
+
+            if (searchTerm) {
+                url.searchParams.set('search', searchTerm);
+            } else {
+                url.searchParams.delete('search');
+            }
+
+            window.history.pushState({}, '', decodeURIComponent(url.toString()));
+            applyFilters();
         }
 
         input.addEventListener('input', debouncedFilter);
@@ -759,8 +809,32 @@
             input.value = '';
             teamCheckboxes.forEach(cb => cb.checked = false);
             document.getElementById('teamFilterLabel').textContent = 'All Teams';
+
+            // Clear UTR verified filter checkmarks
+            const filterSingles = document.getElementById('filterSinglesReliable');
+            const filterDoubles = document.getElementById('filterDoublesReliable');
+            if (filterSingles) {
+                filterSingles.classList.remove('text-green-600');
+                filterSingles.classList.add('text-gray-400');
+            }
+            if (filterDoubles) {
+                filterDoubles.classList.remove('text-green-600');
+                filterDoubles.classList.add('text-gray-400');
+            }
+
+            // Clear URL params
+            const url = new URL(window.location);
+            url.searchParams.delete('teams');
+            url.searchParams.delete('search');
+            url.searchParams.delete('singles_verified');
+            url.searchParams.delete('doubles_verified');
+            window.history.pushState({}, '', decodeURIComponent(url.toString()));
+
             applyFilters();
         });
+
+        // Apply filters on page load to respect query params
+        applyFilters();
     })();
 
     // Tennis Record League Creation Progress tracking
@@ -922,14 +996,16 @@
         let singlesActive = {{ request('singles_verified') ? 'true' : 'false' }};
         let doublesActive = {{ request('doubles_verified') ? 'true' : 'false' }};
 
-        function toggleSingles() {
+        function toggleSingles(e) {
+            e.stopPropagation();
             singlesActive = !singlesActive;
             filterSingles.classList.toggle('text-green-600', singlesActive);
             filterSingles.classList.toggle('text-gray-400', !singlesActive);
             updateURL();
         }
 
-        function toggleDoubles() {
+        function toggleDoubles(e) {
+            e.stopPropagation();
             doublesActive = !doublesActive;
             filterDoubles.classList.toggle('text-green-600', doublesActive);
             filterDoubles.classList.toggle('text-gray-400', !doublesActive);
@@ -951,40 +1027,49 @@
                 url.searchParams.delete('doubles_verified');
             }
 
-            window.history.pushState({}, '', url);
-            applyFilters();
+            window.history.pushState({}, '', decodeURIComponent(url.toString()));
+
+            // Call the global applyFilters which handles all filters together
+            if (window.applyFilters) {
+                window.applyFilters();
+            }
         }
 
-        function applyFilters() {
-            const table = document.getElementById('playersTable');
-            const rows = table.querySelectorAll('tbody tr');
+        if (filterSingles) {
+            filterSingles.addEventListener('click', toggleSingles);
+        }
+        if (filterDoubles) {
+            filterDoubles.addEventListener('click', toggleDoubles);
+        }
+    })();
 
-            let visibleRank = 1;
-            rows.forEach(row => {
-                const singlesReliable = row.dataset.singlesReliable === '1';
-                const doublesReliable = row.dataset.doublesReliable === '1';
+    // Preserve filters when clicking sort links
+    (function() {
+        const sortLinks = document.querySelectorAll('thead a[href*="sort="]');
 
-                let show = true;
-                if (singlesActive && !singlesReliable) show = false;
-                if (doublesActive && !doublesReliable) show = false;
+        sortLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
 
-                row.style.display = show ? '' : 'none';
+                // Get the current URL parameters
+                const currentParams = new URLSearchParams(window.location.search);
 
-                // Update rank numbers for visible rows
-                if (show) {
-                    const rankCell = row.querySelector('td:first-child');
-                    if (rankCell) {
-                        rankCell.textContent = visibleRank++;
+                // Get the sort link's URL
+                const sortUrl = new URL(this.href);
+
+                // Preserve filter parameters from current URL
+                const filterParams = ['teams', 'search', 'singles_verified', 'doubles_verified'];
+                filterParams.forEach(param => {
+                    const value = currentParams.get(param);
+                    if (value) {
+                        sortUrl.searchParams.set(param, value);
                     }
-                }
+                });
+
+                // Navigate to the updated URL
+                window.location.href = sortUrl.toString();
             });
-        }
-
-        filterSingles.addEventListener('click', toggleSingles);
-        filterDoubles.addEventListener('click', toggleDoubles);
-
-        // Apply filters on page load if params exist
-        applyFilters();
+        });
     })();
 </script>
 @endsection
