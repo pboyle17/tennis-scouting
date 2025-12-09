@@ -64,8 +64,7 @@
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">First Name</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Last Name</th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                       <a href="{{ route('players.index', ['sort' => 'utr_singles_rating', 'direction' => ($sortField == 'utr_singles_rating' && $sortDirection == 'asc') ? 'desc' : 'asc']) }}">
                         UTR Singles Rating
@@ -88,8 +87,7 @@
             <tbody class="divide-y divide-gray-200">
                 @foreach ($players as $player)
                     <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}">
-                        <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
-                        <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
+                        <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }} {{ $player->last_name }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">
                             @if($player->utr_singles_rating)
                                 <div class="relative inline-block group">
@@ -179,8 +177,8 @@
                                 @endif
                                 @if($player->tennis_record_link)
                                     <div class="relative inline-block group">
-                                        <a href="{{ $player->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="text-green-600 hover:text-green-800 text-lg">
-                                            🎾
+                                        <a href="{{ $player->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-green-600 hover:text-green-800">
+                                            <span class="text-xl leading-none">🎾</span>
                                         </a>
                                         @if($player->tennis_record_last_sync)
                                             <!-- Tooltip -->
