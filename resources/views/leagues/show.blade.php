@@ -138,7 +138,7 @@
     @endif
 
     <div class="flex justify-end mb-4 space-x-2">
-        <button id="toggleAddTeams" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
+        <button id="toggleAddTeams" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
             + Add Teams
         </button>
         @if($league->usta_link)
@@ -152,7 +152,7 @@
             </a>
             <form method="POST" action="{{ route('leagues.createTeamsFromLeague', $league->id) }}" style="display:inline;" onsubmit="return confirm('This will scrape all teams from the Tennis Record league page and create them if they don\'t exist.\n\nThis may take several minutes. Continue?');">
                 @csrf
-                <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
+                <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
                     🎾 Import League Teams
                 </button>
             </form>
@@ -163,7 +163,7 @@
         <form method="POST" action="{{ route('leagues.destroy', $league->id) }}" onsubmit="return confirm('Are you sure you want to delete this league? Teams will not be deleted.');" class="inline">
             @csrf
             @method('DELETE')
-            <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded">
+            <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
                 Delete League
             </button>
         </form>
@@ -245,7 +245,7 @@
                             @if($teamPlayersWithoutUtrId > 0)
                                 <form method="POST" action="{{ route('leagues.findMissingUtrIdsForTeam', [$league->id, $team->id]) }}" style="display:inline;" class="mr-2">
                                     @csrf
-                                    <button type="submit" class="text-blue-600 hover:text-blue-800 text-xs" title="Find UTR IDs for {{ $teamPlayersWithoutUtrId }} player(s) without UTR IDs">
+                                    <button type="submit" class="text-blue-600 hover:text-blue-800 text-xs cursor-pointer" title="Find UTR IDs for {{ $teamPlayersWithoutUtrId }} player(s) without UTR IDs">
                                         🔍 Find UTR IDs ({{ $teamPlayersWithoutUtrId }})
                                     </button>
                                 </form>
@@ -254,7 +254,7 @@
                             <form method="POST" action="{{ route('leagues.removeTeam', [$league->id, $team->id]) }}" onsubmit="return confirm('Remove {{ $team->name }} from this league?');" class="inline">
                                 @csrf
                                 @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-800 text-xs">Remove Team</button>
+                                <button type="submit" class="text-red-600 hover:text-red-800 text-xs cursor-pointer">Remove Team</button>
                             </form>
                         </td>
                     </tr>
