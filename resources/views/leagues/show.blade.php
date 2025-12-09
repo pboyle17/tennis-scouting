@@ -365,7 +365,7 @@
         </div>
 
         <div class="overflow-x-auto bg-white rounded-lg shadow">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table id="playersTable" class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
@@ -386,20 +386,26 @@
                             </a>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField === 'utr_singles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
-                                UTR Singles
-                                @if($sortField === 'utr_singles_rating')
-                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                                @endif
-                            </a>
+                            <div class="flex items-center gap-2">
+                                <span id="filterSinglesReliable" class="cursor-pointer text-lg font-bold {{ request('singles_verified') ? 'text-green-600' : 'text-gray-400' }}" onclick="event.stopPropagation()" title="Filter verified ratings">✓</span>
+                                <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField === 'utr_singles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                    UTR Singles
+                                    @if($sortField === 'utr_singles_rating')
+                                        <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                    @endif
+                                </a>
+                            </div>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField === 'utr_doubles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
-                                UTR Doubles
-                                @if($sortField === 'utr_doubles_rating')
-                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                                @endif
-                            </a>
+                            <div class="flex items-center gap-2">
+                                <span id="filterDoublesReliable" class="cursor-pointer text-lg font-bold {{ request('doubles_verified') ? 'text-green-600' : 'text-gray-400' }}" onclick="event.stopPropagation()" title="Filter verified ratings">✓</span>
+                                <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField === 'utr_doubles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                    UTR Doubles
+                                    @if($sortField === 'utr_doubles_rating')
+                                        <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                    @endif
+                                </a>
+                            </div>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField === 'USTA_dynamic_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
@@ -417,7 +423,7 @@
                         $rank = 1;
                     @endphp
                     @foreach ($sortDirection === 'asc' ? $players->sortBy($sortField) : $players->sortByDesc($sortField) as $player)
-                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}" data-team-id="{{ $player->team_id }}" data-has-utr="{{ $player->utr_id ? '1' : '0' }}">
+                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}" data-team-id="{{ $player->team_id }}" data-has-utr="{{ $player->utr_id ? '1' : '0' }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}">
                             <td class="px-4 py-2 text-sm text-gray-700 font-semibold">{{ $rank++ }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }} {{ $player->last_name }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">
@@ -907,6 +913,78 @@
                 }
             });
         });
+    })();
+
+    // UTR Rating Filter
+    (function() {
+        const filterSingles = document.getElementById('filterSinglesReliable');
+        const filterDoubles = document.getElementById('filterDoublesReliable');
+        let singlesActive = {{ request('singles_verified') ? 'true' : 'false' }};
+        let doublesActive = {{ request('doubles_verified') ? 'true' : 'false' }};
+
+        function toggleSingles() {
+            singlesActive = !singlesActive;
+            filterSingles.classList.toggle('text-green-600', singlesActive);
+            filterSingles.classList.toggle('text-gray-400', !singlesActive);
+            updateURL();
+        }
+
+        function toggleDoubles() {
+            doublesActive = !doublesActive;
+            filterDoubles.classList.toggle('text-green-600', doublesActive);
+            filterDoubles.classList.toggle('text-gray-400', !doublesActive);
+            updateURL();
+        }
+
+        function updateURL() {
+            const url = new URL(window.location);
+
+            if (singlesActive) {
+                url.searchParams.set('singles_verified', '1');
+            } else {
+                url.searchParams.delete('singles_verified');
+            }
+
+            if (doublesActive) {
+                url.searchParams.set('doubles_verified', '1');
+            } else {
+                url.searchParams.delete('doubles_verified');
+            }
+
+            window.history.pushState({}, '', url);
+            applyFilters();
+        }
+
+        function applyFilters() {
+            const table = document.getElementById('playersTable');
+            const rows = table.querySelectorAll('tbody tr');
+
+            let visibleRank = 1;
+            rows.forEach(row => {
+                const singlesReliable = row.dataset.singlesReliable === '1';
+                const doublesReliable = row.dataset.doublesReliable === '1';
+
+                let show = true;
+                if (singlesActive && !singlesReliable) show = false;
+                if (doublesActive && !doublesReliable) show = false;
+
+                row.style.display = show ? '' : 'none';
+
+                // Update rank numbers for visible rows
+                if (show) {
+                    const rankCell = row.querySelector('td:first-child');
+                    if (rankCell) {
+                        rankCell.textContent = visibleRank++;
+                    }
+                }
+            });
+        }
+
+        filterSingles.addEventListener('click', toggleSingles);
+        filterDoubles.addEventListener('click', toggleDoubles);
+
+        // Apply filters on page load if params exist
+        applyFilters();
     })();
 </script>
 @endsection
