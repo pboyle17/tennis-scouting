@@ -166,13 +166,15 @@
                                         <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
                                             <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
                                         </a>
-                                        <!-- Tooltip -->
-                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
-                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
-                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                    whitespace-nowrap z-50">
-                                            Updated: {{ $player->updated_at->format('M d, Y h:i A') }}
-                                        </div>
+                                        @if($player->utr_singles_updated_at)
+                                            <!-- Tooltip -->
+                                            <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                        opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                        bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                        whitespace-nowrap z-50">
+                                                Updated: {{ $player->utr_singles_updated_at->format('M d, Y h:i A') }}
+                                            </div>
+                                        @endif
                                     </div>
                                 @endif
                                 @if($player->tennis_record_link)
