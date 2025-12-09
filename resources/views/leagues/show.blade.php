@@ -371,16 +371,8 @@
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
-                                First Name
-                                @if($sortField === 'first_name')
-                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                                @endif
-                            </a>
-                        </th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', ['league' => $league->id, 'sort' => 'last_name', 'direction' => ($sortField === 'last_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
-                                Last Name
-                                @if($sortField === 'last_name')
+                                Name
+                                @if($sortField === 'first_name' || $sortField === 'last_name')
                                     <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
                                 @endif
                             </a>
@@ -427,8 +419,7 @@
                     @foreach ($sortDirection === 'asc' ? $players->sortBy($sortField) : $players->sortByDesc($sortField) as $player)
                         <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}" data-team-id="{{ $player->team_id }}" data-has-utr="{{ $player->utr_id ? '1' : '0' }}">
                             <td class="px-4 py-2 text-sm text-gray-700 font-semibold">{{ $rank++ }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }} {{ $player->last_name }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">
                                 <a href="{{ route('teams.show', $player->team_id) }}" class="text-blue-600 hover:underline">
                                     {{ $player->team_name }}
@@ -524,8 +515,8 @@
                                     @endif
                                     @if($player->tennis_record_link)
                                         <div class="relative inline-block group">
-                                            <a href="{{ $player->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="text-green-600 hover:text-green-800 text-lg">
-                                                🎾
+                                            <a href="{{ $player->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-green-600 hover:text-green-800">
+                                                <span class="text-xl leading-none">🎾</span>
                                             </a>
                                             @if($player->tennis_record_last_sync)
                                                 <!-- Tooltip -->
