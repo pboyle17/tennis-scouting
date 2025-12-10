@@ -8,7 +8,7 @@ use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TournamentController;
 
 Route::get('/', function () {
-    return redirect()->route('players.index');
+    return redirect()->route('leagues.index');
 });
 
 Route::get('/players', [PlayerController::class, 'index'])->name('players.index');
