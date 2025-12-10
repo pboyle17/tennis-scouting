@@ -361,7 +361,7 @@
                 <button
                     id="clearFilters"
                     type="button"
-                    class="invisible bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-3 rounded"
+                    class="invisible bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-3 rounded cursor-pointer"
                 >
                     ✖ Clear All Filters
                 </button>
@@ -374,15 +374,18 @@
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified']))) }}" class="hover:text-gray-900">
-                                Name
-                                @if($sortField === 'first_name' || $sortField === 'last_name')
-                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                                @endif
-                            </a>
+                            <div class="flex items-center gap-2">
+                                <span id="filterPromoted" class="cursor-pointer text-lg {{ request('promoted') ? '' : 'grayscale opacity-50' }}" title="Filter promoted players">🏅</span>
+                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted']))) }}" class="hover:text-gray-900">
+                                    Name
+                                    @if($sortField === 'first_name' || $sortField === 'last_name')
+                                        <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                    @endif
+                                </a>
+                            </div>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'team_name', 'direction' => ($sortField === 'team_name' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified']))) }}" class="hover:text-gray-900">
+                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'team_name', 'direction' => ($sortField === 'team_name' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted']))) }}" class="hover:text-gray-900">
                                 Team
                                 @if($sortField === 'team_name')
                                     <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -392,7 +395,7 @@
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <div class="flex items-center gap-2">
                                 <span id="filterSinglesReliable" class="cursor-pointer text-lg font-bold {{ request('singles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified ratings">✓</span>
-                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField === 'utr_singles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified']))) }}" class="hover:text-gray-900">
+                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField === 'utr_singles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted']))) }}" class="hover:text-gray-900">
                                     UTR Singles
                                     @if($sortField === 'utr_singles_rating')
                                         <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -403,7 +406,7 @@
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <div class="flex items-center gap-2">
                                 <span id="filterDoublesReliable" class="cursor-pointer text-lg font-bold {{ request('doubles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified ratings">✓</span>
-                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField === 'utr_doubles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified']))) }}" class="hover:text-gray-900">
+                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField === 'utr_doubles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted']))) }}" class="hover:text-gray-900">
                                     UTR Doubles
                                     @if($sortField === 'utr_doubles_rating')
                                         <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -412,7 +415,7 @@
                             </div>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField === 'USTA_dynamic_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified']))) }}" class="hover:text-gray-900">
+                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField === 'USTA_dynamic_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted']))) }}" class="hover:text-gray-900">
                                 USTA Dynamic
                                 @if($sortField === 'USTA_dynamic_rating')
                                     <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -427,9 +430,25 @@
                         $rank = 1;
                     @endphp
                     @foreach ($sortDirection === 'asc' ? $players->sortBy($sortField) : $players->sortByDesc($sortField) as $player)
-                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}" data-team-id="{{ $player->team_id }}" data-has-utr="{{ $player->utr_id ? '1' : '0' }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}">
+                        @php
+                            $isPromoted = $league->NTRP_rating && $player->USTA_rating && $player->USTA_rating > $league->NTRP_rating;
+                        @endphp
+                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}" data-team-id="{{ $player->team_id }}" data-has-utr="{{ $player->utr_id ? '1' : '0' }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}" data-promoted="{{ $isPromoted ? '1' : '0' }}">
                             <td class="px-4 py-2 text-sm text-gray-700 font-semibold">{{ $rank++ }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }} {{ $player->last_name }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">
+                                {{ $player->first_name }} {{ $player->last_name }}
+                                @if($isPromoted)
+                                    <span class="relative inline-block group">
+                                        <span class="text-yellow-500">🏅</span>
+                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                    whitespace-nowrap z-50">
+                                            Promoted to {{ number_format($player->USTA_rating, 1) }}
+                                        </div>
+                                    </span>
+                                @endif
+                            </td>
                             <td class="px-4 py-2 text-sm text-gray-700">
                                 <a href="{{ route('teams.show', $player->team_id) }}" class="text-blue-600 hover:underline">
                                     {{ $player->team_name }}
@@ -706,10 +725,11 @@
             const searchTerm = input.value.trim().toLowerCase();
             const selectedTeams = teamCheckboxes.filter(cb => cb.checked).map(cb => cb.value);
 
-            // Get UTR verified filter states from URL
+            // Get filter states from URL
             const urlParams = new URLSearchParams(window.location.search);
             const singlesVerified = urlParams.get('singles_verified') === '1';
             const doublesVerified = urlParams.get('doubles_verified') === '1';
+            const promoted = urlParams.get('promoted') === '1';
 
             let visibleRank = 1;
             let visiblePlayers = 0;
@@ -726,13 +746,15 @@
                 const hasUtr = row.getAttribute('data-has-utr') === '1';
                 const singlesReliable = row.getAttribute('data-singles-reliable') === '1';
                 const doublesReliable = row.getAttribute('data-doubles-reliable') === '1';
+                const isPromoted = row.getAttribute('data-promoted') === '1';
 
                 const matchesSearch = !searchTerm || name.includes(searchTerm);
                 const matchesTeam = selectedTeams.length === 0 || selectedTeams.length === teamCheckboxes.length || selectedTeams.includes(teamId);
                 const matchesSinglesVerified = !singlesVerified || singlesReliable;
                 const matchesDoublesVerified = !doublesVerified || doublesReliable;
+                const matchesPromoted = !promoted || isPromoted;
 
-                const show = matchesSearch && matchesTeam && matchesSinglesVerified && matchesDoublesVerified;
+                const show = matchesSearch && matchesTeam && matchesSinglesVerified && matchesDoublesVerified && matchesPromoted;
                 row.style.display = show ? '' : 'none';
 
                 // Update rank and counts for visible rows
@@ -777,7 +799,7 @@
             // Show clear all filters button when there's any active filter
             const hasSearch = searchTerm.length > 0;
             const hasTeamFilter = selectedTeams.length > 0 && selectedTeams.length < teamCheckboxes.length;
-            const hasAnyFilter = hasSearch || hasTeamFilter || singlesVerified || doublesVerified;
+            const hasAnyFilter = hasSearch || hasTeamFilter || singlesVerified || doublesVerified || promoted;
             clearFiltersBtn.classList.toggle('invisible', !hasAnyFilter);
             clearFiltersBtn.style.pointerEvents = hasAnyFilter ? 'auto' : 'none';
         }
@@ -813,6 +835,7 @@
             // Clear UTR verified filter checkmarks
             const filterSingles = document.getElementById('filterSinglesReliable');
             const filterDoubles = document.getElementById('filterDoublesReliable');
+            const filterPromoted = document.getElementById('filterPromoted');
             if (filterSingles) {
                 filterSingles.classList.remove('text-green-600');
                 filterSingles.classList.add('text-gray-400');
@@ -821,6 +844,9 @@
                 filterDoubles.classList.remove('text-green-600');
                 filterDoubles.classList.add('text-gray-400');
             }
+            if (filterPromoted) {
+                filterPromoted.classList.add('grayscale', 'opacity-50');
+            }
 
             // Clear URL params
             const url = new URL(window.location);
@@ -828,6 +854,7 @@
             url.searchParams.delete('search');
             url.searchParams.delete('singles_verified');
             url.searchParams.delete('doubles_verified');
+            url.searchParams.delete('promoted');
             window.history.pushState({}, '', decodeURIComponent(url.toString()));
 
             applyFilters();
@@ -1043,6 +1070,44 @@
         }
     })();
 
+    // Promoted Players Filter
+    (function() {
+        const filterPromoted = document.getElementById('filterPromoted');
+        let promotedActive = {{ request('promoted') ? 'true' : 'false' }};
+
+        function togglePromoted(e) {
+            e.stopPropagation();
+            promotedActive = !promotedActive;
+            if (promotedActive) {
+                filterPromoted.classList.remove('grayscale', 'opacity-50');
+            } else {
+                filterPromoted.classList.add('grayscale', 'opacity-50');
+            }
+            updateURL();
+        }
+
+        function updateURL() {
+            const url = new URL(window.location);
+
+            if (promotedActive) {
+                url.searchParams.set('promoted', '1');
+            } else {
+                url.searchParams.delete('promoted');
+            }
+
+            window.history.pushState({}, '', decodeURIComponent(url.toString()));
+
+            // Call the global applyFilters which handles all filters together
+            if (window.applyFilters) {
+                window.applyFilters();
+            }
+        }
+
+        if (filterPromoted) {
+            filterPromoted.addEventListener('click', togglePromoted);
+        }
+    })();
+
     // Preserve filters when clicking sort links
     (function() {
         const sortLinks = document.querySelectorAll('thead a[href*="sort="]');
@@ -1058,7 +1123,7 @@
                 const sortUrl = new URL(this.href);
 
                 // Preserve filter parameters from current URL
-                const filterParams = ['teams', 'search', 'singles_verified', 'doubles_verified'];
+                const filterParams = ['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted'];
                 filterParams.forEach(param => {
                     const value = currentParams.get(param);
                     if (value) {
