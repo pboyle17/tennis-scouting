@@ -301,7 +301,7 @@
                     <form id="syncTeamsForm" method="POST" action="{{ route('leagues.syncAllTeams', $league->id) }}" style="display:inline;">
                         @csrf
                         <input type="hidden" id="syncTeamIds" name="team_ids" value="">
-                        <button type="submit" id="syncTeamsButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded" title="Sync filtered teams from Tennis Record">
+                        <button type="submit" id="syncTeamsButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Sync filtered teams from Tennis Record">
                             🎾 Sync Teams (<span id="syncTeamsCount">{{ $teamsWithTennisRecord }}</span>)
                         </button>
                     </form>
@@ -314,7 +314,7 @@
                     <form id="updateUtrForm" method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;">
                         @csrf
                         <input type="hidden" id="updateUtrTeamIds" name="team_ids" value="">
-                        <button type="submit" id="updateUtrButton" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded" title="Update UTR ratings for filtered teams">
+                        <button type="submit" id="updateUtrButton" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Update UTR ratings for filtered teams">
                             🔄 Update UTRs (<span id="updateUtrCount">{{ $playersWithUtr }}</span>)
                         </button>
                     </form>
@@ -327,7 +327,7 @@
                     <button
                         id="teamFilterButton"
                         type="button"
-                        class="border rounded px-3 py-2 bg-white hover:bg-gray-50 flex items-center space-x-2"
+                        class="border rounded px-3 py-2 bg-white hover:bg-gray-50 flex items-center space-x-2 cursor-pointer"
                     >
                         <span id="teamFilterLabel">All Teams</span>
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
