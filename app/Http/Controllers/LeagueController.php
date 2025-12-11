@@ -93,9 +93,13 @@ class LeagueController extends Controller
           'usta_link' => 'nullable|string|max:255',
           'tennis_record_link' => 'nullable|string|max:255',
           'NTRP_rating' => 'nullable|numeric|min:1.0|max:7.0',
+          'is_combo' => 'nullable|boolean',
       ]);
 
-      $league->update($request->only(['name', 'usta_link', 'tennis_record_link', 'NTRP_rating']));
+      $data = $request->only(['name', 'usta_link', 'tennis_record_link', 'NTRP_rating']);
+      $data['is_combo'] = $request->has('is_combo') ? true : false;
+
+      $league->update($data);
 
       return redirect()->route('leagues.index')->with('success', 'League updated successfully.');
     }

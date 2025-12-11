@@ -406,8 +406,10 @@
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <div class="flex items-center gap-2">
-                                <span id="filterPromoted" class="cursor-pointer text-lg {{ request('promoted') ? '' : 'grayscale opacity-50' }}" title="Filter promoted players">🏅</span>
-                                <span id="filterPlayingUp" class="cursor-pointer text-lg {{ request('playing_up') ? '' : 'grayscale opacity-50' }}" title="Filter players playing up">⚔️</span>
+                                @if(!$league->is_combo)
+                                    <span id="filterPromoted" class="cursor-pointer text-lg {{ request('promoted') ? '' : 'grayscale opacity-50' }}" title="Filter promoted players">🏅</span>
+                                    <span id="filterPlayingUp" class="cursor-pointer text-lg {{ request('playing_up') ? '' : 'grayscale opacity-50' }}" title="Filter players playing up">⚔️</span>
+                                @endif
                                 <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted', 'playing_up']))) }}" class="hover:text-gray-900">
                                     Name
                                     @if($sortField === 'first_name' || $sortField === 'last_name')
@@ -470,27 +472,29 @@
                             <td class="px-4 py-2 text-sm text-gray-700 font-semibold">{{ $rank++ }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">
                                 {{ $player->first_name }} {{ $player->last_name }}
-                                @if($isPromoted)
-                                    <span class="relative inline-block group">
-                                        <span class="text-yellow-500">🏅</span>
-                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
-                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
-                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                    whitespace-nowrap z-50">
-                                            Promoted to {{ number_format($player->USTA_rating, 1) }}
-                                        </div>
-                                    </span>
-                                @endif
-                                @if($isPlayingUp)
-                                    <span class="relative inline-block group">
-                                        <span>⚔️</span>
-                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
-                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
-                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                    whitespace-nowrap z-50">
-                                            Playing up from {{ number_format($player->USTA_rating, 1) }}
-                                        </div>
-                                    </span>
+                                @if(!$league->is_combo)
+                                    @if($isPromoted)
+                                        <span class="relative inline-block group">
+                                            <span class="text-yellow-500">🏅</span>
+                                            <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                        opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                        bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                        whitespace-nowrap z-50">
+                                                Promoted to {{ number_format($player->USTA_rating, 1) }}
+                                            </div>
+                                        </span>
+                                    @endif
+                                    @if($isPlayingUp)
+                                        <span class="relative inline-block group">
+                                            <span>⚔️</span>
+                                            <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                        opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                        bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                        whitespace-nowrap z-50">
+                                                Playing up from {{ number_format($player->USTA_rating, 1) }}
+                                            </div>
+                                        </span>
+                                    @endif
                                 @endif
                             </td>
                             <td class="px-4 py-2 text-sm text-gray-700">
@@ -545,7 +549,7 @@
                                     <div class="relative inline-block group">
                                         @php
                                             $ratingClass = '';
-                                            if ($league->NTRP_rating) {
+                                            if (!$league->is_combo && $league->NTRP_rating) {
                                                 if ($player->USTA_dynamic_rating >= $league->NTRP_rating) {
                                                     $ratingClass = 'text-green-600 font-semibold';
                                                 } elseif ($league->NTRP_rating > 3.0 && $player->USTA_dynamic_rating <= $league->NTRP_rating - 0.5) {
