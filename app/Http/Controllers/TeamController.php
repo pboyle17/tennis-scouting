@@ -62,7 +62,23 @@ class TeamController extends Controller
                                   ->orderBy('last_name')
                                   ->get();
 
-        return view('teams.show', compact('team', 'availablePlayers', 'sortField', 'sortDirection'));
+        // Get matches for this team (where team is either home or away)
+        $matches = \App\Models\TennisMatch::where(function($query) use ($team) {
+            $query->where('home_team_id', $team->id)
+                  ->orWhere('away_team_id', $team->id);
+        })
+        ->with(['homeTeam', 'awayTeam', 'league'])
+        ->orderBy('start_time', 'asc')
+        ->get();
+
+        // Check for score conflicts from cache (set during sync)
+        $scoreConflicts = [];
+        if ($team->league) {
+            $conflictsKey = "score_conflicts_league_{$team->league->id}";
+            $scoreConflicts = \Illuminate\Support\Facades\Cache::get($conflictsKey, []);
+        }
+
+        return view('teams.show', compact('team', 'availablePlayers', 'sortField', 'sortDirection', 'matches', 'scoreConflicts'));
     }
 
     /**
@@ -322,6 +338,43 @@ class TeamController extends Controller
         }
 
         return response()->json($progress);
+    }
+
+    /**
+     * Sync team matches from Tennis Record league page for this specific team
+     */
+    public function syncTeamMatches(Team $team)
+    {
+        try {
+            // Ensure team has a league
+            if (!$team->league) {
+                return back()->with('error', 'Team is not associated with a league.');
+            }
+
+            // Ensure league has Tennis Record link
+            if (!$team->league->tennis_record_link) {
+                return back()->with('error', 'League does not have a Tennis Record link.');
+            }
+
+            // Generate unique job key
+            $jobKey = 'team_matches_sync_' . uniqid();
+
+            // Dispatch the job with team filter
+            \App\Jobs\SyncTeamMatchesJob::dispatch($team->league, $jobKey, $team->id);
+
+            return back()->with([
+                'status' => '✅ Team matches sync job has been dispatched!',
+                'team_matches_sync_job_key' => $jobKey
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Team matches sync dispatch failed: " . $e->getMessage(), [
+                'team_id' => $team->id,
+                'error' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('error', 'Failed to dispatch sync job: ' . $e->getMessage());
+        }
     }
 
     /**

@@ -258,8 +258,8 @@
             </button>
         </div>
 
-        <div class="overflow-x-auto bg-white rounded-lg shadow">
-            <table id="playersTable" class="min-w-full divide-y divide-gray-200">
+        <div class="bg-white rounded-lg shadow">
+            <table id="playersTable" class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
@@ -435,6 +435,154 @@
             <p class="text-gray-400 text-sm">Players can be assigned to teams from the player edit page</p>
         </div>
     @endif
+
+    <!-- Score Conflicts -->
+    @if(!empty($scoreConflicts))
+        <div class="mt-8">
+            @foreach($scoreConflicts as $conflict)
+                <div class="bg-yellow-50 border border-yellow-200 p-6 rounded-lg shadow mb-4">
+                    <h3 class="text-lg font-semibold mb-4 text-yellow-800">
+                        ⚠️ Score Conflict Detected
+                    </h3>
+                    <p class="text-sm text-gray-700 mb-4">
+                        Match: <strong>{{ $conflict['home_team_name'] }}</strong> vs <strong>{{ $conflict['away_team_name'] }}</strong> on {{ \Carbon\Carbon::parse($conflict['start_time'])->format('M d, Y g:i A') }}
+                    </p>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Source</th>
+                                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Score</th>
+                                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-gray-200">
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-2 text-sm font-semibold">Current (Database)</td>
+                                    <td class="px-4 py-2 text-sm text-center">{{ $conflict['current_home_score'] }} - {{ $conflict['current_away_score'] }}</td>
+                                    <td class="px-4 py-2 text-sm text-center">
+                                        <span class="text-gray-500 text-xs">No action needed</span>
+                                    </td>
+                                </tr>
+                                <tr class="hover:bg-gray-50 bg-green-50">
+                                    <td class="px-4 py-2 text-sm font-semibold">Tennis Record (New)</td>
+                                    <td class="px-4 py-2 text-sm text-center">{{ $conflict['new_home_score'] }} - {{ $conflict['new_away_score'] }}</td>
+                                    <td class="px-4 py-2 text-sm text-center">
+                                        <form method="POST" action="{{ route('tennis-matches.updateScore', $conflict['match_id']) }}" style="display:inline;">
+                                            @csrf
+                                            <input type="hidden" name="home_score" value="{{ $conflict['new_home_score'] }}">
+                                            <input type="hidden" name="away_score" value="{{ $conflict['new_away_score'] }}">
+                                            <button type="submit" class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded">
+                                                Use This Score
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    @endif
+
+    <!-- Matches Table -->
+    <div class="mt-8">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">Team Matches</h2>
+            @if($team->league && $team->league->tennis_record_link)
+                <form method="POST" action="{{ route('teams.syncTeamMatches', $team->id) }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                        📅 Sync Team Matches
+                    </button>
+                </form>
+            @endif
+        </div>
+
+        @if($matches->count() > 0)
+            <div class="bg-white rounded-lg shadow">
+                <table class="w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Date & Time</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Opponent</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Score</th>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Location</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Match</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        @foreach($matches as $match)
+                            @php
+                                $isHomeTeam = $match->home_team_id === $team->id;
+                                $opponent = $isHomeTeam ? $match->awayTeam : $match->homeTeam;
+                            @endphp
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-2 text-sm text-gray-700">
+                                    @if($match->start_time)
+                                        {{ $match->start_time->format('M d, Y') }}
+                                        <div class="text-xs text-gray-500">{{ $match->start_time->format('g:i A') }}</div>
+                                    @else
+                                        <span class="text-gray-400">TBD</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-sm">
+                                    <a href="{{ route('teams.show', $opponent->id) }}" class="text-blue-600 hover:underline">
+                                        {{ $opponent->name }}
+                                    </a>
+                                </td>
+                                <td class="px-4 py-2 text-sm text-center">
+                                    @if($match->home_score !== null && $match->away_score !== null)
+                                        @php
+                                            $currentScore = $isHomeTeam ? $match->home_score : $match->away_score;
+                                            $opponentScore = $isHomeTeam ? $match->away_score : $match->home_score;
+                                        @endphp
+                                        <span class="font-semibold">{{ $currentScore }} - {{ $opponentScore }}</span>
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-sm text-gray-700">
+                                    {{ $match->location ?? '-' }}
+                                </td>
+                                <td class="px-4 py-2 text-sm text-center">
+                                    @if($match->tennis_record_match_link)
+                                        <a href="{{ $match->tennis_record_match_link }}" target="_blank" rel="noopener noreferrer" class="text-2xl hover:opacity-70 transition-opacity" title="View on Tennis Record">
+                                            🎾
+                                        </a>
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-sm text-center">
+                                    <div class="flex items-center justify-center space-x-2">
+                                        <a href="{{ route('tennis-matches.edit', $match->id) }}" class="text-blue-600 hover:text-blue-800">
+                                            ✏️
+                                        </a>
+                                        <form method="POST" action="{{ route('tennis-matches.destroy', $match->id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this match?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-600 hover:text-red-800">
+                                                🗑️
+                                            </button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+                <div class="text-gray-500 text-lg mb-2">No matches scheduled yet</div>
+                <p class="text-gray-400 text-sm">Use the "Sync Team Matches" button to fetch matches from Tennis Record</p>
+            </div>
+        @endif
+    </div>
 </div>
 
 <script>
