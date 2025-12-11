@@ -359,7 +359,7 @@
                                                 if ($player->USTA_dynamic_rating >= $team->league->NTRP_rating) {
                                                     $ratingClass = 'text-green-600 font-semibold';
                                                 } elseif ($team->league->NTRP_rating > 3.0 && $player->USTA_dynamic_rating <= $team->league->NTRP_rating - 0.5) {
-                                                    $ratingClass = 'text-red-600 font-semibold';
+                                                    $ratingClass = 'text-amber-600 font-semibold';
                                                 }
                                             }
                                         @endphp

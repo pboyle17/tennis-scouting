@@ -23,6 +23,7 @@ Route::get('/players/utr-search-progress', [PlayerController::class, 'getUtrSear
 Route::get('/players/utr-update-progress', [PlayerController::class, 'getUtrUpdateProgress'])->name('players.utrUpdateProgress');
 Route::post('/players/{player}/update-utr', [PlayerController::class, 'updateUtr'])->name('players.updateUtrSingle');
 Route::post('/players/{player}/search-utr-id', [PlayerController::class, 'searchUtrId'])->name('players.searchUtrId');
+Route::post('/players/{player}/sync-tr-profile', [PlayerController::class, 'syncTrProfile'])->name('players.syncTrProfile');
 
 Route::resource('teams', TeamController::class);
 Route::post('/teams/{team}/add-player', [TeamController::class, 'addPlayer'])->name('teams.addPlayer');
@@ -46,6 +47,8 @@ Route::get('/leagues/league-creation-progress', [LeagueController::class, 'getLe
 Route::post('/leagues/{league}/teams/{team}/find-missing-utr-ids', [LeagueController::class, 'findMissingUtrIdsForTeam'])->name('leagues.findMissingUtrIdsForTeam');
 Route::post('/players/{player}/set-utr-data', [LeagueController::class, 'setPlayerUtrData'])->name('leagues.setPlayerUtrData');
 Route::post('/leagues/{league}/sync-all-teams', [LeagueController::class, 'syncAllTeamsFromTennisRecord'])->name('leagues.syncAllTeams');
+Route::post('/leagues/{league}/sync-tr-profiles', [LeagueController::class, 'syncTrProfiles'])->name('leagues.syncTrProfiles');
+Route::get('/leagues/tr-sync-progress', [LeagueController::class, 'getTrSyncProgress'])->name('leagues.trSyncProgress');
 
 Route::resource('tournaments', TournamentController::class);
 Route::post('/tournaments/{tournament}/add-player', [TournamentController::class, 'addPlayer'])->name('tournaments.addPlayer');

@@ -94,18 +94,28 @@
 
 <h1 class="text-3xl font-bold mb-6 text-center">Edit Player</h1>
     <div class="max-w-lg mx-auto mb-4 flex justify-center space-x-2">
-        <form method="POST" action="{{ route('players.searchUtrId', $player->id) }}{{ isset($returnUrl) ? '?return_url=' . urlencode($returnUrl) : '' }}">
-            @csrf
-            <button type="submit" class="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
-                🔍 Search UTR ID
-            </button>
-        </form>
+        @if(!$player->utr_id)
+            <form method="POST" action="{{ route('players.searchUtrId', $player->id) }}{{ isset($returnUrl) ? '?return_url=' . urlencode($returnUrl) : '' }}">
+                @csrf
+                <button type="submit" class="inline-flex items-center bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                    🔍 Search UTR ID
+                </button>
+            </form>
+        @endif
         <form method="POST" action="{{ route('players.updateUtrSingle', $player->id) }}">
             @csrf
-            <button type="submit" class="inline-flex items-center bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
+            <button type="submit" class="inline-flex items-center bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
                 🔄 Update UTR
             </button>
         </form>
+        @if($player->tennis_record_link)
+            <form method="POST" action="{{ route('players.syncTrProfile', $player->id) }}{{ isset($returnUrl) ? '?return_url=' . urlencode($returnUrl) : '' }}">
+                @csrf
+                <button type="submit" class="inline-flex items-center bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                    📋 Sync TR Profile
+                </button>
+            </form>
+        @endif
     </div>
 
     <form action="{{ route('players.update', $player->id) }}" method="POST" class="max-w-lg mx-auto bg-white p-6 rounded shadow">
@@ -183,6 +193,18 @@
         <div class="mb-4">
             <label class="block mb-1" for="USTA_rating">USTA Rating</label>
             <input type="number" step=".5" name="USTA_rating" id="USTA_rating" value="{{ old('USTA_rating', $player->USTA_rating) }}" class="w-full border rounded p-2">
+        </div>
+
+        <div class="mb-4">
+            <label class="block mb-1" for="usta_rating_type">USTA Rating Type</label>
+            <select name="usta_rating_type" id="usta_rating_type" class="w-full border rounded p-2">
+                <option value="">-- Select Type --</option>
+                <option value="S" {{ old('usta_rating_type', $player->usta_rating_type) == 'S' ? 'selected' : '' }}>S - Self-rated</option>
+                <option value="C" {{ old('usta_rating_type', $player->usta_rating_type) == 'C' ? 'selected' : '' }}>C - Computer rated</option>
+                <option value="A" {{ old('usta_rating_type', $player->usta_rating_type) == 'A' ? 'selected' : '' }}>A - Appeal</option>
+                <option value="M" {{ old('usta_rating_type', $player->usta_rating_type) == 'M' ? 'selected' : '' }}>M - Medical</option>
+                <option value="T" {{ old('usta_rating_type', $player->usta_rating_type) == 'T' ? 'selected' : '' }}>T - Tournament</option>
+            </select>
         </div>
 
         <div class="flex justify-between">

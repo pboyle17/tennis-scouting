@@ -91,6 +91,9 @@ class PlayerController extends Controller
         if (isset($validated['utr_doubles_rating']) && $validated['utr_doubles_rating'] != $player->utr_doubles_rating) {
             $validated['utr_doubles_updated_at'] = now();
         }
+        if (isset($validated['USTA_rating']) && $validated['USTA_rating'] != $player->USTA_rating) {
+            $validated['usta_rating_updated_at'] = now();
+        }
 
         $player->update($validated);
 
@@ -249,6 +252,132 @@ class PlayerController extends Controller
             }
 
             return redirect($redirectUrl)->with('error', 'Failed to search for UTR ID: ' . $e->getMessage());
+        }
+    }
+
+    public function syncTrProfile(Request $request, Player $player)
+    {
+        try {
+            // Check if player has a Tennis Record link
+            if (!$player->tennis_record_link) {
+                $returnUrl = $request->query('return_url');
+                $redirectUrl = route('players.edit', $player->id);
+                if ($returnUrl) {
+                    $redirectUrl .= '?return_url=' . urlencode($returnUrl);
+                }
+                return redirect($redirectUrl)->with('error', 'Player does not have a Tennis Record link.');
+            }
+
+            Log::info("Syncing Tennis Record profile for player: {$player->first_name} {$player->last_name}", [
+                'player_id' => $player->id,
+                'tennis_record_link' => $player->tennis_record_link
+            ]);
+
+            // Fetch the Tennis Record page
+            $response = \Illuminate\Support\Facades\Http::timeout(30)
+                ->connectTimeout(10)
+                ->withHeaders([
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                ])
+                ->get($player->tennis_record_link);
+
+            if (!$response->successful()) {
+                Log::warning("Failed to fetch Tennis Record page for player {$player->id}", [
+                    'player_id' => $player->id,
+                    'status' => $response->status(),
+                    'link' => $player->tennis_record_link
+                ]);
+
+                $returnUrl = $request->query('return_url');
+                $redirectUrl = route('players.edit', $player->id);
+                if ($returnUrl) {
+                    $redirectUrl .= '?return_url=' . urlencode($returnUrl);
+                }
+                return redirect($redirectUrl)->with('error', 'Failed to fetch Tennis Record page.');
+            }
+
+            $html = $response->body();
+
+            // Try multiple patterns to find USTA rating
+            $patterns = [
+                // Pattern for rating in bold span (Tennis Record format) - most common
+                '/<span[^>]*font-weight:\s*bold[^>]*>([3-5]\.\d+)\s+([SCMTA])<\/span>/i',
+                '/Rating:\s*<[^>]+>([3-5]\.\d+)([SCMTA])<\/[^>]+>/i',
+                '/USTA\s+Rating:\s*([3-5]\.\d+)([SCMTA])/i',
+                '/<td[^>]*>Rating<\/td>\s*<td[^>]*>([3-5]\.\d+)([SCMTA])<\/td>/i',
+                // Generic pattern for rating directly in any table cell (no label)
+                '/<td[^>]*>\s*([3-5]\.\d+)\s*([SCMTA])\s*<\/td>/i',
+            ];
+
+            $ratingFound = false;
+            $rating = null;
+            $ratingType = null;
+
+            foreach ($patterns as $pattern) {
+                if (preg_match($pattern, $html, $matches)) {
+                    $rating = floatval($matches[1]);
+                    $ratingType = strtoupper($matches[2]);
+                    $ratingFound = true;
+                    break;
+                }
+            }
+
+            if ($ratingFound && $rating >= 3.0 && $rating <= 5.0 && in_array($ratingType, ['S', 'C', 'A', 'M', 'T'])) {
+                $player->USTA_rating = $rating;
+                $player->usta_rating_type = $ratingType;
+                $player->usta_rating_updated_at = now();
+                $player->save();
+
+                Log::info("Successfully synced Tennis Record profile for player {$player->id}", [
+                    'player_id' => $player->id,
+                    'player_name' => $player->first_name . ' ' . $player->last_name,
+                    'usta_rating' => $rating,
+                    'usta_rating_type' => $ratingType
+                ]);
+
+                $ratingTypeNames = [
+                    'S' => 'Self-rated',
+                    'C' => 'Computer rated',
+                    'A' => 'Appeal',
+                    'M' => 'Medical',
+                    'T' => 'Tournament'
+                ];
+
+                $returnUrl = $request->query('return_url');
+                $redirectUrl = route('players.edit', $player->id);
+                if ($returnUrl) {
+                    $redirectUrl .= '?return_url=' . urlencode($returnUrl);
+                }
+
+                return redirect($redirectUrl)->with('success', "Successfully synced USTA rating: {$rating} ({$ratingTypeNames[$ratingType]})");
+            } else {
+                Log::warning("Could not find valid USTA rating on Tennis Record page for player {$player->id}", [
+                    'player_id' => $player->id,
+                    'player_name' => $player->first_name . ' ' . $player->last_name,
+                    'link' => $player->tennis_record_link
+                ]);
+
+                $returnUrl = $request->query('return_url');
+                $redirectUrl = route('players.edit', $player->id);
+                if ($returnUrl) {
+                    $redirectUrl .= '?return_url=' . urlencode($returnUrl);
+                }
+                return redirect($redirectUrl)->with('error', 'Could not find valid USTA rating on Tennis Record page.');
+            }
+
+        } catch (\Exception $e) {
+            Log::error("Error syncing Tennis Record profile for player {$player->id}: " . $e->getMessage(), [
+                'player_id' => $player->id,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            $returnUrl = $request->query('return_url');
+            $redirectUrl = route('players.edit', $player->id);
+            if ($returnUrl) {
+                $redirectUrl .= '?return_url=' . urlencode($returnUrl);
+            }
+            return redirect($redirectUrl)->with('error', 'Failed to sync Tennis Record profile: ' . $e->getMessage());
         }
     }
 }
