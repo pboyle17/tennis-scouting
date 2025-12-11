@@ -55,7 +55,7 @@
                 >
             </div>
 
-            <div class="mb-6">
+            <div class="mb-4">
                 <label class="block text-gray-700 font-semibold mb-2" for="NTRP_rating">NTRP Rating</label>
                 <input
                     class="w-full border border-gray-300 p-2 rounded"
@@ -68,6 +68,21 @@
                     value="{{ old('NTRP_rating', $league->NTRP_rating) }}"
                     placeholder="e.g., 3.5"
                 >
+            </div>
+
+            <div class="mb-6">
+                <label class="flex items-center">
+                    <input
+                        type="checkbox"
+                        name="is_combo"
+                        id="is_combo"
+                        value="1"
+                        {{ old('is_combo', $league->is_combo) ? 'checked' : '' }}
+                        class="mr-2"
+                    >
+                    <span class="text-gray-700 font-semibold">Combo League</span>
+                </label>
+                <p class="text-sm text-gray-600 mt-1">Check if this is a combo league (hides promoted/playing up filters and dynamic rating colors)</p>
             </div>
 
             <div class="flex justify-between">
