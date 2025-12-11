@@ -7,6 +7,7 @@ use App\Models\League;
 use App\Models\Team;
 use App\Models\Player;
 use App\Jobs\SyncTeamFromTennisRecordJob;
+use Illuminate\Support\Facades\Cache;
 
 class LeagueController extends Controller
 {
@@ -424,5 +425,53 @@ class LeagueController extends Controller
         }
 
         return back()->with('success', "Syncing {$teamsToSync->count()} team(s) from Tennis Record. This may take a few minutes.");
+    }
+
+    /**
+     * Sync Tennis Record profiles to update USTA ratings
+     */
+    public function syncTrProfiles(Request $request, League $league)
+    {
+        try {
+            // Get team IDs from request (filtered teams) or all teams
+            $teamIds = $request->input('team_ids') ? explode(',', $request->input('team_ids')) : null;
+
+            // Generate unique job key
+            $jobKey = 'tr_profiles_sync_' . uniqid();
+
+            // Dispatch the job
+            \App\Jobs\SyncTrProfilesJob::dispatch($league, $teamIds, $jobKey);
+
+            return back()->with([
+                'status' => '✅ Tennis Record profile sync job has been dispatched!',
+                'tr_sync_job_key' => $jobKey
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Tennis Record profile sync dispatch failed: " . $e->getMessage(), [
+                'league_id' => $league->id,
+                'error' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('error', 'Failed to dispatch sync job: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Get Tennis Record profile sync progress
+     */
+    public function getTrSyncProgress(Request $request)
+    {
+        $jobKey = $request->get('job_key');
+        if (!$jobKey) {
+            return response()->json(['error' => 'Job key required'], 400);
+        }
+
+        $progress = Cache::get("tr_profiles_sync_progress_{$jobKey}");
+        if (!$progress) {
+            return response()->json(['error' => 'Job not found'], 404);
+        }
+
+        return response()->json($progress);
     }
 }

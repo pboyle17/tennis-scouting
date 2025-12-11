@@ -40,6 +40,21 @@
         </div>
     </div>
 
+    <!-- Tennis Record Profile Sync Progress -->
+    <div id="trSyncProgressContainer" class="hidden mb-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
+        <div class="flex items-center mb-2">
+            <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-orange-600 mr-2"></div>
+            <span class="text-sm font-medium text-orange-800" id="trSyncProgressTitle">Syncing Tennis Record profiles...</span>
+        </div>
+        <div class="w-full bg-gray-200 rounded-full h-3 mb-2">
+            <div id="trSyncProgressBar" class="bg-orange-600 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div class="text-xs text-gray-600">
+            <div id="trSyncProgressMessage">Starting...</div>
+            <div id="trSyncProgressDetails" class="mt-1 text-gray-500"></div>
+        </div>
+    </div>
+
     <!-- UTR Search Results -->
     @if(session('utr_search_results'))
         <div class="mb-6">
@@ -217,8 +232,8 @@
     </div>
 
     <!-- Teams Table -->
-    <div class="overflow-x-auto bg-white rounded-lg shadow mb-6">
-        <table class="min-w-full divide-y divide-gray-200">
+    <div class="bg-white rounded-lg shadow mb-6">
+        <table class="w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Team Name</th>
@@ -323,6 +338,22 @@
                         🔄 Update UTRs (0)
                     </button>
                 @endif
+                @php
+                    $playersWithTennisRecord = $players->filter(fn($p) => $p->tennis_record_link !== null)->count();
+                @endphp
+                @if($playersWithTennisRecord > 0)
+                    <form id="syncTrProfilesForm" method="POST" action="{{ route('leagues.syncTrProfiles', $league->id) }}" style="display:inline;">
+                        @csrf
+                        <input type="hidden" id="syncTrProfilesTeamIds" name="team_ids" value="">
+                        <button type="submit" id="syncTrProfilesButton" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Sync USTA ratings from Tennis Record player profiles">
+                            📋 Sync TR Profiles (<span id="syncTrProfilesCount">{{ $playersWithTennisRecord }}</span>)
+                        </button>
+                    </form>
+                @else
+                    <button type="button" disabled class="bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed" title="No players with Tennis Record links found">
+                        📋 Sync TR Profiles (0)
+                    </button>
+                @endif
                 <div class="relative inline-block">
                     <button
                         id="teamFilterButton"
@@ -368,15 +399,16 @@
             </div>
         </div>
 
-        <div class="overflow-x-auto bg-white rounded-lg shadow">
-            <table id="playersTable" class="min-w-full divide-y divide-gray-200">
+        <div class="bg-white rounded-lg shadow">
+            <table id="playersTable" class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <div class="flex items-center gap-2">
                                 <span id="filterPromoted" class="cursor-pointer text-lg {{ request('promoted') ? '' : 'grayscale opacity-50' }}" title="Filter promoted players">🏅</span>
-                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted']))) }}" class="hover:text-gray-900">
+                                <span id="filterPlayingUp" class="cursor-pointer text-lg {{ request('playing_up') ? '' : 'grayscale opacity-50' }}" title="Filter players playing up">⚔️</span>
+                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted', 'playing_up']))) }}" class="hover:text-gray-900">
                                     Name
                                     @if($sortField === 'first_name' || $sortField === 'last_name')
                                         <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -385,7 +417,7 @@
                             </div>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'team_name', 'direction' => ($sortField === 'team_name' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted']))) }}" class="hover:text-gray-900">
+                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'team_name', 'direction' => ($sortField === 'team_name' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted', 'playing_up']))) }}" class="hover:text-gray-900">
                                 Team
                                 @if($sortField === 'team_name')
                                     <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -395,7 +427,7 @@
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <div class="flex items-center gap-2">
                                 <span id="filterSinglesReliable" class="cursor-pointer text-lg font-bold {{ request('singles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified ratings">✓</span>
-                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField === 'utr_singles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted']))) }}" class="hover:text-gray-900">
+                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField === 'utr_singles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted', 'playing_up']))) }}" class="hover:text-gray-900">
                                     UTR Singles
                                     @if($sortField === 'utr_singles_rating')
                                         <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -406,7 +438,7 @@
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <div class="flex items-center gap-2">
                                 <span id="filterDoublesReliable" class="cursor-pointer text-lg font-bold {{ request('doubles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified ratings">✓</span>
-                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField === 'utr_doubles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted']))) }}" class="hover:text-gray-900">
+                                <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField === 'utr_doubles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted', 'playing_up']))) }}" class="hover:text-gray-900">
                                     UTR Doubles
                                     @if($sortField === 'utr_doubles_rating')
                                         <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -415,7 +447,7 @@
                             </div>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField === 'USTA_dynamic_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted']))) }}" class="hover:text-gray-900">
+                            <a href="{{ route('leagues.show', array_merge(['league' => $league->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField === 'USTA_dynamic_rating' && $sortDirection === 'desc') ? 'asc' : 'desc'], request()->only(['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted', 'playing_up']))) }}" class="hover:text-gray-900">
                                 USTA Dynamic
                                 @if($sortField === 'USTA_dynamic_rating')
                                     <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
@@ -432,8 +464,9 @@
                     @foreach ($sortDirection === 'asc' ? $players->sortBy($sortField) : $players->sortByDesc($sortField) as $player)
                         @php
                             $isPromoted = $league->NTRP_rating && $player->USTA_rating && $player->USTA_rating > $league->NTRP_rating;
+                            $isPlayingUp = $league->NTRP_rating && $player->USTA_rating && $player->USTA_rating < $league->NTRP_rating;
                         @endphp
-                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}" data-team-id="{{ $player->team_id }}" data-has-utr="{{ $player->utr_id ? '1' : '0' }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}" data-promoted="{{ $isPromoted ? '1' : '0' }}">
+                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}" data-team-id="{{ $player->team_id }}" data-has-utr="{{ $player->utr_id ? '1' : '0' }}" data-has-tr="{{ $player->tennis_record_link ? '1' : '0' }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}" data-promoted="{{ $isPromoted ? '1' : '0' }}" data-playing-up="{{ $isPlayingUp ? '1' : '0' }}">
                             <td class="px-4 py-2 text-sm text-gray-700 font-semibold">{{ $rank++ }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">
                                 {{ $player->first_name }} {{ $player->last_name }}
@@ -445,6 +478,17 @@
                                                     bg-gray-800 text-white text-xs rounded py-1 px-2
                                                     whitespace-nowrap z-50">
                                             Promoted to {{ number_format($player->USTA_rating, 1) }}
+                                        </div>
+                                    </span>
+                                @endif
+                                @if($isPlayingUp)
+                                    <span class="relative inline-block group">
+                                        <span>⚔️</span>
+                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                    whitespace-nowrap z-50">
+                                            Playing up from {{ number_format($player->USTA_rating, 1) }}
                                         </div>
                                     </span>
                                 @endif
@@ -505,7 +549,7 @@
                                                 if ($player->USTA_dynamic_rating >= $league->NTRP_rating) {
                                                     $ratingClass = 'text-green-600 font-semibold';
                                                 } elseif ($league->NTRP_rating > 3.0 && $player->USTA_dynamic_rating <= $league->NTRP_rating - 0.5) {
-                                                    $ratingClass = 'text-red-600 font-semibold';
+                                                    $ratingClass = 'text-amber-600 font-semibold';
                                                 }
                                             }
                                         @endphp
@@ -730,31 +774,37 @@
             const singlesVerified = urlParams.get('singles_verified') === '1';
             const doublesVerified = urlParams.get('doubles_verified') === '1';
             const promoted = urlParams.get('promoted') === '1';
+            const playingUp = urlParams.get('playing_up') === '1';
 
             let visibleRank = 1;
             let visiblePlayers = 0;
             let visiblePlayersWithUtr = 0;
+            let visiblePlayersWithTR = 0;
             const visibleTeamIds = new Set();
 
             const totalPlayers = rows.length;
             const totalTeams = teamCheckboxes.length;
             const totalPlayersWithUtr = rows.filter(row => row.getAttribute('data-has-utr') === '1').length;
+            const totalPlayersWithTR = rows.filter(row => row.getAttribute('data-has-tr') === '1').length;
 
             rows.forEach(row => {
                 const name = row.getAttribute('data-name') || '';
                 const teamId = row.getAttribute('data-team-id') || '';
                 const hasUtr = row.getAttribute('data-has-utr') === '1';
+                const hasTR = row.getAttribute('data-has-tr') === '1';
                 const singlesReliable = row.getAttribute('data-singles-reliable') === '1';
                 const doublesReliable = row.getAttribute('data-doubles-reliable') === '1';
                 const isPromoted = row.getAttribute('data-promoted') === '1';
+                const isPlayingUp = row.getAttribute('data-playing-up') === '1';
 
                 const matchesSearch = !searchTerm || name.includes(searchTerm);
                 const matchesTeam = selectedTeams.length === 0 || selectedTeams.length === teamCheckboxes.length || selectedTeams.includes(teamId);
                 const matchesSinglesVerified = !singlesVerified || singlesReliable;
                 const matchesDoublesVerified = !doublesVerified || doublesReliable;
                 const matchesPromoted = !promoted || isPromoted;
+                const matchesPlayingUp = !playingUp || isPlayingUp;
 
-                const show = matchesSearch && matchesTeam && matchesSinglesVerified && matchesDoublesVerified && matchesPromoted;
+                const show = matchesSearch && matchesTeam && matchesSinglesVerified && matchesDoublesVerified && matchesPromoted && matchesPlayingUp;
                 row.style.display = show ? '' : 'none';
 
                 // Update rank and counts for visible rows
@@ -765,6 +815,7 @@
                     }
                     visiblePlayers++;
                     if (hasUtr) visiblePlayersWithUtr++;
+                    if (hasTR) visiblePlayersWithTR++;
                     if (teamId) visibleTeamIds.add(teamId);
                 }
             });
@@ -793,8 +844,10 @@
             const selectedTeamIdsForSync = Array.from(visibleTeamIds);
             document.getElementById('syncTeamIds').value = selectedTeamIdsForSync.join(',');
             document.getElementById('updateUtrTeamIds').value = selectedTeamIdsForSync.join(',');
+            document.getElementById('syncTrProfilesTeamIds').value = selectedTeamIdsForSync.join(',');
             document.getElementById('syncTeamsCount').textContent = selectedTeamIdsForSync.length;
             document.getElementById('updateUtrCount').textContent = visiblePlayersWithUtr;
+            document.getElementById('syncTrProfilesCount').textContent = visiblePlayersWithTR;
 
             // Show clear all filters button when there's any active filter
             const hasSearch = searchTerm.length > 0;
@@ -836,6 +889,7 @@
             const filterSingles = document.getElementById('filterSinglesReliable');
             const filterDoubles = document.getElementById('filterDoublesReliable');
             const filterPromoted = document.getElementById('filterPromoted');
+            const filterPlayingUp = document.getElementById('filterPlayingUp');
             if (filterSingles) {
                 filterSingles.classList.remove('text-green-600');
                 filterSingles.classList.add('text-gray-400');
@@ -847,6 +901,9 @@
             if (filterPromoted) {
                 filterPromoted.classList.add('grayscale', 'opacity-50');
             }
+            if (filterPlayingUp) {
+                filterPlayingUp.classList.add('grayscale', 'opacity-50');
+            }
 
             // Clear URL params
             const url = new URL(window.location);
@@ -855,6 +912,7 @@
             url.searchParams.delete('singles_verified');
             url.searchParams.delete('doubles_verified');
             url.searchParams.delete('promoted');
+            url.searchParams.delete('playing_up');
             window.history.pushState({}, '', decodeURIComponent(url.toString()));
 
             applyFilters();
@@ -938,6 +996,83 @@
             }
             if (data.data && data.data.current_action) {
                 details += ` | ${data.data.current_action}`;
+            }
+
+            progressDetails.textContent = details;
+        }
+    })();
+
+    // Tennis Record Profile Sync Progress tracking
+    (function() {
+        const progressContainer = document.getElementById('trSyncProgressContainer');
+        const progressBar = document.getElementById('trSyncProgressBar');
+        const progressTitle = document.getElementById('trSyncProgressTitle');
+        const progressMessage = document.getElementById('trSyncProgressMessage');
+        const progressDetails = document.getElementById('trSyncProgressDetails');
+        let progressInterval;
+
+        // Check if we have a TR sync job key from the session
+        @if(session('tr_sync_job_key'))
+            const trSyncJobKey = '{{ session('tr_sync_job_key') }}';
+            startTrSyncProgressTracking(trSyncJobKey);
+        @endif
+
+        function showTrSyncProgress() {
+            progressContainer.classList.remove('hidden');
+        }
+
+        function hideTrSyncProgress() {
+            progressContainer.classList.add('hidden');
+        }
+
+        function startTrSyncProgressTracking(jobKey) {
+            showTrSyncProgress();
+
+            progressInterval = setInterval(() => {
+                fetch(`{{ route('leagues.trSyncProgress') }}?job_key=${jobKey}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        updateTrSyncProgress(data);
+
+                        if (data.status === 'completed') {
+                            clearInterval(progressInterval);
+                            setTimeout(() => {
+                                hideTrSyncProgress();
+                                window.location.reload();
+                            }, 3000);
+                        } else if (data.status === 'failed') {
+                            clearInterval(progressInterval);
+                            hideTrSyncProgress();
+                            alert('Tennis Record profile sync failed. Please check the logs for details.');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('TR sync progress check error:', error);
+                        clearInterval(progressInterval);
+                        hideTrSyncProgress();
+                    });
+            }, 2000); // Check every 2 seconds
+        }
+
+        function updateTrSyncProgress(data) {
+            progressBar.style.width = data.percentage + '%';
+            progressMessage.textContent = data.message;
+
+            let details = '';
+            if (data.data && data.data.total_players) {
+                details += `Total players: ${data.data.total_players}`;
+            }
+            if (data.data && data.data.updated !== undefined) {
+                details += ` | Updated: ${data.data.updated}`;
+            }
+            if (data.data && data.data.skipped !== undefined && data.data.skipped > 0) {
+                details += ` | Skipped: ${data.data.skipped}`;
+            }
+            if (data.data && data.data.errors !== undefined) {
+                details += ` | Errors: ${data.data.errors}`;
+            }
+            if (data.data && data.data.current_player) {
+                details += ` | Current: ${data.data.current_player}`;
             }
 
             progressDetails.textContent = details;
@@ -1108,6 +1243,44 @@
         }
     })();
 
+    // Playing Up Filter
+    (function() {
+        const filterPlayingUp = document.getElementById('filterPlayingUp');
+        let playingUpActive = {{ request('playing_up') ? 'true' : 'false' }};
+
+        function togglePlayingUp(e) {
+            e.stopPropagation();
+            playingUpActive = !playingUpActive;
+            if (playingUpActive) {
+                filterPlayingUp.classList.remove('grayscale', 'opacity-50');
+            } else {
+                filterPlayingUp.classList.add('grayscale', 'opacity-50');
+            }
+            updateURL();
+        }
+
+        function updateURL() {
+            const url = new URL(window.location);
+
+            if (playingUpActive) {
+                url.searchParams.set('playing_up', '1');
+            } else {
+                url.searchParams.delete('playing_up');
+            }
+
+            window.history.pushState({}, '', decodeURIComponent(url.toString()));
+
+            // Call the global applyFilters which handles all filters together
+            if (window.applyFilters) {
+                window.applyFilters();
+            }
+        }
+
+        if (filterPlayingUp) {
+            filterPlayingUp.addEventListener('click', togglePlayingUp);
+        }
+    })();
+
     // Preserve filters when clicking sort links
     (function() {
         const sortLinks = document.querySelectorAll('thead a[href*="sort="]');
@@ -1123,7 +1296,7 @@
                 const sortUrl = new URL(this.href);
 
                 // Preserve filter parameters from current URL
-                const filterParams = ['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted'];
+                const filterParams = ['teams', 'search', 'singles_verified', 'doubles_verified', 'promoted', 'playing_up'];
                 filterParams.forEach(param => {
                     const value = currentParams.get(param);
                     if (value) {
