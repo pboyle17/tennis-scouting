@@ -171,6 +171,12 @@
                     🎾 Import League Teams
                 </button>
             </form>
+            <form method="POST" action="{{ route('leagues.syncTeamMatches', $league->id) }}" style="display:inline;">
+                @csrf
+                <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                    📅 Sync Team Matches
+                </button>
+            </form>
         @endif
         <a href="{{ route('leagues.edit', $league->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
             Edit League

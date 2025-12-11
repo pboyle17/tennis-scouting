@@ -478,4 +478,36 @@ class LeagueController extends Controller
 
         return response()->json($progress);
     }
+
+    /**
+     * Sync team matches from Tennis Record league page
+     */
+    public function syncTeamMatches(Request $request, League $league)
+    {
+        try {
+            // Ensure league has Tennis Record link
+            if (!$league->tennis_record_link) {
+                return back()->with('error', 'League does not have a Tennis Record link.');
+            }
+
+            // Generate unique job key
+            $jobKey = 'team_matches_sync_' . uniqid();
+
+            // Dispatch the job
+            \App\Jobs\SyncTeamMatchesJob::dispatch($league, $jobKey);
+
+            return back()->with([
+                'status' => '✅ Team matches sync job has been dispatched!',
+                'team_matches_sync_job_key' => $jobKey
+            ]);
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Team matches sync dispatch failed: " . $e->getMessage(), [
+                'league_id' => $league->id,
+                'error' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('error', 'Failed to dispatch sync job: ' . $e->getMessage());
+        }
+    }
 }
