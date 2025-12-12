@@ -45,7 +45,6 @@ class CreateTeamByTennisRecordLinkJob implements ShouldQueue
             Log::info("Starting team creation from Tennis Record link: {$this->tennisRecordLink}");
 
             // Step 1: Scrape Tennis Record page
-            $this->updateProgress($jobKey, 'Scraping Tennis Record page...', 0, 5);
             $scrapingService = app(TennisRecordScrapingService::class);
             $teamData = $scrapingService->scrapeTeamData($this->tennisRecordLink);
 
@@ -54,7 +53,6 @@ class CreateTeamByTennisRecordLinkJob implements ShouldQueue
             }
 
             // Step 2: Create team
-            $this->updateProgress($jobKey, 'Creating team...', 1, 5);
             $team = Team::create([
                 'name' => $teamData['team_name'],
                 'tennis_record_link' => $this->tennisRecordLink
@@ -67,11 +65,6 @@ class CreateTeamByTennisRecordLinkJob implements ShouldQueue
             $ratingsUpdated = 0;
 
             // Step 3: Create players and assign to team
-            $this->updateProgress($jobKey, 'Creating players...', 2, 5, [
-                'team_name' => $team->name,
-                'total_players' => $totalPlayers,
-                'players_created' => 0
-            ]);
 
             $createdPlayerIds = [];
 
@@ -127,24 +120,11 @@ class CreateTeamByTennisRecordLinkJob implements ShouldQueue
                 }
 
                 // Update progress
-                $this->updateProgress($jobKey, 'Creating players...', 2, 5, [
-                    'team_name' => $team->name,
-                    'total_players' => $totalPlayers,
-                    'players_created' => $playersCreated,
-                    'players_found' => $playersFound,
-                    'current_player' => $playerData['first_name'] . ' ' . $playerData['last_name']
-                ]);
 
                 usleep(100000); // 0.1 seconds
             }
 
             // Step 4: Fetch UTR IDs for players without them
-            $this->updateProgress($jobKey, 'Searching for UTR IDs...', 3, 5, [
-                'team_name' => $team->name,
-                'total_players' => $totalPlayers,
-                'players_created' => $playersCreated,
-                'players_found' => $playersFound
-            ]);
 
             $playersNeedingUtrIds = Player::whereIn('id', $createdPlayerIds)
                                          ->whereNull('utr_id')
@@ -155,13 +135,6 @@ class CreateTeamByTennisRecordLinkJob implements ShouldQueue
 
                 foreach ($playersNeedingUtrIds as $index => $player) {
                     try {
-                        $this->updateProgress($jobKey, 'Searching for UTR IDs...', 3, 5, [
-                            'team_name' => $team->name,
-                            'current_player' => $player->first_name . ' ' . $player->last_name,
-                            'utr_ids_found' => $utrIdsFound,
-                            'searching_count' => $index + 1,
-                            'total_to_search' => $playersNeedingUtrIds->count()
-                        ]);
 
                         $playerName = $player->first_name . ' ' . $player->last_name;
                         $searchResults = $utrService->searchPlayers($playerName, 5);
@@ -185,10 +158,6 @@ class CreateTeamByTennisRecordLinkJob implements ShouldQueue
             }
 
             // Step 5: Fetch UTR ratings for players with UTR IDs
-            $this->updateProgress($jobKey, 'Fetching UTR ratings...', 4, 5, [
-                'team_name' => $team->name,
-                'utr_ids_found' => $utrIdsFound
-            ]);
 
             $playersWithUtrIds = Player::whereIn('id', $createdPlayerIds)
                                      ->whereNotNull('utr_id')
@@ -199,13 +168,6 @@ class CreateTeamByTennisRecordLinkJob implements ShouldQueue
 
                 foreach ($playersWithUtrIds as $index => $player) {
                     try {
-                        $this->updateProgress($jobKey, 'Fetching UTR ratings...', 4, 5, [
-                            'team_name' => $team->name,
-                            'current_player' => $player->first_name . ' ' . $player->last_name,
-                            'ratings_updated' => $ratingsUpdated,
-                            'updating_count' => $index + 1,
-                            'total_to_update' => $playersWithUtrIds->count()
-                        ]);
 
                         $data = $utrService->fetchUtrRating($player->utr_id);
                         $player->utr_singles_rating = $data['singlesUtr'];
@@ -231,15 +193,6 @@ class CreateTeamByTennisRecordLinkJob implements ShouldQueue
             }
 
             // Mark as completed
-            $this->updateProgress($jobKey, 'Completed!', 5, 5, [
-                'team_name' => $team->name,
-                'team_id' => $team->id,
-                'total_players' => $totalPlayers,
-                'players_created' => $playersCreated,
-                'players_found' => $playersFound,
-                'utr_ids_found' => $utrIdsFound,
-                'ratings_updated' => $ratingsUpdated
-            ], 'completed');
 
             // Clear the running flag
             Cache::forget('tennis_record_team_creation_running');
@@ -254,7 +207,6 @@ class CreateTeamByTennisRecordLinkJob implements ShouldQueue
             ]);
 
         } catch (\Exception $e) {
-            $this->updateProgress($jobKey, 'Error: ' . $e->getMessage(), 0, 5, [], 'failed');
             Cache::forget('tennis_record_team_creation_running');
             Log::error("Team creation failed: " . $e->getMessage(), [
                 'tennis_record_link' => $this->tennisRecordLink,
@@ -262,21 +214,6 @@ class CreateTeamByTennisRecordLinkJob implements ShouldQueue
             ]);
             throw $e;
         }
-    }
-
-    /**
-     * Update progress in cache
-     */
-    private function updateProgress($jobKey, $message, $step, $totalSteps, $data = [], $status = 'processing')
-    {
-        Cache::put("tennis_record_team_creation_progress_{$jobKey}", [
-            'status' => $status,
-            'message' => $message,
-            'step' => $step,
-            'total_steps' => $totalSteps,
-            'percentage' => ($step / $totalSteps) * 100,
-            'data' => $data
-        ], 600); // Cache for 10 minutes
     }
 
     /**

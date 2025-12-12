@@ -17,7 +17,6 @@ class SyncTeamMatchesJob implements ShouldQueue
     use Queueable;
 
     protected $league;
-    protected $jobKey;
     protected $teamId;
 
     /**
@@ -33,10 +32,9 @@ class SyncTeamMatchesJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(League $league, $jobKey = null, $teamId = null)
+    public function __construct(League $league, $teamId = null)
     {
         $this->league = $league;
-        $this->jobKey = $jobKey ?? 'team_matches_sync_' . uniqid();
         $this->teamId = $teamId;
     }
 
@@ -45,22 +43,15 @@ class SyncTeamMatchesJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $jobKey = $this->jobKey;
         $league = $this->league;
 
         Log::info("=== TEAM MATCHES SYNC JOB STARTED ===", [
-            'job_key' => $jobKey,
             'league_id' => $league->id,
             'league_name' => $league->name,
             'memory_start' => memory_get_usage(true) / 1024 / 1024 . ' MB'
         ]);
 
         try {
-            $this->updateProgress($jobKey, 'Starting team matches sync...', 0, 100, [
-                'matches_created' => 0,
-                'matches_updated' => 0,
-                'errors' => 0
-            ]);
 
             // Get teams to sync
             $teamsToSync = $this->teamId
@@ -82,15 +73,6 @@ class SyncTeamMatchesJob implements ShouldQueue
             // Loop through each team and fetch their schedule
             foreach ($teamsToSync as $team) {
                 $teamIndex++;
-                $progress = 10 + (($teamIndex / $teamsToSync->count()) * 30);
-
-                $this->updateProgress($jobKey, "Fetching matches for {$team->name}...", $progress, 100, [
-                    'current_team' => $team->name,
-                    'team_progress' => "{$teamIndex}/{$teamsToSync->count()}",
-                    'matches_created' => 0,
-                    'matches_updated' => 0,
-                    'errors' => 0
-                ]);
 
                 // Check if team has tennis record link
                 if (!$team->tennis_record_link) {
@@ -107,19 +89,47 @@ class SyncTeamMatchesJob implements ShouldQueue
                     'url' => $team->tennis_record_link
                 ]);
 
-                // Fetch the team's Tennis Record page
-                $response = Http::withHeaders([
-                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                ])
-                ->timeout(30)
-                ->connectTimeout(10)
-                ->get($team->tennis_record_link);
+                // Fetch the team's Tennis Record page with retry logic
+                try {
+                    // Rotate user agents to appear more natural
+                    $userAgents = [
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+                        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+                        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                    ];
 
-                if (!$response->successful()) {
-                    Log::error("Failed to fetch Tennis Record team page", [
+                    $response = Http::withHeaders([
+                        'User-Agent' => $userAgents[array_rand($userAgents)],
+                        'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                        'Accept-Language' => 'en-US,en;q=0.5',
+                        'Accept-Encoding' => 'gzip, deflate, br',
+                        'Connection' => 'keep-alive',
+                        'Upgrade-Insecure-Requests' => '1'
+                    ])
+                    ->timeout(90)
+                    ->connectTimeout(45)
+                    ->retry(3, 2000, function ($exception, $request) {
+                        return $exception instanceof \Illuminate\Http\Client\ConnectionException ||
+                               ($exception instanceof \Illuminate\Http\Client\RequestException && $exception->response && $exception->response->status() >= 500);
+                    })
+                    ->get($team->tennis_record_link);
+
+                    if (!$response->successful()) {
+                        Log::error("Failed to fetch Tennis Record team page", [
+                            'team_id' => $team->id,
+                            'team_name' => $team->name,
+                            'status' => $response->status()
+                        ]);
+                        continue;
+                    }
+                } catch (\Exception $e) {
+                    Log::error("Exception fetching Tennis Record team page", [
                         'team_id' => $team->id,
                         'team_name' => $team->name,
-                        'status' => $response->status()
+                        'error' => $e->getMessage(),
+                        'exception_type' => get_class($e)
                     ]);
                     continue;
                 }
@@ -136,19 +146,13 @@ class SyncTeamMatchesJob implements ShouldQueue
 
                 $allMatches = array_merge($allMatches, $teamMatches);
 
-                // Small delay between requests
-                usleep(200000); // 0.2 seconds
+                // Random delay between requests to avoid rate limiting and appear more human
+                $delay = rand(1500000, 3000000); // 1.5 to 3 seconds (in microseconds)
+                usleep($delay);
             }
 
             Log::info("Finished fetching all team schedules", [
                 'total_matches' => count($allMatches)
-            ]);
-
-            $this->updateProgress($jobKey, 'Creating/updating matches...', 40, 100, [
-                'total_matches' => count($allMatches),
-                'matches_created' => 0,
-                'matches_updated' => 0,
-                'errors' => 0
             ]);
 
             $createdCount = 0;
@@ -160,15 +164,6 @@ class SyncTeamMatchesJob implements ShouldQueue
             // Process each match
             foreach ($allMatches as $index => $matchData) {
                 try {
-                    $progress = 40 + (($index + 1) / count($allMatches)) * 50;
-                    $this->updateProgress($jobKey, "Processing match " . ($index + 1) . " of " . count($allMatches), $progress, 100, [
-                        'total_matches' => count($allMatches),
-                        'matches_created' => $createdCount,
-                        'matches_updated' => $updatedCount,
-                        'errors' => $errorCount,
-                        'score_conflicts' => count($scoreConflicts)
-                    ]);
-
                     // Check if match already exists to detect score conflicts
                     $existingMatch = TennisMatch::where([
                         'league_id' => $league->id,
@@ -249,31 +244,6 @@ class SyncTeamMatchesJob implements ShouldQueue
                 }
             }
 
-            // Mark as completed
-            $message = "Team matches sync completed. Created {$createdCount}, updated {$updatedCount}";
-            if (count($scoreConflicts) > 0) {
-                $conflictCount = count($scoreConflicts);
-                $message .= ", {$conflictCount} score conflict(s) need review";
-            }
-            if ($errorCount > 0) {
-                $message .= ", {$errorCount} error(s) occurred";
-                if (!empty($errors) && count($errors) <= 5) {
-                    $message .= " for: " . implode(', ', $errors);
-                }
-                $message .= ". Check logs for details.";
-            } else {
-                $message .= " successfully!";
-            }
-
-            $this->updateProgress($jobKey, $message, 100, 100, [
-                'total_matches' => count($allMatches),
-                'matches_created' => $createdCount,
-                'matches_updated' => $updatedCount,
-                'errors' => $errorCount,
-                'error_names' => $errors,
-                'score_conflicts' => $scoreConflicts
-            ], 'completed');
-
             // Store score conflicts in cache with league-specific key
             if (count($scoreConflicts) > 0) {
                 $conflictsKey = "score_conflicts_league_{$league->id}";
@@ -281,7 +251,6 @@ class SyncTeamMatchesJob implements ShouldQueue
             }
 
             Log::info("=== TEAM MATCHES SYNC JOB COMPLETED SUCCESSFULLY ===", [
-                'job_key' => $jobKey,
                 'league_id' => $league->id,
                 'league_name' => $league->name,
                 'total_matches' => count($allMatches),
@@ -292,9 +261,7 @@ class SyncTeamMatchesJob implements ShouldQueue
             ]);
 
         } catch (\Exception $e) {
-            $this->updateProgress($jobKey, 'Error: ' . $e->getMessage(), 0, 100, [], 'failed');
             Log::error("=== TEAM MATCHES SYNC JOB FAILED ===", [
-                'job_key' => $jobKey,
                 'league_id' => $league->id,
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
@@ -712,35 +679,9 @@ class SyncTeamMatchesJob implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error("=== TEAM MATCHES SYNC JOB MARKED AS FAILED ===", [
-            'job_key' => $this->jobKey,
             'league_id' => $this->league->id,
             'exception' => $exception->getMessage(),
             'trace' => $exception->getTraceAsString()
         ]);
-
-        $this->updateProgress($this->jobKey, 'Job failed: ' . $exception->getMessage(), 0, 100, [], 'failed');
-    }
-
-    /**
-     * Update progress in cache
-     */
-    private function updateProgress($jobKey, $message, $step, $totalSteps, $data = [], $status = 'processing')
-    {
-        Cache::put("team_matches_sync_progress_{$jobKey}", [
-            'status' => $status,
-            'message' => $message,
-            'step' => $step,
-            'total_steps' => $totalSteps,
-            'percentage' => $totalSteps > 0 ? ($step / $totalSteps) * 100 : 0,
-            'data' => $data
-        ], 600); // Cache for 10 minutes
-    }
-
-    /**
-     * Get the job key for progress tracking
-     */
-    public function getJobKey()
-    {
-        return $this->jobKey;
     }
 }
