@@ -16,7 +16,6 @@ class SyncTrProfilesJob implements ShouldQueue
 
     protected $league;
     protected $teamIds;
-    protected $jobKey;
 
     /**
      * The number of seconds the job can run before timing out.
@@ -31,11 +30,10 @@ class SyncTrProfilesJob implements ShouldQueue
     /**
      * Create a new job instance.
      */
-    public function __construct(League $league, $teamIds = null, $jobKey = null)
+    public function __construct(League $league, $teamIds = null)
     {
         $this->league = $league;
         $this->teamIds = $teamIds;
-        $this->jobKey = $jobKey ?? 'tr_profiles_sync_' . uniqid();
     }
 
     /**
@@ -43,12 +41,10 @@ class SyncTrProfilesJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $jobKey = $this->jobKey;
         $league = $this->league;
         $teamIds = $this->teamIds;
 
         Log::info("=== TR PROFILES SYNC JOB STARTED ===", [
-            'job_key' => $jobKey,
             'league_id' => $league->id,
             'league_name' => $league->name,
             'team_ids' => $teamIds,
@@ -81,7 +77,6 @@ class SyncTrProfilesJob implements ShouldQueue
                     'league_id' => $league->id,
                     'team_ids' => $teamIds
                 ]);
-                $this->updateProgress($jobKey, 'No players with Tennis Record links found', 0, 1, [], 'completed');
                 return;
             }
 
@@ -93,13 +88,6 @@ class SyncTrProfilesJob implements ShouldQueue
 
             Log::info("Starting to process players", [
                 'total_players' => $totalPlayers
-            ]);
-
-            $this->updateProgress($jobKey, 'Starting profile sync...', 0, $totalPlayers, [
-                'total_players' => $totalPlayers,
-                'updated' => 0,
-                'errors' => 0,
-                'skipped' => 0
             ]);
 
             foreach ($players as $index => $player) {
@@ -120,14 +108,6 @@ class SyncTrProfilesJob implements ShouldQueue
                         $skippedCount++;
                         continue;
                     }
-
-                    $this->updateProgress($jobKey, "Processing {$player->first_name} {$player->last_name}...", $index, $totalPlayers, [
-                        'total_players' => $totalPlayers,
-                        'updated' => $updatedCount,
-                        'errors' => $errorCount,
-                        'skipped' => $skippedCount,
-                        'current_player' => "{$player->first_name} {$player->last_name}"
-                    ]);
 
                     // Scrape the player's Tennis Record profile page
                     $response = Http::withHeaders([
@@ -220,31 +200,7 @@ class SyncTrProfilesJob implements ShouldQueue
                 'errors' => $errorCount
             ]);
 
-            // Mark as completed
-            $message = "Tennis Record profile sync completed. Updated {$updatedCount} player(s)";
-            if ($skippedCount > 0) {
-                $message .= ", skipped {$skippedCount} (recently updated)";
-            }
-            if ($errorCount > 0) {
-                $message .= ", {$errorCount} error(s) occurred";
-                if (!empty($errors) && count($errors) <= 5) {
-                    $message .= " for: " . implode(', ', $errors);
-                }
-                $message .= ". Check logs for details.";
-            } else {
-                $message .= " successfully!";
-            }
-
-            $this->updateProgress($jobKey, $message, $totalPlayers, $totalPlayers, [
-                'total_players' => $totalPlayers,
-                'updated' => $updatedCount,
-                'skipped' => $skippedCount,
-                'errors' => $errorCount,
-                'error_names' => $errors
-            ], 'completed');
-
             Log::info("=== TR PROFILES SYNC JOB COMPLETED SUCCESSFULLY ===", [
-                'job_key' => $jobKey,
                 'league_id' => $league->id,
                 'league_name' => $league->name,
                 'total_players' => $totalPlayers,
@@ -255,9 +211,7 @@ class SyncTrProfilesJob implements ShouldQueue
             ]);
 
         } catch (\Exception $e) {
-            $this->updateProgress($jobKey, 'Error: ' . $e->getMessage(), 0, 1, [], 'failed');
             Log::error("=== TR PROFILES SYNC JOB FAILED ===", [
-                'job_key' => $jobKey,
                 'league_id' => $league->id,
                 'error_message' => $e->getMessage(),
                 'error_file' => $e->getFile(),
@@ -275,35 +229,9 @@ class SyncTrProfilesJob implements ShouldQueue
     public function failed(\Throwable $exception): void
     {
         Log::error("=== TR PROFILES SYNC JOB MARKED AS FAILED ===", [
-            'job_key' => $this->jobKey,
             'league_id' => $this->league->id,
             'exception' => $exception->getMessage(),
             'trace' => $exception->getTraceAsString()
         ]);
-
-        $this->updateProgress($this->jobKey, 'Job failed: ' . $exception->getMessage(), 0, 1, [], 'failed');
-    }
-
-    /**
-     * Update progress in cache
-     */
-    private function updateProgress($jobKey, $message, $step, $totalSteps, $data = [], $status = 'processing')
-    {
-        Cache::put("tr_profiles_sync_progress_{$jobKey}", [
-            'status' => $status,
-            'message' => $message,
-            'step' => $step,
-            'total_steps' => $totalSteps,
-            'percentage' => $totalSteps > 0 ? ($step / $totalSteps) * 100 : 0,
-            'data' => $data
-        ], 600); // Cache for 10 minutes
-    }
-
-    /**
-     * Get the job key for progress tracking
-     */
-    public function getJobKey()
-    {
-        return $this->jobKey;
     }
 }

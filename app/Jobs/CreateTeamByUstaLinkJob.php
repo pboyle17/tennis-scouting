@@ -36,7 +36,6 @@ class CreateTeamByUstaLinkJob implements ShouldQueue
             Log::info("Starting team creation from USTA link: {$this->ustaLink}");
 
             // Step 1: Scrape USTA page
-            $this->updateProgress($jobId, 'Scraping USTA page...', 0, 5);
             $scrapingService = app(UstaScrapingService::class);
             $teamData = $scrapingService->scrapeTeamData($this->ustaLink);
 
@@ -45,7 +44,6 @@ class CreateTeamByUstaLinkJob implements ShouldQueue
             }
 
             // Step 2: Create team
-            $this->updateProgress($jobId, 'Creating team...', 1, 5);
             $team = Team::create([
                 'name' => $teamData['team_name'],
                 'usta_link' => $this->ustaLink
@@ -58,11 +56,6 @@ class CreateTeamByUstaLinkJob implements ShouldQueue
             $ratingsUpdated = 0;
 
             // Step 3: Create players and assign to team
-            $this->updateProgress($jobId, 'Creating players...', 2, 5, [
-                'team_name' => $team->name,
-                'total_players' => $totalPlayers,
-                'players_created' => 0
-            ]);
 
             $createdPlayerIds = [];
 
@@ -93,25 +86,12 @@ class CreateTeamByUstaLinkJob implements ShouldQueue
                 }
 
                 // Update progress
-                $this->updateProgress($jobId, 'Creating players...', 2, 5, [
-                    'team_name' => $team->name,
-                    'total_players' => $totalPlayers,
-                    'players_created' => $playersCreated,
-                    'players_found' => $playersFound,
-                    'current_player' => $playerData['first_name'] . ' ' . $playerData['last_name']
-                ]);
 
                 // Small delay to prevent overwhelming the system
                 usleep(100000); // 0.1 seconds
             }
 
             // Step 4: Fetch UTR IDs for players without them
-            $this->updateProgress($jobId, 'Searching for UTR IDs...', 3, 5, [
-                'team_name' => $team->name,
-                'total_players' => $totalPlayers,
-                'players_created' => $playersCreated,
-                'players_found' => $playersFound
-            ]);
 
             $playersNeedingUtrIds = Player::whereIn('id', $createdPlayerIds)
                                          ->whereNull('utr_id')
@@ -122,13 +102,6 @@ class CreateTeamByUstaLinkJob implements ShouldQueue
 
                 foreach ($playersNeedingUtrIds as $index => $player) {
                     try {
-                        $this->updateProgress($jobId, 'Searching for UTR IDs...', 3, 5, [
-                            'team_name' => $team->name,
-                            'current_player' => $player->first_name . ' ' . $player->last_name,
-                            'utr_ids_found' => $utrIdsFound,
-                            'searching_count' => $index + 1,
-                            'total_to_search' => $playersNeedingUtrIds->count()
-                        ]);
 
                         $playerName = $player->first_name . ' ' . $player->last_name;
                         $searchResults = $utrService->searchPlayers($playerName, 5);
@@ -153,10 +126,6 @@ class CreateTeamByUstaLinkJob implements ShouldQueue
             }
 
             // Step 5: Fetch UTR ratings for players with UTR IDs
-            $this->updateProgress($jobId, 'Fetching UTR ratings...', 4, 5, [
-                'team_name' => $team->name,
-                'utr_ids_found' => $utrIdsFound
-            ]);
 
             $playersWithUtrIds = Player::whereIn('id', $createdPlayerIds)
                                      ->whereNotNull('utr_id')
@@ -167,13 +136,6 @@ class CreateTeamByUstaLinkJob implements ShouldQueue
 
                 foreach ($playersWithUtrIds as $index => $player) {
                     try {
-                        $this->updateProgress($jobId, 'Fetching UTR ratings...', 4, 5, [
-                            'team_name' => $team->name,
-                            'current_player' => $player->first_name . ' ' . $player->last_name,
-                            'ratings_updated' => $ratingsUpdated,
-                            'updating_count' => $index + 1,
-                            'total_to_update' => $playersWithUtrIds->count()
-                        ]);
 
                         $data = $utrService->fetchUtrRating($player->utr_id);
                         $player->utr_singles_rating = $data['singlesUtr'];
@@ -200,15 +162,6 @@ class CreateTeamByUstaLinkJob implements ShouldQueue
             }
 
             // Mark as completed
-            $this->updateProgress($jobId, 'Completed!', 5, 5, [
-                'team_name' => $team->name,
-                'team_id' => $team->id,
-                'total_players' => $totalPlayers,
-                'players_created' => $playersCreated,
-                'players_found' => $playersFound,
-                'utr_ids_found' => $utrIdsFound,
-                'ratings_updated' => $ratingsUpdated
-            ], 'completed');
 
             // Clear the running flag
             Cache::forget('usta_team_creation_running');
@@ -223,7 +176,6 @@ class CreateTeamByUstaLinkJob implements ShouldQueue
             ]);
 
         } catch (\Exception $e) {
-            $this->updateProgress($jobId, 'Error: ' . $e->getMessage(), 0, 5, [], 'failed');
             Cache::forget('usta_team_creation_running');
             Log::error("Team creation failed: " . $e->getMessage(), [
                 'usta_link' => $this->ustaLink,
@@ -231,21 +183,6 @@ class CreateTeamByUstaLinkJob implements ShouldQueue
             ]);
             throw $e;
         }
-    }
-
-    /**
-     * Update progress in cache
-     */
-    private function updateProgress($jobId, $message, $step, $totalSteps, $data = [], $status = 'processing')
-    {
-        Cache::put("usta_team_creation_progress_{$jobId}", [
-            'status' => $status,
-            'message' => $message,
-            'step' => $step,
-            'total_steps' => $totalSteps,
-            'percentage' => ($step / $totalSteps) * 100,
-            'data' => $data
-        ], 600); // Cache for 10 minutes
     }
 
     /**

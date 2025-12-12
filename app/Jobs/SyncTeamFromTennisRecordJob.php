@@ -43,7 +43,6 @@ class SyncTeamFromTennisRecordJob implements ShouldQueue
             }
 
             // Step 1: Scrape Tennis Record page
-            $this->updateProgress($jobKey, 'Scraping Tennis Record page...', 0, 5);
             $scrapingService = app(TennisRecordScrapingService::class);
             $teamData = $scrapingService->scrapeTeamData($team->tennis_record_link);
 
@@ -57,10 +56,6 @@ class SyncTeamFromTennisRecordJob implements ShouldQueue
             $playersUpdated = 0;
 
             // Step 2: Process players from Tennis Record
-            $this->updateProgress($jobKey, 'Processing players...', 1, 3, [
-                'team_name' => $team->name,
-                'total_players' => $totalPlayers
-            ]);
 
             // Get current team player IDs
             $currentPlayerIds = $team->players->pluck('id')->toArray();
@@ -129,19 +124,11 @@ class SyncTeamFromTennisRecordJob implements ShouldQueue
                 $foundPlayerIds[] = $player->id;
 
                 // Update progress
-                $this->updateProgress($jobKey, 'Processing players...', 1, 3, [
-                    'team_name' => $team->name,
-                    'total_players' => $totalPlayers,
-                    'players_added' => $playersAdded,
-                    'players_updated' => $playersUpdated,
-                    'current_player' => $playerData['first_name'] . ' ' . $playerData['last_name']
-                ]);
 
                 usleep(100000); // 0.1 seconds
             }
 
             // Step 3: Remove players no longer on the roster
-            $this->updateProgress($jobKey, 'Removing players no longer on roster...', 2, 3);
 
             $playersToRemove = array_diff($currentPlayerIds, $foundPlayerIds);
             if (!empty($playersToRemove)) {
@@ -150,14 +137,6 @@ class SyncTeamFromTennisRecordJob implements ShouldQueue
             }
 
             // Mark as completed
-            $this->updateProgress($jobKey, 'Sync completed!', 3, 3, [
-                'team_name' => $team->name,
-                'team_id' => $team->id,
-                'total_players' => $totalPlayers,
-                'players_added' => $playersAdded,
-                'players_removed' => $playersRemoved,
-                'players_updated' => $playersUpdated
-            ], 'completed');
 
             // Clear the running flag
             Cache::forget('tennis_record_team_sync_running_' . $team->id);
@@ -171,7 +150,6 @@ class SyncTeamFromTennisRecordJob implements ShouldQueue
             ]);
 
         } catch (\Exception $e) {
-            $this->updateProgress($jobKey, 'Error: ' . $e->getMessage(), 0, 3, [], 'failed');
             Cache::forget('tennis_record_team_sync_running_' . $team->id);
             Log::error("Team sync failed: " . $e->getMessage(), [
                 'team_id' => $team->id,
@@ -180,20 +158,5 @@ class SyncTeamFromTennisRecordJob implements ShouldQueue
             ]);
             throw $e;
         }
-    }
-
-    /**
-     * Update progress in cache
-     */
-    private function updateProgress($jobKey, $message, $step, $totalSteps, $data = [], $status = 'processing')
-    {
-        Cache::put("tennis_record_team_sync_progress_{$jobKey}", [
-            'status' => $status,
-            'message' => $message,
-            'step' => $step,
-            'total_steps' => $totalSteps,
-            'percentage' => ($step / $totalSteps) * 100,
-            'data' => $data
-        ], 600); // Cache for 10 minutes
     }
 }

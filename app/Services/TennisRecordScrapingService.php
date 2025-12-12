@@ -16,9 +16,23 @@ class TennisRecordScrapingService
         try {
             Log::info("Starting to scrape Tennis Record link: {$tennisRecordLink}");
 
+            // Rotate user agents to appear more natural
+            $userAgents = [
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+                'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            ];
+
             // Make request to Tennis Record page
             $response = Http::withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent' => $userAgents[array_rand($userAgents)],
+                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language' => 'en-US,en;q=0.5',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Connection' => 'keep-alive',
+                'Upgrade-Insecure-Requests' => '1'
             ])
             ->timeout(120) // Increase timeout to 120 seconds (2 minutes)
             ->connectTimeout(30) // Allow 30 seconds to establish connection
@@ -281,9 +295,23 @@ class TennisRecordScrapingService
         try {
             Log::info("Starting to scrape Tennis Record league link: {$tennisRecordLeagueLink}");
 
+            // Rotate user agents to appear more natural
+            $userAgents = [
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:121.0) Gecko/20100101 Firefox/121.0',
+                'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15',
+                'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            ];
+
             // Make request to Tennis Record league page
             $response = Http::withHeaders([
-                'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                'User-Agent' => $userAgents[array_rand($userAgents)],
+                'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language' => 'en-US,en;q=0.5',
+                'Accept-Encoding' => 'gzip, deflate, br',
+                'Connection' => 'keep-alive',
+                'Upgrade-Insecure-Requests' => '1'
             ])
             ->timeout(120)
             ->connectTimeout(30)

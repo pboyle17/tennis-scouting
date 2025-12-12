@@ -53,7 +53,6 @@ class CreateTeamsFromTennisRecordLeagueJob implements ShouldQueue
             }
 
             // Step 1: Scrape league page to get team links
-            $this->updateProgress($jobKey, 'Scraping Tennis Record league page...', 0, 100);
             $scrapingService = app(TennisRecordScrapingService::class);
             $teamsData = $scrapingService->scrapeLeagueTeams($league->tennis_record_link);
 
@@ -62,11 +61,6 @@ class CreateTeamsFromTennisRecordLeagueJob implements ShouldQueue
             }
 
             $totalTeams = count($teamsData);
-            $this->updateProgress($jobKey, "Found {$totalTeams} teams, processing...", 5, 100, [
-                'league_name' => $league->name,
-                'total_teams' => $totalTeams,
-                'teams_processed' => 0
-            ]);
 
             $teamsProcessed = 0;
             $teamsCreated = 0;
@@ -79,18 +73,6 @@ class CreateTeamsFromTennisRecordLeagueJob implements ShouldQueue
                     $teamName = $teamData['name'];
                     $teamLink = $teamData['link'];
 
-                    $this->updateProgress($jobKey, "Processing team: {$teamName}",
-                        5 + ($teamsProcessed / $totalTeams * 90),
-                        100,
-                        [
-                            'league_name' => $league->name,
-                            'total_teams' => $totalTeams,
-                            'teams_processed' => $teamsProcessed,
-                            'teams_created' => $teamsCreated,
-                            'teams_existing' => $teamsExisting,
-                            'current_team' => $teamName
-                        ]
-                    );
 
                     // Check if team already exists by tennis_record_link
                     $existingTeam = Team::where('tennis_record_link', $teamLink)->first();
@@ -101,19 +83,6 @@ class CreateTeamsFromTennisRecordLeagueJob implements ShouldQueue
                         $teamsExisting++;
                     } else {
                         // Create new team by scraping its page
-                        $this->updateProgress($jobKey, "Creating team: {$teamName}",
-                            5 + ($teamsProcessed / $totalTeams * 90),
-                            100,
-                            [
-                                'league_name' => $league->name,
-                                'total_teams' => $totalTeams,
-                                'teams_processed' => $teamsProcessed,
-                                'teams_created' => $teamsCreated,
-                                'teams_existing' => $teamsExisting,
-                                'current_team' => $teamName,
-                                'current_action' => 'Scraping team page...'
-                            ]
-                        );
 
                         $teamFullData = $scrapingService->scrapeTeamData($teamLink);
 
@@ -153,14 +122,6 @@ class CreateTeamsFromTennisRecordLeagueJob implements ShouldQueue
             }
 
             // Mark as completed
-            $this->updateProgress($jobKey, 'Completed!', 100, 100, [
-                'league_name' => $league->name,
-                'league_id' => $league->id,
-                'total_teams' => $totalTeams,
-                'teams_created' => $teamsCreated,
-                'teams_existing' => $teamsExisting,
-                'teams_processed' => $teamsProcessed
-            ], 'completed');
 
             // Clear the running flag
             Cache::forget('tennis_record_league_creation_running_' . $league->id);
@@ -174,7 +135,6 @@ class CreateTeamsFromTennisRecordLeagueJob implements ShouldQueue
             ]);
 
         } catch (\Exception $e) {
-            $this->updateProgress($jobKey, 'Error: ' . $e->getMessage(), 0, 100, [], 'failed');
             Cache::forget('tennis_record_league_creation_running_' . $this->leagueId);
             Log::error("League teams creation failed: " . $e->getMessage(), [
                 'league_id' => $this->leagueId,
@@ -248,18 +208,5 @@ class CreateTeamsFromTennisRecordLeagueJob implements ShouldQueue
             'players_created' => $playersCreated,
             'players_found' => $playersFound
         ]);
-    }
-
-    /**
-     * Update progress in cache
-     */
-    private function updateProgress($jobKey, $message, $percentage, $totalPercentage, $data = [], $status = 'processing')
-    {
-        Cache::put("tennis_record_league_creation_progress_{$jobKey}", [
-            'status' => $status,
-            'message' => $message,
-            'percentage' => $percentage,
-            'data' => $data
-        ], 1800); // Cache for 30 minutes
     }
 }

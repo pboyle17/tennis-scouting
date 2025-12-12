@@ -255,27 +255,20 @@ class TeamController extends Controller
             return redirect()->route('teams.index')->with('error', $message);
         }
 
-        // Generate a unique job key
-        $jobKey = 'tennis_record_job_' . uniqid();
-
         // Mark job as running
         Cache::put('tennis_record_team_creation_running', true, 600); // 10 minutes
 
-        CreateTeamByTennisRecordLinkJob::dispatch($request->tennis_record_link, $jobKey);
+        CreateTeamByTennisRecordLinkJob::dispatch($request->tennis_record_link);
 
         $message = '🚀 Creating team from Tennis Record link... This may take a few minutes.';
 
         if ($request->expectsJson()) {
             return response()->json([
-                'status' => $message,
-                'job_key' => $jobKey
+                'status' => $message
             ]);
         }
 
-        return redirect()->route('teams.index')->with([
-            'status' => $message,
-            'tennis_record_job_key' => $jobKey
-        ]);
+        return redirect()->route('teams.index')->with('status', $message);
     }
 
     /**
@@ -313,13 +306,9 @@ class TeamController extends Controller
         // Mark job as running
         Cache::put('tennis_record_team_sync_running_' . $team->id, true, 600); // 10 minutes
 
-        $jobKey = 'tennis_record_sync_' . uniqid();
-        \App\Jobs\SyncTeamFromTennisRecordJob::dispatch($team, $jobKey);
+        \App\Jobs\SyncTeamFromTennisRecordJob::dispatch($team);
 
-        return back()->with([
-            'status' => '🔄 Syncing team from Tennis Record... This may take a few minutes.',
-            'tennis_record_sync_job_key' => $jobKey
-        ]);
+        return back()->with('status', '🔄 Syncing team from Tennis Record... This may take a few minutes.');
     }
 
     /**
@@ -356,16 +345,10 @@ class TeamController extends Controller
                 return back()->with('error', 'League does not have a Tennis Record link.');
             }
 
-            // Generate unique job key
-            $jobKey = 'team_matches_sync_' . uniqid();
-
             // Dispatch the job with team filter
-            \App\Jobs\SyncTeamMatchesJob::dispatch($team->league, $jobKey, $team->id);
+            \App\Jobs\SyncTeamMatchesJob::dispatch($team->league, $team->id);
 
-            return back()->with([
-                'status' => '✅ Team matches sync job has been dispatched!',
-                'team_matches_sync_job_key' => $jobKey
-            ]);
+            return back()->with('status', '✅ Team matches sync job has been dispatched!');
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Team matches sync dispatch failed: " . $e->getMessage(), [

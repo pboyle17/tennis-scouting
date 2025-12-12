@@ -241,13 +241,9 @@ class LeagueController extends Controller
         // Mark job as running
         \Illuminate\Support\Facades\Cache::put('tennis_record_league_creation_running_' . $league->id, true, 1800); // 30 minutes
 
-        $jobKey = 'tennis_record_league_' . uniqid();
-        \App\Jobs\CreateTeamsFromTennisRecordLeagueJob::dispatch($league->id, $jobKey);
+        \App\Jobs\CreateTeamsFromTennisRecordLeagueJob::dispatch($league->id);
 
-        return back()->with([
-            'status' => '🚀 Creating teams from Tennis Record league... This may take several minutes.',
-            'tennis_record_league_job_key' => $jobKey
-        ]);
+        return back()->with('status', '🚀 Creating teams from Tennis Record league... This may take several minutes.');
     }
 
     /**
@@ -424,8 +420,7 @@ class LeagueController extends Controller
 
         // Dispatch sync jobs for each team
         foreach ($teamsToSync as $team) {
-            $jobKey = 'tennis_record_sync_' . uniqid();
-            SyncTeamFromTennisRecordJob::dispatch($team, $jobKey);
+            SyncTeamFromTennisRecordJob::dispatch($team);
         }
 
         return back()->with('success', "Syncing {$teamsToSync->count()} team(s) from Tennis Record. This may take a few minutes.");
@@ -440,16 +435,10 @@ class LeagueController extends Controller
             // Get team IDs from request (filtered teams) or all teams
             $teamIds = $request->input('team_ids') ? explode(',', $request->input('team_ids')) : null;
 
-            // Generate unique job key
-            $jobKey = 'tr_profiles_sync_' . uniqid();
-
             // Dispatch the job
-            \App\Jobs\SyncTrProfilesJob::dispatch($league, $teamIds, $jobKey);
+            \App\Jobs\SyncTrProfilesJob::dispatch($league, $teamIds);
 
-            return back()->with([
-                'status' => '✅ Tennis Record profile sync job has been dispatched!',
-                'tr_sync_job_key' => $jobKey
-            ]);
+            return back()->with('status', '✅ Tennis Record profile sync job has been dispatched!');
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Tennis Record profile sync dispatch failed: " . $e->getMessage(), [
@@ -490,16 +479,10 @@ class LeagueController extends Controller
                 return back()->with('error', 'League does not have a Tennis Record link.');
             }
 
-            // Generate unique job key
-            $jobKey = 'team_matches_sync_' . uniqid();
-
             // Dispatch the job
-            \App\Jobs\SyncTeamMatchesJob::dispatch($league, $jobKey);
+            \App\Jobs\SyncTeamMatchesJob::dispatch($league);
 
-            return back()->with([
-                'status' => '✅ Team matches sync job has been dispatched!',
-                'team_matches_sync_job_key' => $jobKey
-            ]);
+            return back()->with('status', '✅ Team matches sync job has been dispatched!');
 
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Team matches sync dispatch failed: " . $e->getMessage(), [
