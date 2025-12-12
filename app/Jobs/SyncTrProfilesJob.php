@@ -159,6 +159,7 @@ class SyncTrProfilesJob implements ShouldQueue
                         $player->USTA_rating = $rating;
                         $player->usta_rating_type = $ratingType;
                         $player->usta_rating_updated_at = now();
+                        $player->tennis_record_last_sync = now();
                         $player->save();
 
                         $updatedCount++;
@@ -170,6 +171,11 @@ class SyncTrProfilesJob implements ShouldQueue
                             'rating_type' => $ratingType
                         ]);
                     } else {
+                        // Even if we didn't find a rating, update the last sync timestamp
+                        // to indicate we checked Tennis Record
+                        $player->tennis_record_last_sync = now();
+                        $player->save();
+
                         Log::warning("Could not find valid USTA rating for player {$player->id}", [
                             'player_id' => $player->id,
                             'player_name' => "{$player->first_name} {$player->last_name}",
