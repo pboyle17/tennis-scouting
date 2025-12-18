@@ -943,12 +943,19 @@
 
             // Update button counts and team IDs
             const selectedTeamIdsForSync = Array.from(visibleTeamIds);
-            document.getElementById('syncTeamIds').value = selectedTeamIdsForSync.join(',');
-            document.getElementById('updateUtrTeamIds').value = selectedTeamIdsForSync.join(',');
-            document.getElementById('syncTrProfilesTeamIds').value = selectedTeamIdsForSync.join(',');
-            document.getElementById('syncTeamsCount').textContent = selectedTeamIdsForSync.length;
-            document.getElementById('updateUtrCount').textContent = visiblePlayersWithUtr;
-            document.getElementById('syncTrProfilesCount').textContent = visiblePlayersWithTR;
+            const syncTeamIdsEl = document.getElementById('syncTeamIds');
+            const updateUtrTeamIdsEl = document.getElementById('updateUtrTeamIds');
+            const syncTrProfilesTeamIdsEl = document.getElementById('syncTrProfilesTeamIds');
+            const syncTeamsCountEl = document.getElementById('syncTeamsCount');
+            const updateUtrCountEl = document.getElementById('updateUtrCount');
+            const syncTrProfilesCountEl = document.getElementById('syncTrProfilesCount');
+
+            if (syncTeamIdsEl) syncTeamIdsEl.value = selectedTeamIdsForSync.join(',');
+            if (updateUtrTeamIdsEl) updateUtrTeamIdsEl.value = selectedTeamIdsForSync.join(',');
+            if (syncTrProfilesTeamIdsEl) syncTrProfilesTeamIdsEl.value = selectedTeamIdsForSync.join(',');
+            if (syncTeamsCountEl) syncTeamsCountEl.textContent = selectedTeamIdsForSync.length;
+            if (updateUtrCountEl) updateUtrCountEl.textContent = visiblePlayersWithUtr;
+            if (syncTrProfilesCountEl) syncTrProfilesCountEl.textContent = visiblePlayersWithTR;
 
             // Show clear all filters button when there's any active filter
             const hasSearch = searchTerm.length > 0;
