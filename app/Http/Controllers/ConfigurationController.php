@@ -53,4 +53,269 @@ class ConfigurationController extends Controller
       $configuration->delete();
       return redirect()->route('configurations.index')->with('success', 'Configuration deleted.');
   }
+
+  /**
+   * Backup database and upload to S3
+   */
+  public function backupDatabase()
+  {
+      try {
+          // Get database connection details
+          $dbHost = config('database.connections.pgsql.host');
+          $dbPort = config('database.connections.pgsql.port');
+          $dbName = config('database.connections.pgsql.database');
+          $dbUser = config('database.connections.pgsql.username');
+          $dbPassword = config('database.connections.pgsql.password');
+
+          // Create filename with timestamp
+          $timestamp = now()->format('Y-m-d_His');
+          $filename = "backup_{$dbName}_{$timestamp}.sql";
+          $localPath = storage_path("app/backups/{$filename}");
+
+          // Ensure backup directory exists
+          if (!file_exists(storage_path('app/backups'))) {
+              mkdir(storage_path('app/backups'), 0755, true);
+          }
+
+          // Set PGPASSWORD environment variable
+          putenv("PGPASSWORD={$dbPassword}");
+
+          // Create database dump using pg_dump
+          $command = sprintf(
+              'pg_dump -h %s -p %s -U %s -d %s -F c -f %s 2>&1',
+              escapeshellarg($dbHost),
+              escapeshellarg($dbPort),
+              escapeshellarg($dbUser),
+              escapeshellarg($dbName),
+              escapeshellarg($localPath)
+          );
+
+          exec($command, $output, $returnCode);
+
+          // Clear PGPASSWORD
+          putenv('PGPASSWORD');
+
+          if ($returnCode !== 0) {
+              \Log::error('Database backup failed', [
+                  'command' => $command,
+                  'output' => $output,
+                  'return_code' => $returnCode
+              ]);
+              return redirect()->route('configurations.index')->with('error', 'Database backup failed: ' . implode("\n", $output));
+          }
+
+          // Upload to S3
+          $s3Path = "backups/{$filename}";
+          \Storage::disk('s3')->put($s3Path, file_get_contents($localPath));
+
+          // Delete local backup file
+          unlink($localPath);
+
+          $message = "Database backup uploaded successfully to S3: {$filename}";
+          \Log::info($message);
+
+          return redirect()->route('configurations.index')->with('success', $message);
+
+      } catch (\Exception $e) {
+          \Log::error('Database backup error', [
+              'error' => $e->getMessage(),
+              'trace' => $e->getTraceAsString()
+          ]);
+
+          return redirect()->route('configurations.index')->with('error', 'Database backup failed: ' . $e->getMessage());
+      }
+  }
+
+  /**
+   * List all available backups from S3
+   */
+  public function listBackups()
+  {
+      try {
+          // List all backup files in S3
+          $files = \Storage::disk('s3')->files('backups');
+
+          if (empty($files)) {
+              return redirect()->route('configurations.index')->with('error', 'No backup files found in S3.');
+          }
+
+          // Sort files by name (which includes timestamp) to get newest first
+          rsort($files);
+
+          $backups = [];
+          foreach ($files as $file) {
+              $filename = basename($file);
+
+              // Parse timestamp from filename (format: backup_dbname_Y-m-d_His.sql)
+              preg_match('/backup_.*?_(\d{4}-\d{2}-\d{2}_\d{6})/', $filename, $matches);
+              $dateStr = 'Unknown';
+              if (isset($matches[1])) {
+                  $date = \DateTime::createFromFormat('Y-m-d_His', $matches[1]);
+                  if ($date) {
+                      $dateStr = $date->format('M d, Y g:i A');
+                  }
+              }
+
+              // Get file size
+              $size = \Storage::disk('s3')->size($file);
+              $sizeFormatted = $this->formatBytes($size);
+
+              $backups[] = [
+                  'path' => $file,
+                  'filename' => $filename,
+                  'date' => $dateStr,
+                  'size' => $sizeFormatted,
+              ];
+          }
+
+          return redirect()->route('configurations.index')->with('backups', $backups);
+
+      } catch (\Exception $e) {
+          \Log::error('Failed to list backups', [
+              'error' => $e->getMessage(),
+              'trace' => $e->getTraceAsString()
+          ]);
+
+          return redirect()->route('configurations.index')->with('error', 'Failed to list backups: ' . $e->getMessage());
+      }
+  }
+
+  /**
+   * Format bytes to human readable format
+   */
+  private function formatBytes($bytes, $precision = 2)
+  {
+      $units = ['B', 'KB', 'MB', 'GB', 'TB'];
+
+      for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+          $bytes /= 1024;
+      }
+
+      return round($bytes, $precision) . ' ' . $units[$i];
+  }
+
+  /**
+   * Restore database from selected S3 backup
+   */
+  public function restoreDatabase(Request $request)
+  {
+      try {
+          $backupFile = $request->input('filename');
+
+          if (!$backupFile) {
+              return redirect()->route('configurations.index')->with('error', 'No backup file specified.');
+          }
+
+          \Log::info('Restoring database from backup', ['file' => $backupFile]);
+
+          // Get database connection details
+          $dbHost = config('database.connections.pgsql.host');
+          $dbPort = config('database.connections.pgsql.port');
+          $dbName = config('database.connections.pgsql.database');
+          $dbUser = config('database.connections.pgsql.username');
+          $dbPassword = config('database.connections.pgsql.password');
+
+          // Create local path for downloaded backup
+          $filename = basename($backupFile);
+          $localPath = storage_path("app/backups/{$filename}");
+
+          // Ensure backup directory exists
+          if (!file_exists(storage_path('app/backups'))) {
+              mkdir(storage_path('app/backups'), 0755, true);
+          }
+
+          // Download backup from S3
+          $backupContent = \Storage::disk('s3')->get($backupFile);
+          file_put_contents($localPath, $backupContent);
+
+          \Log::info('Downloaded backup from S3', ['local_path' => $localPath]);
+
+          // Drop all connections to the database
+          \DB::disconnect('pgsql');
+
+          // Set PGPASSWORD environment variable
+          putenv("PGPASSWORD={$dbPassword}");
+
+          // Terminate existing connections (requires superuser or database owner privileges)
+          $terminateCommand = sprintf(
+              "psql -h %s -p %s -U %s -d postgres -c \"SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = %s AND pid <> pg_backend_pid();\" 2>&1",
+              escapeshellarg($dbHost),
+              escapeshellarg($dbPort),
+              escapeshellarg($dbUser),
+              escapeshellarg($dbName)
+          );
+          exec($terminateCommand, $terminateOutput, $terminateReturnCode);
+
+          // Drop and recreate database
+          $dropCommand = sprintf(
+              'psql -h %s -p %s -U %s -d postgres -c "DROP DATABASE IF EXISTS %s;" 2>&1',
+              escapeshellarg($dbHost),
+              escapeshellarg($dbPort),
+              escapeshellarg($dbUser),
+              $dbName
+          );
+          exec($dropCommand, $dropOutput, $dropReturnCode);
+
+          $createCommand = sprintf(
+              'psql -h %s -p %s -U %s -d postgres -c "CREATE DATABASE %s;" 2>&1',
+              escapeshellarg($dbHost),
+              escapeshellarg($dbPort),
+              escapeshellarg($dbUser),
+              $dbName
+          );
+          exec($createCommand, $createOutput, $createReturnCode);
+
+          // Restore database using pg_restore
+          $restoreCommand = sprintf(
+              'pg_restore -h %s -p %s -U %s -d %s -v %s 2>&1',
+              escapeshellarg($dbHost),
+              escapeshellarg($dbPort),
+              escapeshellarg($dbUser),
+              escapeshellarg($dbName),
+              escapeshellarg($localPath)
+          );
+
+          exec($restoreCommand, $restoreOutput, $restoreReturnCode);
+
+          // Clear PGPASSWORD
+          putenv('PGPASSWORD');
+
+          // Delete local backup file
+          unlink($localPath);
+
+          // Reconnect to database
+          \DB::purge('pgsql');
+          \DB::reconnect('pgsql');
+
+          if ($restoreReturnCode !== 0) {
+              \Log::error('Database restore failed', [
+                  'command' => $restoreCommand,
+                  'output' => $restoreOutput,
+                  'return_code' => $restoreReturnCode
+              ]);
+              return redirect()->route('configurations.index')->with('error', 'Database restore encountered issues. Check logs for details.');
+          }
+
+          $message = "Database successfully restored from S3 backup: {$filename}";
+          \Log::info($message);
+
+          return redirect()->route('configurations.index')->with('success', $message);
+
+      } catch (\Exception $e) {
+          \Log::error('Database restore error', [
+              'error' => $e->getMessage(),
+              'trace' => $e->getTraceAsString()
+          ]);
+
+          // Try to reconnect to database
+          try {
+              \DB::purge('pgsql');
+              \DB::reconnect('pgsql');
+          } catch (\Exception $reconnectError) {
+              \Log::error('Failed to reconnect to database', ['error' => $reconnectError->getMessage()]);
+          }
+
+          return redirect()->route('configurations.index')->with('error', 'Database restore failed: ' . $e->getMessage());
+      }
+  }
 }
