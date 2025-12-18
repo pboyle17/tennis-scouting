@@ -55,17 +55,49 @@ class ConfigurationController extends Controller
   }
 
   /**
+   * Get database connection details from DATABASE_URL or default config
+   */
+  private function parseConnectionDetails()
+  {
+      // Try to get DATABASE_URL from environment
+      $databaseUrl = env('DATABASE_URL');
+
+      // If no DATABASE_URL, use default Laravel config
+      if (!$databaseUrl) {
+          return [
+              'host' => config('database.connections.pgsql.host'),
+              'port' => config('database.connections.pgsql.port'),
+              'database' => config('database.connections.pgsql.database'),
+              'username' => config('database.connections.pgsql.username'),
+              'password' => config('database.connections.pgsql.password'),
+          ];
+      }
+
+      // Parse DATABASE_URL format: postgres://username:password@host:port/database
+      $url = parse_url($databaseUrl);
+
+      return [
+          'host' => $url['host'] ?? 'localhost',
+          'port' => $url['port'] ?? '5432',
+          'database' => ltrim($url['path'] ?? '', '/'),
+          'username' => $url['user'] ?? '',
+          'password' => $url['pass'] ?? '',
+      ];
+  }
+
+  /**
    * Backup database and upload to S3
    */
   public function backupDatabase()
   {
       try {
           // Get database connection details
-          $dbHost = config('database.connections.pgsql.host');
-          $dbPort = config('database.connections.pgsql.port');
-          $dbName = config('database.connections.pgsql.database');
-          $dbUser = config('database.connections.pgsql.username');
-          $dbPassword = config('database.connections.pgsql.password');
+          $db = $this->parseConnectionDetails();
+          $dbHost = $db['host'];
+          $dbPort = $db['port'];
+          $dbName = $db['database'];
+          $dbUser = $db['username'];
+          $dbPassword = $db['password'];
 
           // Create filename with timestamp
           $timestamp = now()->format('Y-m-d_His');
@@ -209,11 +241,12 @@ class ConfigurationController extends Controller
           \Log::info('Restoring database from backup', ['file' => $backupFile]);
 
           // Get database connection details
-          $dbHost = config('database.connections.pgsql.host');
-          $dbPort = config('database.connections.pgsql.port');
-          $dbName = config('database.connections.pgsql.database');
-          $dbUser = config('database.connections.pgsql.username');
-          $dbPassword = config('database.connections.pgsql.password');
+          $db = $this->parseConnectionDetails();
+          $dbHost = $db['host'];
+          $dbPort = $db['port'];
+          $dbName = $db['database'];
+          $dbUser = $db['username'];
+          $dbPassword = $db['password'];
 
           // Create local path for downloaded backup
           $filename = basename($backupFile);
