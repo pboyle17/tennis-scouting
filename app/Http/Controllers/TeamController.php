@@ -361,6 +361,32 @@ class TeamController extends Controller
     }
 
     /**
+     * Sync Tennis Record profiles for players on this team
+     */
+    public function syncTrProfiles(Team $team)
+    {
+        try {
+            // Ensure team has a league
+            if (!$team->league) {
+                return back()->with('error', 'Team is not associated with a league.');
+            }
+
+            // Dispatch the job with team filter
+            \App\Jobs\SyncTrProfilesJob::dispatch($team->league, [$team->id]);
+
+            return back()->with('status', '✅ Tennis Record profile sync job has been dispatched for this team!');
+
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("TR profile sync dispatch failed: " . $e->getMessage(), [
+                'team_id' => $team->id,
+                'error' => $e->getTraceAsString()
+            ]);
+
+            return back()->with('error', 'Failed to dispatch sync job: ' . $e->getMessage());
+        }
+    }
+
+    /**
      * Update UTR ratings for all players on the team
      */
     public function updateUtr(Team $team)

@@ -165,12 +165,14 @@
             <a href="{{ $league->tennis_record_link }}" target="_blank" class="bg-teal-500 hover:bg-teal-600 text-white font-semibold py-2 px-4 rounded">
                 🔗 Tennis Record
             </a>
-            <form method="POST" action="{{ route('leagues.createTeamsFromLeague', $league->id) }}" style="display:inline;" onsubmit="return confirm('This will scrape all teams from the Tennis Record league page and create them if they don\'t exist.\n\nThis may take several minutes. Continue?');">
-                @csrf
-                <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
-                    🎾 Import League Teams
-                </button>
-            </form>
+            @env('local')
+                <form method="POST" action="{{ route('leagues.createTeamsFromLeague', $league->id) }}" style="display:inline;" onsubmit="return confirm('This will scrape all teams from the Tennis Record league page and create them if they don\'t exist.\n\nThis may take several minutes. Continue?');">
+                    @csrf
+                    <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                        🎾 Import League Teams
+                    </button>
+                </form>
+            @endenv
         @endif
         <a href="{{ route('leagues.edit', $league->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
             Edit League
@@ -309,22 +311,24 @@
                 </div>
             </div>
             <div class="flex items-center space-x-2">
-                @php
-                    $teamsWithTennisRecord = $league->teams()->whereNotNull('tennis_record_link')->count();
-                @endphp
-                @if($teamsWithTennisRecord > 0)
-                    <form id="syncTeamsForm" method="POST" action="{{ route('leagues.syncAllTeams', $league->id) }}" style="display:inline;">
-                        @csrf
-                        <input type="hidden" id="syncTeamIds" name="team_ids" value="">
-                        <button type="submit" id="syncTeamsButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Sync filtered teams from Tennis Record">
-                            🎾 Sync Teams (<span id="syncTeamsCount">{{ $teamsWithTennisRecord }}</span>)
+                @env('local')
+                    @php
+                        $teamsWithTennisRecord = $league->teams()->whereNotNull('tennis_record_link')->count();
+                    @endphp
+                    @if($teamsWithTennisRecord > 0)
+                        <form id="syncTeamsForm" method="POST" action="{{ route('leagues.syncAllTeams', $league->id) }}" style="display:inline;">
+                            @csrf
+                            <input type="hidden" id="syncTeamIds" name="team_ids" value="">
+                            <button type="submit" id="syncTeamsButton" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Sync filtered teams from Tennis Record">
+                                🎾 Sync Teams (<span id="syncTeamsCount">{{ $teamsWithTennisRecord }}</span>)
+                            </button>
+                        </form>
+                    @else
+                        <button type="button" disabled class="bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed" title="No teams with Tennis Record links found in this league">
+                            🎾 Sync Teams (0)
                         </button>
-                    </form>
-                @else
-                    <button type="button" disabled class="bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed" title="No teams with Tennis Record links found in this league">
-                        🎾 Sync Teams (0)
-                    </button>
-                @endif
+                    @endif
+                @endenv
                 @if($playersWithUtr > 0)
                     <form id="updateUtrForm" method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;">
                         @csrf
@@ -338,22 +342,24 @@
                         🔄 Update UTRs (0)
                     </button>
                 @endif
-                @php
-                    $playersWithTennisRecord = $players->filter(fn($p) => $p->tennis_record_link !== null)->count();
-                @endphp
-                @if($playersWithTennisRecord > 0)
-                    <form id="syncTrProfilesForm" method="POST" action="{{ route('leagues.syncTrProfiles', $league->id) }}" style="display:inline;">
-                        @csrf
-                        <input type="hidden" id="syncTrProfilesTeamIds" name="team_ids" value="">
-                        <button type="submit" id="syncTrProfilesButton" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Sync USTA ratings from Tennis Record player profiles">
-                            📋 Sync TR Profiles (<span id="syncTrProfilesCount">{{ $playersWithTennisRecord }}</span>)
+                @env('local')
+                    @php
+                        $playersWithTennisRecord = $players->filter(fn($p) => $p->tennis_record_link !== null)->count();
+                    @endphp
+                    @if($playersWithTennisRecord > 0)
+                        <form id="syncTrProfilesForm" method="POST" action="{{ route('leagues.syncTrProfiles', $league->id) }}" style="display:inline;">
+                            @csrf
+                            <input type="hidden" id="syncTrProfilesTeamIds" name="team_ids" value="">
+                            <button type="submit" id="syncTrProfilesButton" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Sync USTA ratings from Tennis Record player profiles">
+                                📋 Sync TR Profiles (<span id="syncTrProfilesCount">{{ $playersWithTennisRecord }}</span>)
+                            </button>
+                        </form>
+                    @else
+                        <button type="button" disabled class="bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed" title="No players with Tennis Record links found">
+                            📋 Sync TR Profiles (0)
                         </button>
-                    </form>
-                @else
-                    <button type="button" disabled class="bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed" title="No players with Tennis Record links found">
-                        📋 Sync TR Profiles (0)
-                    </button>
-                @endif
+                    @endif
+                @endenv
                 <div class="relative inline-block">
                     <button
                         id="teamFilterButton"
@@ -614,6 +620,97 @@
             </table>
         </div>
     @endif
+
+    <!-- Sync Team Matches Button -->
+    @env('local')
+        @php
+            $teamsWithTennisRecord = $league->teams()->whereNotNull('tennis_record_link')->count();
+        @endphp
+        @if($league->tennis_record_link && $teamsWithTennisRecord > 0)
+            <div class="mt-6 mb-4 flex justify-end">
+                <form method="POST" action="{{ route('leagues.syncTeamMatches', $league->id) }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Sync matches for all teams in league">
+                        📅 Sync Team Matches
+                    </button>
+                </form>
+            </div>
+        @endif
+    @endenv
+
+    <!-- Matches Table -->
+    <div class="mt-8">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">League Matches</h2>
+        @if($matches->count() > 0)
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">#</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date & Time</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Home Team</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Score</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Away Team</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Link</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach($matches as $index => $match)
+                            @php
+                                $isUnplayed = ($match->home_score === null || $match->away_score === null) ||
+                                              ($match->home_score === 0 && $match->away_score === 0);
+                                $rowClass = $isUnplayed ? 'bg-gray-50 text-gray-500 hover:bg-gray-100' : 'hover:bg-gray-50';
+                            @endphp
+                            <tr class="{{ $rowClass }}">
+                                <td class="px-4 py-2 text-sm {{ $isUnplayed ? 'text-gray-500' : 'text-gray-700' }} font-semibold">
+                                    {{ $index + 1 }}
+                                </td>
+                                <td class="px-4 py-2 text-sm {{ $isUnplayed ? 'text-gray-500' : 'text-gray-700' }}">
+                                    @if($match->start_time)
+                                        {{ $match->start_time->format('M d, Y') }}
+                                        <div class="text-xs {{ $isUnplayed ? 'text-gray-400' : 'text-gray-500' }}">{{ $match->start_time->format('g:i A') }}</div>
+                                    @else
+                                        <span class="text-gray-400">TBD</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-sm {{ $isUnplayed ? 'text-gray-500' : 'text-gray-700 font-medium' }}">
+                                    <a href="{{ route('teams.show', $match->homeTeam->id) }}" class="{{ $isUnplayed ? 'text-gray-400 hover:text-gray-600' : 'text-blue-600 hover:text-blue-800' }}">
+                                        {{ $match->homeTeam->name }}
+                                    </a>
+                                </td>
+                                <td class="px-4 py-2 text-sm text-center">
+                                    @if($match->home_score !== null && $match->away_score !== null)
+                                        <span class="{{ $isUnplayed ? 'text-gray-400' : 'font-semibold text-gray-900' }}">{{ $match->home_score }} - {{ $match->away_score }}</span>
+                                    @else
+                                        <span class="text-gray-400 italic">Not played</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-sm {{ $isUnplayed ? 'text-gray-500' : 'text-gray-700' }}">
+                                    <a href="{{ route('teams.show', $match->awayTeam->id) }}" class="{{ $isUnplayed ? 'text-gray-400 hover:text-gray-600' : 'text-blue-600 hover:text-blue-800' }}">
+                                        {{ $match->awayTeam->name }}
+                                    </a>
+                                </td>
+                                <td class="px-4 py-2 text-sm text-center">
+                                    @if($match->tennis_record_match_link)
+                                        <a href="{{ $match->tennis_record_match_link }}" target="_blank" rel="noopener noreferrer" class="text-2xl hover:opacity-70 transition-opacity" title="View on Tennis Record">
+                                            🎾
+                                        </a>
+                                    @else
+                                        <span class="text-gray-300">-</span>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
+                <div class="text-gray-500 text-lg mb-2">No matches scheduled yet</div>
+                <p class="text-gray-400 text-sm">Use the "Sync Team Matches" button to fetch matches from Tennis Record</p>
+            </div>
+        @endif
+    </div>
 </div>
 
 <script>

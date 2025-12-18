@@ -38,6 +38,7 @@ Route::get('/teams/tennis-record-creation-progress', [TeamController::class, 'ge
 Route::post('/teams/{team}/sync-from-tennis-record', [TeamController::class, 'syncFromTennisRecord'])->name('teams.syncFromTennisRecord');
 Route::get('/teams/tennis-record-sync-progress', [TeamController::class, 'getTennisRecordSyncProgress'])->name('teams.tennisRecordSyncProgress');
 Route::post('/teams/{team}/sync-team-matches', [TeamController::class, 'syncTeamMatches'])->name('teams.syncTeamMatches');
+Route::post('/teams/{team}/sync-tr-profiles', [TeamController::class, 'syncTrProfiles'])->name('teams.syncTrProfiles');
 Route::resource('configurations', ConfigurationController::class);
 Route::resource('leagues', LeagueController::class);
 Route::post('/leagues/{league}/add-teams', [LeagueController::class, 'addTeams'])->name('leagues.addTeams');
