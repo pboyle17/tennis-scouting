@@ -28,9 +28,11 @@
             💡 <strong>Click</strong> a team name to view players
         </div>
         <div class="flex space-x-2">
-            <button onclick="openTennisRecordModal()" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
-                🎾 Create from Tennis Record
-            </button>
+            @env('local')
+                <button onclick="openTennisRecordModal()" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
+                    🎾 Create from Tennis Record
+                </button>
+            @endenv
             <a href="{{ route('teams.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
                 + Add Team
             </a>

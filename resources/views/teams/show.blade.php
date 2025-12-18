@@ -167,12 +167,20 @@
                 <a href="{{ $team->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
                     🎾 Tennis Record Link
                 </a>
-                <form method="POST" action="{{ route('teams.syncFromTennisRecord', $team->id) }}" style="display:inline;">
-                    @csrf
-                    <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded">
-                        🔄 Sync from Tennis Record
-                    </button>
-                </form>
+                @env('local')
+                    <form method="POST" action="{{ route('teams.syncFromTennisRecord', $team->id) }}" style="display:inline;">
+                        @csrf
+                        <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded">
+                            🔄 Sync from Tennis Record
+                        </button>
+                    </form>
+                    <form method="POST" action="{{ route('teams.syncTrProfiles', $team->id) }}" style="display:inline;">
+                        @csrf
+                        <button type="submit" class="bg-amber-600 hover:bg-amber-700 text-white font-semibold py-2 px-4 rounded">
+                            📋 Sync TR Profiles
+                        </button>
+                    </form>
+                @endenv
             @endif
         </div>
     </div>
@@ -491,14 +499,16 @@
     <div class="mt-8">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-2xl font-bold text-gray-800">Team Matches</h2>
-            @if($team->league && $team->league->tennis_record_link)
-                <form method="POST" action="{{ route('teams.syncTeamMatches', $team->id) }}" style="display:inline;">
-                    @csrf
-                    <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
-                        📅 Sync Team Matches
-                    </button>
-                </form>
-            @endif
+            @env('local')
+                @if($team->league && $team->league->tennis_record_link)
+                    <form method="POST" action="{{ route('teams.syncTeamMatches', $team->id) }}" style="display:inline;">
+                        @csrf
+                        <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                            📅 Sync Team Matches
+                        </button>
+                    </form>
+                @endif
+            @endenv
         </div>
 
         @if($matches->count() > 0)
@@ -506,6 +516,7 @@
                 <table class="w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">#</th>
                             <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Date & Time</th>
                             <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Opponent</th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Score</th>
@@ -515,22 +526,28 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
-                        @foreach($matches as $match)
+                        @foreach($matches as $index => $match)
                             @php
                                 $isHomeTeam = $match->home_team_id === $team->id;
                                 $opponent = $isHomeTeam ? $match->awayTeam : $match->homeTeam;
+                                $isUnplayed = ($match->home_score === null || $match->away_score === null) ||
+                                              ($match->home_score === 0 && $match->away_score === 0);
+                                $rowClass = $isUnplayed ? 'bg-gray-50 text-gray-500 hover:bg-gray-100' : 'hover:bg-gray-50';
                             @endphp
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-2 text-sm text-gray-700">
+                            <tr class="{{ $rowClass }}">
+                                <td class="px-4 py-2 text-sm {{ $isUnplayed ? 'text-gray-500' : 'text-gray-700' }} font-semibold">
+                                    {{ $index + 1 }}
+                                </td>
+                                <td class="px-4 py-2 text-sm {{ $isUnplayed ? 'text-gray-500' : 'text-gray-700' }}">
                                     @if($match->start_time)
                                         {{ $match->start_time->format('M d, Y') }}
-                                        <div class="text-xs text-gray-500">{{ $match->start_time->format('g:i A') }}</div>
+                                        <div class="text-xs {{ $isUnplayed ? 'text-gray-400' : 'text-gray-500' }}">{{ $match->start_time->format('g:i A') }}</div>
                                     @else
                                         <span class="text-gray-400">TBD</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2 text-sm">
-                                    <a href="{{ route('teams.show', $opponent->id) }}" class="text-blue-600 hover:underline">
+                                    <a href="{{ route('teams.show', $opponent->id) }}" class="{{ $isUnplayed ? 'text-gray-400 hover:text-gray-600' : 'text-blue-600 hover:underline' }}">
                                         {{ $opponent->name }}
                                     </a>
                                 </td>
@@ -540,9 +557,9 @@
                                             $currentScore = $isHomeTeam ? $match->home_score : $match->away_score;
                                             $opponentScore = $isHomeTeam ? $match->away_score : $match->home_score;
                                         @endphp
-                                        <span class="font-semibold">{{ $currentScore }} - {{ $opponentScore }}</span>
+                                        <span class="{{ $isUnplayed ? 'text-gray-400' : 'font-semibold text-gray-900' }}">{{ $currentScore }} - {{ $opponentScore }}</span>
                                     @else
-                                        <span class="text-gray-400">-</span>
+                                        <span class="text-gray-400 italic">Not played</span>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2 text-sm text-gray-700">

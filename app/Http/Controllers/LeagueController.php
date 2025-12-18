@@ -72,7 +72,17 @@ class LeagueController extends Controller
             }
         }
 
-        return view('leagues.show', compact('league', 'availableTeams', 'players', 'sortField', 'sortDirection'));
+        // Get all matches for teams in this league
+        $teamIds = $league->teams->pluck('id');
+        $matches = \App\Models\TennisMatch::where(function($query) use ($teamIds) {
+                $query->whereIn('home_team_id', $teamIds)
+                      ->orWhereIn('away_team_id', $teamIds);
+            })
+            ->orderBy('start_time', 'asc')
+            ->with(['homeTeam', 'awayTeam'])
+            ->get();
+
+        return view('leagues.show', compact('league', 'availableTeams', 'players', 'sortField', 'sortDirection', 'matches'));
     }
 
     /**
