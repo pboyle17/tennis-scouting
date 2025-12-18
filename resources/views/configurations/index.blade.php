@@ -67,13 +67,13 @@
                     📦 Backup DB to S3
                 </button>
             </form>
+        @endenv
             <form method="POST" action="{{ route('configurations.listBackups') }}" style="display:inline;">
                 @csrf
                 <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
                     📋 View Backups
                 </button>
             </form>
-        @endenv
         <a href="{{ route('configurations.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
             + Add Configuration
         </a>
