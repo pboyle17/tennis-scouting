@@ -40,6 +40,9 @@ Route::get('/teams/tennis-record-sync-progress', [TeamController::class, 'getTen
 Route::post('/teams/{team}/sync-team-matches', [TeamController::class, 'syncTeamMatches'])->name('teams.syncTeamMatches');
 Route::post('/teams/{team}/sync-tr-profiles', [TeamController::class, 'syncTrProfiles'])->name('teams.syncTrProfiles');
 Route::resource('configurations', ConfigurationController::class);
+Route::post('/configurations/backup-database', [ConfigurationController::class, 'backupDatabase'])->name('configurations.backupDatabase');
+Route::post('/configurations/list-backups', [ConfigurationController::class, 'listBackups'])->name('configurations.listBackups');
+Route::post('/configurations/restore-database', [ConfigurationController::class, 'restoreDatabase'])->name('configurations.restoreDatabase');
 Route::resource('leagues', LeagueController::class);
 Route::post('/leagues/{league}/add-teams', [LeagueController::class, 'addTeams'])->name('leagues.addTeams');
 Route::delete('/leagues/{league}/remove-team/{team}', [LeagueController::class, 'removeTeam'])->name('leagues.removeTeam');
