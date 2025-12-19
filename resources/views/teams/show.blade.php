@@ -271,12 +271,18 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('teams.show', ['team' => $team->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
-                                Name
-                                @if($sortField === 'first_name' || $sortField === 'last_name')
-                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                            <div class="flex items-center gap-2">
+                                @if($team->league && !$team->league->is_combo)
+                                    <span id="filterPromoted" class="cursor-pointer text-lg {{ request('promoted') ? '' : 'grayscale opacity-50' }}" title="Filter promoted players">🏅</span>
+                                    <span id="filterPlayingUp" class="cursor-pointer text-lg {{ request('playing_up') ? '' : 'grayscale opacity-50' }}" title="Filter players playing up">⚔️</span>
                                 @endif
-                            </a>
+                                <a href="{{ route('teams.show', ['team' => $team->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                    Name
+                                    @if($sortField === 'first_name' || $sortField === 'last_name')
+                                        <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                    @endif
+                                </a>
+                            </div>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <div class="flex items-center gap-2">
@@ -314,8 +320,38 @@
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @foreach ($sortDirection === 'asc' ? $team->players->sortBy($sortField) : $team->players->sortByDesc($sortField) as $player)
-                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('teams.show', $team->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}">
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }} {{ $player->last_name }}</td>
+                        @php
+                            $isPromoted = $team->league && $team->league->NTRP_rating && $player->USTA_rating && $player->USTA_rating > $team->league->NTRP_rating;
+                            $isPlayingUp = $team->league && $team->league->NTRP_rating && $player->USTA_rating && $player->USTA_rating < $team->league->NTRP_rating;
+                        @endphp
+                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('teams.show', $team->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}" data-promoted="{{ $isPromoted ? '1' : '0' }}" data-playing-up="{{ $isPlayingUp ? '1' : '0' }}">
+                            <td class="px-4 py-2 text-sm text-gray-700">
+                                {{ $player->first_name }} {{ $player->last_name }}
+                                @if($team->league && !$team->league->is_combo)
+                                    @if($isPromoted)
+                                        <span class="relative inline-block group">
+                                            <span class="text-yellow-500">🏅</span>
+                                            <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                        opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                        bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                        whitespace-nowrap z-50">
+                                                Promoted to {{ number_format($player->USTA_rating, 1) }}
+                                            </div>
+                                        </span>
+                                    @endif
+                                    @if($isPlayingUp)
+                                        <span class="relative inline-block group">
+                                            <span>⚔️</span>
+                                            <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                        opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                        bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                        whitespace-nowrap z-50">
+                                                Playing up from {{ number_format($player->USTA_rating, 1) }}
+                                            </div>
+                                        </span>
+                                    @endif
+                                @endif
+                            </td>
                             <td class="px-4 py-2 text-sm text-gray-700">
                                 @if($player->utr_singles_rating)
                                     <div class="relative inline-block group">
@@ -829,20 +865,29 @@
             }
 
             window.history.pushState({}, '', url);
-            applyFilters();
+            window.applyFilters();
         }
 
-        function applyFilters() {
+        window.applyFilters = function() {
             const table = document.getElementById('playersTable');
             const rows = table.querySelectorAll('tbody tr');
+
+            // Get filter states from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const promoted = urlParams.get('promoted') === '1';
+            const playingUp = urlParams.get('playing_up') === '1';
 
             rows.forEach(row => {
                 const singlesReliable = row.dataset.singlesReliable === '1';
                 const doublesReliable = row.dataset.doublesReliable === '1';
+                const isPromoted = row.dataset.promoted === '1';
+                const isPlayingUp = row.dataset.playingUp === '1';
 
                 let show = true;
                 if (singlesActive && !singlesReliable) show = false;
                 if (doublesActive && !doublesReliable) show = false;
+                if (promoted && !isPromoted) show = false;
+                if (playingUp && !isPlayingUp) show = false;
 
                 row.style.display = show ? '' : 'none';
             });
@@ -852,7 +897,112 @@
         filterDoubles.addEventListener('click', toggleDoubles);
 
         // Apply filters on page load if params exist
-        applyFilters();
+        window.applyFilters();
+    })();
+
+    // Promoted Players Filter
+    (function() {
+        const filterPromoted = document.getElementById('filterPromoted');
+        if (!filterPromoted) return;
+
+        let promotedActive = {{ request('promoted') ? 'true' : 'false' }};
+
+        function togglePromoted(e) {
+            e.stopPropagation();
+            promotedActive = !promotedActive;
+            if (promotedActive) {
+                filterPromoted.classList.remove('grayscale', 'opacity-50');
+            } else {
+                filterPromoted.classList.add('grayscale', 'opacity-50');
+            }
+            updateURL();
+        }
+
+        function updateURL() {
+            const url = new URL(window.location);
+
+            if (promotedActive) {
+                url.searchParams.set('promoted', '1');
+            } else {
+                url.searchParams.delete('promoted');
+            }
+
+            window.history.pushState({}, '', url);
+
+            // Call the global applyFilters which handles all filters together
+            if (window.applyFilters) {
+                window.applyFilters();
+            }
+        }
+
+        filterPromoted.addEventListener('click', togglePromoted);
+    })();
+
+    // Playing Up Filter
+    (function() {
+        const filterPlayingUp = document.getElementById('filterPlayingUp');
+        if (!filterPlayingUp) return;
+
+        let playingUpActive = {{ request('playing_up') ? 'true' : 'false' }};
+
+        function togglePlayingUp(e) {
+            e.stopPropagation();
+            playingUpActive = !playingUpActive;
+            if (playingUpActive) {
+                filterPlayingUp.classList.remove('grayscale', 'opacity-50');
+            } else {
+                filterPlayingUp.classList.add('grayscale', 'opacity-50');
+            }
+            updateURL();
+        }
+
+        function updateURL() {
+            const url = new URL(window.location);
+
+            if (playingUpActive) {
+                url.searchParams.set('playing_up', '1');
+            } else {
+                url.searchParams.delete('playing_up');
+            }
+
+            window.history.pushState({}, '', url);
+
+            // Call the global applyFilters which handles all filters together
+            if (window.applyFilters) {
+                window.applyFilters();
+            }
+        }
+
+        filterPlayingUp.addEventListener('click', togglePlayingUp);
+    })();
+
+    // Preserve filters when clicking sort links
+    (function() {
+        const sortLinks = document.querySelectorAll('thead a[href*="sort="]');
+
+        sortLinks.forEach(link => {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+
+                // Get the current URL parameters
+                const currentParams = new URLSearchParams(window.location.search);
+
+                // Get the sort link's URL
+                const sortUrl = new URL(this.href);
+
+                // Preserve filter parameters from current URL
+                const filterParams = ['singles_verified', 'doubles_verified', 'promoted', 'playing_up'];
+                filterParams.forEach(param => {
+                    const value = currentParams.get(param);
+                    if (value) {
+                        sortUrl.searchParams.set(param, value);
+                    }
+                });
+
+                // Navigate to the updated URL
+                window.location.href = sortUrl.toString();
+            });
+        });
     })();
 </script>
 @endsection
