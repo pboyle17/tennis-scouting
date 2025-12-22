@@ -13,9 +13,16 @@
             Players
         </a>
     </div>
-    <a href="{{ route('configurations.index') }}"
-       class="absolute -top-12 right-0 text-2xl cursor-pointer grayscale hover:grayscale-0 transition-all"
-       title="Configurations">
-        ⚙️
-    </a>
+    @env('local')
+        <a href="{{ route('configurations.index') }}"
+           class="absolute -top-12 right-0 text-2xl cursor-pointer grayscale hover:grayscale-0 transition-all"
+           title="Configurations">
+            ⚙️
+        </a>
+    @else
+        <span class="absolute -top-12 right-0 text-2xl grayscale"
+              title="Configurations">
+            ⚙️
+        </span>
+    @endenv
 </div>

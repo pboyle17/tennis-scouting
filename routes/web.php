@@ -39,6 +39,9 @@ Route::post('/teams/{team}/sync-from-tennis-record', [TeamController::class, 'sy
 Route::get('/teams/tennis-record-sync-progress', [TeamController::class, 'getTennisRecordSyncProgress'])->name('teams.tennisRecordSyncProgress');
 Route::post('/teams/{team}/sync-team-matches', [TeamController::class, 'syncTeamMatches'])->name('teams.syncTeamMatches');
 Route::post('/teams/{team}/sync-tr-profiles', [TeamController::class, 'syncTrProfiles'])->name('teams.syncTrProfiles');
+Route::get('/config', function () {
+    return redirect()->route('configurations.index');
+});
 Route::resource('configurations', ConfigurationController::class);
 Route::post('/configurations/backup-database', [ConfigurationController::class, 'backupDatabase'])->name('configurations.backupDatabase');
 Route::post('/configurations/list-backups', [ConfigurationController::class, 'listBackups'])->name('configurations.listBackups');
