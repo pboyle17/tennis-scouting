@@ -19,10 +19,5 @@
            title="Configurations">
             ⚙️
         </a>
-    @else
-        <span class="absolute -top-12 right-0 text-2xl grayscale"
-              title="Configurations">
-            ⚙️
-        </span>
     @endenv
 </div>
