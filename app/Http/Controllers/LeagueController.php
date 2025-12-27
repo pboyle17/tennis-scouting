@@ -221,15 +221,22 @@ class LeagueController extends Controller
             return back()->with('error', 'No players with UTR IDs found in the selected teams. Please add UTR IDs to players first.');
         }
 
-        // Dispatch job to update UTRs for all players in the filtered teams
-        $jobKey = 'utr_update_' . uniqid();
-        \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, $jobKey);
+        // Batch UTR IDs into groups of 20
+        $batches = array_chunk($utrIds, 20);
+
+        // Dispatch a job for each batch
+        foreach ($batches as $batch) {
+            $jobKey = 'utr_update_' . uniqid();
+            \App\Jobs\UpdateUtrRatingsJob::dispatch($batch, $jobKey);
+        }
 
         $playerCount = count($utrIds);
+        $batchCount = count($batches);
         $teamText = $teamCount === 1 ? '1 team' : "{$teamCount} teams";
         $playerText = $playerCount === 1 ? '1 player' : "{$playerCount} players";
+        $batchText = $batchCount === 1 ? '1 batch' : "{$batchCount} batches";
 
-        $message = "🔄 UTR update started! Updating ratings for {$playerText} across {$teamText} in \"{$league->name}\". This may take a few minutes.";
+        $message = "🔄 UTR update started! Updating ratings for {$playerText} across {$teamText} in \"{$league->name}\" ({$batchText}). This may take a few minutes.";
 
         return back()->with('status', $message);
     }

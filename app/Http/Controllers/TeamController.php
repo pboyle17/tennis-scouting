@@ -403,12 +403,18 @@ class TeamController extends Controller
             return back()->with('error', 'No players with UTR IDs found on this team.');
         }
 
-        // Dispatch job to update UTRs for this team's players
-        $jobKey = 'utr_update_' . uniqid();
-        UpdateUtrRatingsJob::dispatch($utrIds, $jobKey);
+        // Batch UTR IDs into groups of 20
+        $batches = array_chunk($utrIds, 20);
+
+        // Dispatch a job for each batch
+        foreach ($batches as $batch) {
+            $jobKey = 'utr_update_' . uniqid();
+            UpdateUtrRatingsJob::dispatch($batch, $jobKey);
+        }
 
         $playerCount = count($utrIds);
-        $message = "UTR update job has been dispatched for {$playerCount} player" . ($playerCount > 1 ? 's' : '') . "!";
+        $batchCount = count($batches);
+        $message = "UTR update job" . ($batchCount > 1 ? 's have' : ' has') . " been dispatched for {$playerCount} player" . ($playerCount > 1 ? 's' : '') . " in {$batchCount} batch" . ($batchCount > 1 ? 'es' : '') . "!";
 
         return back()->with('status', $message);
     }
