@@ -45,4 +45,12 @@ class TennisMatch extends Model
     {
         return $this->belongsTo(Team::class, 'away_team_id');
     }
+
+    /**
+     * Get the courts for this match
+     */
+    public function courts()
+    {
+        return $this->hasMany(Court::class);
+    }
 }
