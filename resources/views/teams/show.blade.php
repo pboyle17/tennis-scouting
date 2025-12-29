@@ -593,9 +593,17 @@
                                             $currentScore = $isHomeTeam ? $match->home_score : $match->away_score;
                                             $opponentScore = $isHomeTeam ? $match->away_score : $match->home_score;
                                         @endphp
-                                        <span class="{{ $isUnplayed ? 'text-gray-400' : 'font-semibold text-gray-900' }}">{{ $currentScore }} - {{ $opponentScore }}</span>
+                                        <a href="{{ route('tennis-matches.show', $match->id) }}" class="font-semibold hover:underline">
+                                            @if($isUnplayed)
+                                                <span class="text-gray-400">{{ $currentScore }} - {{ $opponentScore }}</span>
+                                            @else
+                                                <span class="{{ $currentScore > $opponentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $currentScore }}</span>
+                                                <span class="text-gray-900"> - </span>
+                                                <span class="{{ $opponentScore > $currentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $opponentScore }}</span>
+                                            @endif
+                                        </a>
                                     @else
-                                        <span class="text-gray-400 italic">Not played</span>
+                                        <a href="{{ route('tennis-matches.show', $match->id) }}" class="text-gray-400 italic hover:text-gray-600">Not played</a>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2 text-sm text-gray-700">

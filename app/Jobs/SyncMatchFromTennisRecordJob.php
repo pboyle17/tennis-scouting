@@ -74,9 +74,14 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
             // Parse doubles courts
             $this->parseDoublesCourts($crawler);
 
+            // Calculate match score based on courts won
+            $this->updateMatchScore();
+
             $courtsCreated = $this->match->courts()->count();
             Log::info("Successfully synced match {$this->match->id} from Tennis Record", [
-                'courts_created' => $courtsCreated
+                'courts_created' => $courtsCreated,
+                'home_score' => $this->match->home_score,
+                'away_score' => $this->match->away_score
             ]);
 
         } catch (\Exception $e) {
@@ -208,15 +213,16 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                     $imgSrc = $cell->filter('img')->attr('src');
                     Log::info("Found image in cell {$cellIndex}: {$imgSrc}");
                     if (str_contains($imgSrc, 'arrowhead_right')) {
-                        $homeWon = true;
+                        $homeWon = true; // Arrow right means home team won
                         Log::info("Home team won (arrowhead_right)");
                     } elseif (str_contains($imgSrc, 'arrowhead_left')) {
+                        $homeWon = false; // Arrow left means away team won
                         Log::info("Away team won (arrowhead_left)");
                     }
                 }
             });
 
-            list($homeScore, $awayScore, $setScores) = $this->parseScore($scoreText);
+            list($homeScore, $awayScore, $setScores) = $this->parseScore($scoreText, $homeWon);
             Log::info("Singles #{$courtNumber} - Parsed score: Home {$homeScore} - Away {$awayScore}, Sets: " . count($setScores));
 
             // Find players in database
@@ -391,15 +397,16 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                     $imgSrc = $cell->filter('img')->attr('src');
                     Log::info("Found image in cell {$cellIndex}: {$imgSrc}");
                     if (str_contains($imgSrc, 'arrowhead_right')) {
-                        $homeWon = true;
+                        $homeWon = true; // Arrow right means home team won
                         Log::info("Home team won (arrowhead_right)");
                     } elseif (str_contains($imgSrc, 'arrowhead_left')) {
+                        $homeWon = false; // Arrow left means away team won
                         Log::info("Away team won (arrowhead_left)");
                     }
                 }
             });
 
-            list($homeScore, $awayScore, $setScores) = $this->parseScore($scoreText);
+            list($homeScore, $awayScore, $setScores) = $this->parseScore($scoreText, $homeWon);
             Log::info("Doubles #{$courtNumber} - Parsed score: Home {$homeScore} - Away {$awayScore}, Sets: " . count($setScores));
 
             // Find players
@@ -564,6 +571,33 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
         return null;
     }
 
+    protected function updateMatchScore(): void
+    {
+        // Count courts won by each team based on home_score vs away_score
+        $homeWins = 0;
+        $awayWins = 0;
+
+        foreach ($this->match->courts as $court) {
+            if ($court->home_score > $court->away_score) {
+                $homeWins++;
+            } elseif ($court->away_score > $court->home_score) {
+                $awayWins++;
+            }
+            // Ties don't count for either team
+        }
+
+        // Update the match score
+        $this->match->update([
+            'home_score' => $homeWins,
+            'away_score' => $awayWins,
+        ]);
+
+        Log::info("Updated match {$this->match->id} score", [
+            'home_wins' => $homeWins,
+            'away_wins' => $awayWins
+        ]);
+    }
+
     protected function createCourtPlayer(Court $court, Player $player, int $teamId, bool $won): void
     {
         CourtPlayer::create([
@@ -580,8 +614,11 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
     /**
      * Parse score text and return both set counts and individual set scores
      * Returns array with [homeWins, awayWins, setScores[]]
+     *
+     * @param string $scoreText The score text from Tennis Record
+     * @param bool $homeWon Whether the home team won (from arrow direction)
      */
-    protected function parseScore(string $scoreText): array
+    protected function parseScore(string $scoreText, bool $homeWon): array
     {
         // Handle various score formats
         // "6 - 3\n6 - 0" -> sets separated by newlines
@@ -604,8 +641,20 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
 
         foreach ($sets as $setIndex => $set) {
             if (preg_match('/(\d+)\s*-\s*(\d+)/', trim($set), $matches)) {
-                $homeScore = (int)$matches[1];
-                $awayScore = (int)$matches[2];
+                // Tennis Record shows winner's score first
+                // So we need to swap based on who won
+                $firstScore = (int)$matches[1];
+                $secondScore = (int)$matches[2];
+
+                if ($homeWon) {
+                    // Home won, so first score is home, second is away
+                    $homeScore = $firstScore;
+                    $awayScore = $secondScore;
+                } else {
+                    // Away won, so first score is away, second is home
+                    $homeScore = $secondScore;
+                    $awayScore = $firstScore;
+                }
 
                 // Store individual set scores
                 $setScores[] = [
