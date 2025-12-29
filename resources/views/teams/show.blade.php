@@ -535,16 +535,24 @@
     <div class="mt-8">
         <div class="flex justify-between items-center mb-4">
             <h2 class="text-2xl font-bold text-gray-800">Team Matches</h2>
-            @env('local')
-                @if($team->league && $team->league->tennis_record_link)
-                    <form method="POST" action="{{ route('teams.syncTeamMatches', $team->id) }}" style="display:inline;">
-                        @csrf
-                        <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
-                            📅 Sync Team Matches
-                        </button>
-                    </form>
-                @endif
-            @endenv
+            <div class="flex space-x-2">
+                @env('local')
+                    @if($team->league && $team->league->tennis_record_link)
+                        <form method="POST" action="{{ route('teams.syncTeamMatches', $team->id) }}" style="display:inline;">
+                            @csrf
+                            <button type="submit" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                                📅 Sync Team Matches
+                            </button>
+                        </form>
+                    @endif
+                @endenv
+                <form method="POST" action="{{ route('teams.syncMatchDetails', $team->id) }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                        🎾 Sync Match Details
+                    </button>
+                </form>
+            </div>
         </div>
 
         @if($matches->count() > 0)

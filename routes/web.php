@@ -38,6 +38,7 @@ Route::get('/teams/tennis-record-creation-progress', [TeamController::class, 'ge
 Route::post('/teams/{team}/sync-from-tennis-record', [TeamController::class, 'syncFromTennisRecord'])->name('teams.syncFromTennisRecord');
 Route::get('/teams/tennis-record-sync-progress', [TeamController::class, 'getTennisRecordSyncProgress'])->name('teams.tennisRecordSyncProgress');
 Route::post('/teams/{team}/sync-team-matches', [TeamController::class, 'syncTeamMatches'])->name('teams.syncTeamMatches');
+Route::post('/teams/{team}/sync-match-details', [TeamController::class, 'syncMatchDetails'])->name('teams.syncMatchDetails');
 Route::post('/teams/{team}/sync-tr-profiles', [TeamController::class, 'syncTrProfiles'])->name('teams.syncTrProfiles');
 Route::get('/config', function () {
     return redirect()->route('configurations.index');
@@ -58,6 +59,7 @@ Route::post('/leagues/{league}/sync-all-teams', [LeagueController::class, 'syncA
 Route::post('/leagues/{league}/sync-tr-profiles', [LeagueController::class, 'syncTrProfiles'])->name('leagues.syncTrProfiles');
 Route::get('/leagues/tr-sync-progress', [LeagueController::class, 'getTrSyncProgress'])->name('leagues.trSyncProgress');
 Route::post('/leagues/{league}/sync-team-matches', [LeagueController::class, 'syncTeamMatches'])->name('leagues.syncTeamMatches');
+Route::post('/leagues/{league}/sync-match-details', [LeagueController::class, 'syncMatchDetails'])->name('leagues.syncMatchDetails');
 
 Route::get('/tennis-matches/{match}', [\App\Http\Controllers\TennisMatchController::class, 'show'])->name('tennis-matches.show');
 Route::get('/tennis-matches/{match}/edit', [\App\Http\Controllers\TennisMatchController::class, 'edit'])->name('tennis-matches.edit');

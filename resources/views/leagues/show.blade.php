@@ -233,51 +233,182 @@
         </div>
     </div>
 
+    <!-- Court Statistics -->
+    @if(isset($courtStats) && count($courtStats) > 0)
+        <div class="mb-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">Court Position Averages</h2>
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Court Position</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Avg UTR</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Avg USTA Dynamic</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Players</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        @foreach($courtStats as $stat)
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 text-sm font-medium text-gray-900">
+                                    {{ ucfirst($stat['court_type']) }} #{{ $stat['court_number'] }}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-center text-gray-700">
+                                    @if($stat['court_type'] === 'singles' && $stat['avg_utr_singles'])
+                                        {{ number_format($stat['avg_utr_singles'], 2) }}
+                                    @elseif($stat['court_type'] === 'doubles' && $stat['avg_utr_doubles'])
+                                        {{ number_format($stat['avg_utr_doubles'], 2) }}
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-sm text-center text-gray-700">
+                                    @if($stat['avg_usta_dynamic'])
+                                        {{ number_format($stat['avg_usta_dynamic'], 2) }}
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-3 text-sm text-center text-gray-600">
+                                    {{ $stat['player_count'] }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
     <!-- Teams Table -->
     <div class="bg-white rounded-lg shadow mb-6">
         <table class="w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Team Name</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Players</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Singles #1</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Singles #2</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Doubles #1</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Doubles #2</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Doubles #3</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
                 @forelse ($league->teams as $team)
+                    @php
+                        // Calculate court stats for this team
+                        $teamCourtStats = [];
+
+                        // Get all matches for this team
+                        $teamMatchIds = \App\Models\TennisMatch::where(function($query) use ($team) {
+                            $query->where('home_team_id', $team->id)
+                                  ->orWhere('away_team_id', $team->id);
+                        })->pluck('id');
+
+                        // Get all courts for these matches
+                        $teamCourts = \App\Models\Court::whereIn('tennis_match_id', $teamMatchIds)
+                            ->with('courtPlayers')
+                            ->get();
+
+                        // Group courts by type and number
+                        $courtGroups = $teamCourts->groupBy(function($court) {
+                            return $court->court_type . '_' . $court->court_number;
+                        });
+
+                        foreach ($courtGroups as $key => $courts) {
+                            list($courtType, $courtNumber) = explode('_', $key);
+
+                            // Get all court players for this group
+                            $allCourtPlayers = $courts->flatMap(function($court) {
+                                return $court->courtPlayers;
+                            });
+
+                            // Calculate averages based on court type
+                            if ($courtType === 'singles') {
+                                $avgUtr = $allCourtPlayers->where('utr_singles_rating', '>', 0)->avg('utr_singles_rating');
+                            } else {
+                                $avgUtr = $allCourtPlayers->where('utr_doubles_rating', '>', 0)->avg('utr_doubles_rating');
+                            }
+
+                            $avgUsta = $allCourtPlayers->where('usta_dynamic_rating', '>', 0)->avg('usta_dynamic_rating');
+
+                            $teamCourtStats[$key] = [
+                                'avg_utr' => $avgUtr,
+                                'avg_usta' => $avgUsta,
+                            ];
+                        }
+                    @endphp
                     <tr class="hover:bg-gray-50">
                         <td class="px-4 py-2 text-sm text-gray-700">
                             <a href="{{ route('teams.show', $team->id) }}" class="text-blue-600 hover:underline">
                                 {{ $team->name }}
                             </a>
-                        </td>
-                        <td class="px-4 py-2 text-sm text-gray-700">
-                            {{ $team->players->count() }} {{ $team->players->count() === 1 ? 'player' : 'players' }}
-                        </td>
-                        <td class="px-4 py-2 text-sm">
                             @php
                                 $teamPlayersWithoutUtrId = $team->players->whereNull('utr_id')->count();
                             @endphp
-
                             @if($teamPlayersWithoutUtrId > 0)
-                                <form method="POST" action="{{ route('leagues.findMissingUtrIdsForTeam', [$league->id, $team->id]) }}" style="display:inline;" class="mr-2">
+                                <form method="POST" action="{{ route('leagues.findMissingUtrIdsForTeam', [$league->id, $team->id]) }}" style="display:inline;" class="ml-2">
                                     @csrf
                                     <button type="submit" class="text-blue-600 hover:text-blue-800 text-xs cursor-pointer" title="Find UTR IDs for {{ $teamPlayersWithoutUtrId }} player(s) without UTR IDs">
                                         🔍 Find UTR IDs ({{ $teamPlayersWithoutUtrId }})
                                     </button>
                                 </form>
                             @endif
-
-                            <form method="POST" action="{{ route('leagues.removeTeam', [$league->id, $team->id]) }}" onsubmit="return confirm('Remove {{ $team->name }} from this league?');" class="inline">
-                                @csrf
-                                @method('DELETE')
-                                <button type="submit" class="text-red-600 hover:text-red-800 text-xs cursor-pointer">Remove Team</button>
-                            </form>
+                        </td>
+                        <td class="px-4 py-2 text-sm text-center text-gray-700">
+                            @if(isset($teamCourtStats['singles_1']) && ($teamCourtStats['singles_1']['avg_usta'] || $teamCourtStats['singles_1']['avg_utr']))
+                                <div class="text-xs">
+                                    <div>UTR: {{ $teamCourtStats['singles_1']['avg_utr'] ? number_format($teamCourtStats['singles_1']['avg_utr'], 2) : '-' }}</div>
+                                    <div>USTA: {{ $teamCourtStats['singles_1']['avg_usta'] ? number_format($teamCourtStats['singles_1']['avg_usta'], 2) : '-' }}</div>
+                                </div>
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 text-sm text-center text-gray-700">
+                            @if(isset($teamCourtStats['singles_2']) && ($teamCourtStats['singles_2']['avg_usta'] || $teamCourtStats['singles_2']['avg_utr']))
+                                <div class="text-xs">
+                                    <div>UTR: {{ $teamCourtStats['singles_2']['avg_utr'] ? number_format($teamCourtStats['singles_2']['avg_utr'], 2) : '-' }}</div>
+                                    <div>USTA: {{ $teamCourtStats['singles_2']['avg_usta'] ? number_format($teamCourtStats['singles_2']['avg_usta'], 2) : '-' }}</div>
+                                </div>
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 text-sm text-center text-gray-700">
+                            @if(isset($teamCourtStats['doubles_1']) && ($teamCourtStats['doubles_1']['avg_usta'] || $teamCourtStats['doubles_1']['avg_utr']))
+                                <div class="text-xs">
+                                    <div>UTR: {{ $teamCourtStats['doubles_1']['avg_utr'] ? number_format($teamCourtStats['doubles_1']['avg_utr'], 2) : '-' }}</div>
+                                    <div>USTA: {{ $teamCourtStats['doubles_1']['avg_usta'] ? number_format($teamCourtStats['doubles_1']['avg_usta'], 2) : '-' }}</div>
+                                </div>
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 text-sm text-center text-gray-700">
+                            @if(isset($teamCourtStats['doubles_2']) && ($teamCourtStats['doubles_2']['avg_usta'] || $teamCourtStats['doubles_2']['avg_utr']))
+                                <div class="text-xs">
+                                    <div>UTR: {{ $teamCourtStats['doubles_2']['avg_utr'] ? number_format($teamCourtStats['doubles_2']['avg_utr'], 2) : '-' }}</div>
+                                    <div>USTA: {{ $teamCourtStats['doubles_2']['avg_usta'] ? number_format($teamCourtStats['doubles_2']['avg_usta'], 2) : '-' }}</div>
+                                </div>
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 text-sm text-center text-gray-700">
+                            @if(isset($teamCourtStats['doubles_3']) && ($teamCourtStats['doubles_3']['avg_usta'] || $teamCourtStats['doubles_3']['avg_utr']))
+                                <div class="text-xs">
+                                    <div>UTR: {{ $teamCourtStats['doubles_3']['avg_utr'] ? number_format($teamCourtStats['doubles_3']['avg_utr'], 2) : '-' }}</div>
+                                    <div>USTA: {{ $teamCourtStats['doubles_3']['avg_usta'] ? number_format($teamCourtStats['doubles_3']['avg_usta'], 2) : '-' }}</div>
+                                </div>
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="3" class="px-4 py-8 text-center text-gray-500">
+                        <td colspan="6" class="px-4 py-8 text-center text-gray-500">
                             No teams in this league yet. Click "Add Teams" to get started.
                         </td>
                     </tr>
@@ -627,11 +758,17 @@
             $teamsWithTennisRecord = $league->teams()->whereNotNull('tennis_record_link')->count();
         @endphp
         @if($league->tennis_record_link && $teamsWithTennisRecord > 0)
-            <div class="mt-6 mb-4 flex justify-end">
+            <div class="mt-6 mb-4 flex justify-end space-x-2">
                 <form method="POST" action="{{ route('leagues.syncTeamMatches', $league->id) }}" style="display:inline;">
                     @csrf
                     <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Sync matches for all teams in league">
                         📅 Sync Team Matches
+                    </button>
+                </form>
+                <form method="POST" action="{{ route('leagues.syncMatchDetails', $league->id) }}" style="display:inline;">
+                    @csrf
+                    <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Sync match details for all league matches">
+                        🎾 Sync Match Details
                     </button>
                 </form>
             </div>

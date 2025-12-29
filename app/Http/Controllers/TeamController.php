@@ -548,4 +548,31 @@ class TeamController extends Controller
 
         return back()->with('success', "UTR data saved for {$player->first_name} {$player->last_name}!");
     }
+
+    /**
+     * Sync match details for all team matches from Tennis Record
+     */
+    public function syncMatchDetails(Team $team)
+    {
+        // Get all matches for this team
+        $matches = \App\Models\TennisMatch::where(function($query) use ($team) {
+            $query->where('home_team_id', $team->id)
+                  ->orWhere('away_team_id', $team->id);
+        })
+        ->whereNotNull('tennis_record_match_link')
+        ->get();
+
+        if ($matches->isEmpty()) {
+            return back()->with('error', 'No matches with Tennis Record links found for this team.');
+        }
+
+        // Dispatch a sync job for each match
+        $jobCount = 0;
+        foreach ($matches as $match) {
+            \App\Jobs\SyncMatchFromTennisRecordJob::dispatch($match);
+            $jobCount++;
+        }
+
+        return back()->with('status', "🎾 Dispatched {$jobCount} match detail sync jobs. This may take a few minutes.");
+    }
 }

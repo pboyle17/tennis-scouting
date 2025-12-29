@@ -82,7 +82,10 @@ class LeagueController extends Controller
             ->with(['homeTeam', 'awayTeam'])
             ->get();
 
-        return view('leagues.show', compact('league', 'availableTeams', 'players', 'sortField', 'sortDirection', 'matches'));
+        // Calculate average ratings by court position
+        $courtStats = $this->calculateCourtStats($league);
+
+        return view('leagues.show', compact('league', 'availableTeams', 'players', 'sortField', 'sortDirection', 'matches', 'courtStats'));
     }
 
     /**
@@ -509,5 +512,100 @@ class LeagueController extends Controller
 
             return back()->with('error', 'Failed to dispatch sync job: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Sync match details for all league matches from Tennis Record
+     */
+    public function syncMatchDetails(League $league)
+    {
+        // Get all matches for this league
+        $teamIds = $league->teams->pluck('id');
+        $matches = \App\Models\TennisMatch::where(function($query) use ($teamIds) {
+            $query->whereIn('home_team_id', $teamIds)
+                  ->orWhereIn('away_team_id', $teamIds);
+        })
+        ->whereNotNull('tennis_record_match_link')
+        ->get();
+
+        if ($matches->isEmpty()) {
+            return back()->with('error', 'No matches with Tennis Record links found for this league.');
+        }
+
+        // Dispatch a sync job for each match
+        $jobCount = 0;
+        foreach ($matches as $match) {
+            \App\Jobs\SyncMatchFromTennisRecordJob::dispatch($match);
+            $jobCount++;
+        }
+
+        return back()->with('status', "🎾 Dispatched {$jobCount} match detail sync jobs. This may take a few minutes.");
+    }
+
+    /**
+     * Calculate average ratings by court position for the league
+     */
+    protected function calculateCourtStats(League $league)
+    {
+        $teamIds = $league->teams->pluck('id');
+
+        // Get all match IDs for this league
+        $matchIds = \App\Models\TennisMatch::where(function($query) use ($teamIds) {
+            $query->whereIn('home_team_id', $teamIds)
+                  ->orWhereIn('away_team_id', $teamIds);
+        })->pluck('id');
+
+        // Get all courts for these matches
+        $courts = \App\Models\Court::whereIn('tennis_match_id', $matchIds)
+            ->with('courtPlayers')
+            ->get();
+
+        $stats = [];
+
+        // Group courts by type and number
+        $courtGroups = $courts->groupBy(function($court) {
+            return $court->court_type . '_' . $court->court_number;
+        });
+
+        foreach ($courtGroups as $key => $courtsInGroup) {
+            list($type, $number) = explode('_', $key);
+
+            // Get all court players for this court position
+            $allCourtPlayers = $courtsInGroup->flatMap(function($court) {
+                return $court->courtPlayers;
+            });
+
+            // Calculate averages
+            $avgUtrSingles = null;
+            $avgUtrDoubles = null;
+            $avgUstaDynamic = null;
+
+            if ($type === 'singles') {
+                $avgUtrSingles = $allCourtPlayers->whereNotNull('utr_singles_rating')->avg('utr_singles_rating');
+            } else {
+                $avgUtrDoubles = $allCourtPlayers->whereNotNull('utr_doubles_rating')->avg('utr_doubles_rating');
+            }
+
+            $avgUstaDynamic = $allCourtPlayers->whereNotNull('usta_dynamic_rating')->avg('usta_dynamic_rating');
+
+            $stats[] = [
+                'court_type' => $type,
+                'court_number' => $number,
+                'avg_utr_singles' => $avgUtrSingles,
+                'avg_utr_doubles' => $avgUtrDoubles,
+                'avg_usta_dynamic' => $avgUstaDynamic,
+                'player_count' => $allCourtPlayers->count(),
+            ];
+        }
+
+        // Sort by court type (singles first) then by number
+        usort($stats, function($a, $b) {
+            if ($a['court_type'] !== $b['court_type']) {
+                return $a['court_type'] === 'singles' ? -1 : 1;
+            }
+            return $a['court_number'] <=> $b['court_number'];
+        });
+
+        return $stats;
     }
 }
