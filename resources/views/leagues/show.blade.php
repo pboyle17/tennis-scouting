@@ -680,9 +680,17 @@
                                 </td>
                                 <td class="px-4 py-2 text-sm text-center">
                                     @if($match->home_score !== null && $match->away_score !== null)
-                                        <span class="{{ $isUnplayed ? 'text-gray-400' : 'font-semibold text-gray-900' }}">{{ $match->home_score }} - {{ $match->away_score }}</span>
+                                        <a href="{{ route('tennis-matches.show', $match->id) }}" class="font-semibold hover:underline">
+                                            @if($isUnplayed)
+                                                <span class="text-gray-400">{{ $match->home_score }} - {{ $match->away_score }}</span>
+                                            @else
+                                                <span class="{{ $match->home_score > $match->away_score ? 'text-green-600' : 'text-gray-900' }}">{{ $match->home_score }}</span>
+                                                <span class="text-gray-900"> - </span>
+                                                <span class="{{ $match->away_score > $match->home_score ? 'text-green-600' : 'text-gray-900' }}">{{ $match->away_score }}</span>
+                                            @endif
+                                        </a>
                                     @else
-                                        <span class="text-gray-400 italic">Not played</span>
+                                        <a href="{{ route('tennis-matches.show', $match->id) }}" class="text-gray-400 italic hover:text-gray-600">Not played</a>
                                     @endif
                                 </td>
                                 <td class="px-4 py-2 text-sm {{ $isUnplayed ? 'text-gray-500' : 'text-gray-700' }}">
