@@ -59,10 +59,14 @@ Route::post('/leagues/{league}/sync-tr-profiles', [LeagueController::class, 'syn
 Route::get('/leagues/tr-sync-progress', [LeagueController::class, 'getTrSyncProgress'])->name('leagues.trSyncProgress');
 Route::post('/leagues/{league}/sync-team-matches', [LeagueController::class, 'syncTeamMatches'])->name('leagues.syncTeamMatches');
 
+Route::get('/tennis-matches/{match}', [\App\Http\Controllers\TennisMatchController::class, 'show'])->name('tennis-matches.show');
 Route::get('/tennis-matches/{match}/edit', [\App\Http\Controllers\TennisMatchController::class, 'edit'])->name('tennis-matches.edit');
 Route::put('/tennis-matches/{match}', [\App\Http\Controllers\TennisMatchController::class, 'update'])->name('tennis-matches.update');
 Route::delete('/tennis-matches/{match}', [\App\Http\Controllers\TennisMatchController::class, 'destroy'])->name('tennis-matches.destroy');
 Route::post('/tennis-matches/{match}/update-score', [\App\Http\Controllers\TennisMatchController::class, 'updateScore'])->name('tennis-matches.updateScore');
+Route::post('/tennis-matches/{match}/sync-from-tennis-record', [\App\Http\Controllers\TennisMatchController::class, 'syncFromTennisRecord'])->name('tennis-matches.syncFromTennisRecord');
+
+Route::delete('/courts/{court}', [\App\Http\Controllers\CourtController::class, 'destroy'])->name('courts.destroy');
 
 Route::resource('tournaments', TournamentController::class);
 Route::post('/tournaments/{tournament}/add-player', [TournamentController::class, 'addPlayer'])->name('tournaments.addPlayer');

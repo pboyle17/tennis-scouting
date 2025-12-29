@@ -9,6 +9,22 @@ use Illuminate\Http\Request;
 class TennisMatchController extends Controller
 {
     /**
+     * Display the specified match.
+     */
+    public function show(TennisMatch $match)
+    {
+        $match->load([
+            'homeTeam',
+            'awayTeam',
+            'league',
+            'courts.courtPlayers.player',
+            'courts.courtSets'
+        ]);
+
+        return view('tennis-matches.show', compact('match'));
+    }
+
+    /**
      * Show the form for editing the specified match.
      */
     public function edit(TennisMatch $match)
@@ -85,5 +101,28 @@ class TennisMatchController extends Controller
         }
 
         return redirect()->back()->with('success', 'Match score updated successfully.');
+    }
+
+    /**
+     * Sync match details from Tennis Record
+     */
+    public function syncFromTennisRecord(TennisMatch $match)
+    {
+        if (!$match->tennis_record_match_link) {
+            return redirect()->back()->with('error', 'This match does not have a Tennis Record link.');
+        }
+
+        try {
+            \App\Jobs\SyncMatchFromTennisRecordJob::dispatch($match);
+
+            return redirect()->back()->with('status', '🎾 Syncing match details from Tennis Record... This may take a moment.');
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error("Failed to dispatch match sync job: {$e->getMessage()}", [
+                'match_id' => $match->id,
+                'error' => $e->getTraceAsString()
+            ]);
+
+            return redirect()->back()->with('error', 'Failed to start sync job: ' . $e->getMessage());
+        }
     }
 }
