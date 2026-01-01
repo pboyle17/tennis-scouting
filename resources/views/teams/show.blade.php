@@ -128,6 +128,145 @@
         </div>
     @endif
 
+    @if(!empty($courtStats))
+        <div class="max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
+            <h3 class="text-lg font-semibold mb-4">Court Position Averages</h3>
+            <p class="text-sm text-gray-500 mb-3">Click on any row to see player details</p>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Court Position</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Avg UTR</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Avg USTA</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Win %</th>
+                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Matches</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($courtStats as $index => $stat)
+                            <tr class="hover:bg-gray-50 cursor-pointer border-t border-gray-200 court-row" data-court-index="{{ $index }}">
+                                <td class="px-4 py-2 text-sm text-gray-700">
+                                    <span class="inline-block w-4 transition-transform duration-200">▶</span>
+                                    {{ ucfirst($stat['court_type']) }} #{{ $stat['court_number'] }}
+                                </td>
+                                <td class="px-4 py-2 text-sm text-center text-gray-700">
+                                    @if($stat['court_type'] === 'singles' && $stat['avg_utr_singles'])
+                                        {{ number_format($stat['avg_utr_singles'], 2) }}
+                                    @elseif($stat['court_type'] === 'doubles' && $stat['avg_utr_doubles'])
+                                        {{ number_format($stat['avg_utr_doubles'], 2) }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-sm text-center text-gray-700">
+                                    @if($stat['avg_usta_dynamic'])
+                                        {{ number_format($stat['avg_usta_dynamic'], 2) }}
+                                    @else
+                                        -
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-sm text-center">
+                                    @if($stat['court_win_percentage'] !== null)
+                                        <span class="font-semibold {{ $stat['court_win_percentage'] >= 50 ? 'text-green-600' : 'text-red-600' }}">
+                                            {{ number_format($stat['court_win_percentage'], 1) }}%
+                                        </span>
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+                                <td class="px-4 py-2 text-sm text-center text-gray-500">
+                                    {{ $stat['player_count'] }}
+                                </td>
+                            </tr>
+                            <tr class="court-details hidden" data-court-index="{{ $index }}">
+                                <td colspan="5" class="px-4 py-3 bg-gray-50">
+                                    @if(!empty($stat['players']))
+                                        <div class="ml-8">
+                                            <h4 class="text-sm font-semibold text-gray-700 mb-2">Player Performance at {{ ucfirst($stat['court_type']) }} #{{ $stat['court_number'] }}</h4>
+                                            <table class="min-w-full divide-y divide-gray-200 text-sm">
+                                                <thead class="bg-gray-100">
+                                                    <tr>
+                                                        <th class="px-3 py-2 text-left text-xs font-semibold text-gray-600">Player</th>
+                                                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600">Record</th>
+                                                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600">Win %</th>
+                                                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600">Avg UTR</th>
+                                                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600">Avg USTA</th>
+                                                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600">Avg Opp UTR</th>
+                                                        <th class="px-3 py-2 text-center text-xs font-semibold text-gray-600">Avg Opp USTA</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="divide-y divide-gray-200">
+                                                    @foreach($stat['players'] as $player)
+                                                        <tr class="hover:bg-gray-100">
+                                                            <td class="px-3 py-2 text-gray-700">
+                                                                @if($player['is_team'])
+                                                                    {{ $player['player_name'] }}
+                                                                @else
+                                                                    <a href="{{ route('players.edit', $player['player_id']) }}" class="text-blue-600 hover:underline">
+                                                                        {{ $player['player_name'] }}
+                                                                    </a>
+                                                                @endif
+                                                            </td>
+                                                            <td class="px-3 py-2 text-center text-gray-700">
+                                                                <span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>
+                                                                -
+                                                                <span class="text-red-600 font-semibold">{{ $player['losses'] }}</span>
+                                                            </td>
+                                                            <td class="px-3 py-2 text-center text-gray-700">
+                                                                @if($player['total'] > 0)
+                                                                    <span class="font-semibold {{ $player['win_percentage'] >= 50 ? 'text-green-600' : 'text-red-600' }}">
+                                                                        {{ number_format($player['win_percentage'], 1) }}%
+                                                                    </span>
+                                                                @else
+                                                                    -
+                                                                @endif
+                                                            </td>
+                                                            <td class="px-3 py-2 text-center text-gray-700">
+                                                                @if($player['avg_utr'])
+                                                                    {{ number_format($player['avg_utr'], 2) }}
+                                                                @else
+                                                                    -
+                                                                @endif
+                                                            </td>
+                                                            <td class="px-3 py-2 text-center text-gray-700">
+                                                                @if($player['avg_usta'])
+                                                                    {{ number_format($player['avg_usta'], 2) }}
+                                                                @else
+                                                                    -
+                                                                @endif
+                                                            </td>
+                                                            <td class="px-3 py-2 text-center text-gray-700">
+                                                                @if($player['avg_opponent_utr'])
+                                                                    {{ number_format($player['avg_opponent_utr'], 2) }}
+                                                                @else
+                                                                    -
+                                                                @endif
+                                                            </td>
+                                                            <td class="px-3 py-2 text-center text-gray-700">
+                                                                @if($player['avg_opponent_usta'])
+                                                                    {{ number_format($player['avg_opponent_usta'], 2) }}
+                                                                @else
+                                                                    -
+                                                                @endif
+                                                            </td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @else
+                                        <p class="text-gray-500 text-sm ml-8">No player data available for this court position.</p>
+                                    @endif
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    @endif
+
     <div class="mb-4 flex justify-between items-center">
         <div class="text-sm text-gray-600">
             <strong>{{ $team->players->count() }}</strong> players on this team
@@ -545,13 +684,15 @@
                             </button>
                         </form>
                     @endif
+                    @if($team->league && $team->league->tennis_record_link)
+                        <form method="POST" action="{{ route('teams.syncMatchDetails', $team->id) }}" style="display:inline;">
+                            @csrf
+                            <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                                🎾 Sync Match Details
+                            </button>
+                        </form>
+                    @endif
                 @endenv
-                <form method="POST" action="{{ route('teams.syncMatchDetails', $team->id) }}" style="display:inline;">
-                    @csrf
-                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
-                        🎾 Sync Match Details
-                    </button>
-                </form>
             </div>
         </div>
 
@@ -656,6 +797,27 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Court Position Expand/Collapse
+        const courtRows = document.querySelectorAll('.court-row');
+        courtRows.forEach(row => {
+            row.addEventListener('click', function() {
+                const courtIndex = this.dataset.courtIndex;
+                const detailsRow = document.querySelector(`.court-details[data-court-index="${courtIndex}"]`);
+                const arrow = this.querySelector('span');
+
+                if (detailsRow) {
+                    detailsRow.classList.toggle('hidden');
+
+                    // Rotate arrow
+                    if (detailsRow.classList.contains('hidden')) {
+                        arrow.style.transform = 'rotate(0deg)';
+                    } else {
+                        arrow.style.transform = 'rotate(90deg)';
+                    }
+                }
+            });
+        });
+
         // Toggle Add Player Section
         const toggleAddPlayerBtn = document.getElementById('toggleAddPlayerBtn');
         const closeAddPlayerBtn = document.getElementById('closeAddPlayerBtn');

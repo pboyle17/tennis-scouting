@@ -244,7 +244,6 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Court Position</th>
                             <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Avg UTR</th>
                             <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Avg USTA Dynamic</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Players</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
@@ -268,9 +267,6 @@
                                     @else
                                         <span class="text-gray-400">-</span>
                                     @endif
-                                </td>
-                                <td class="px-4 py-3 text-sm text-center text-gray-600">
-                                    {{ $stat['player_count'] }}
                                 </td>
                             </tr>
                         @endforeach
