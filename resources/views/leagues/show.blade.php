@@ -153,9 +153,11 @@
     @endif
 
     <div class="flex justify-end mb-4 space-x-2">
-        <button id="toggleAddTeams" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
-            + Add Teams
-        </button>
+        @env('local')
+            <button id="toggleAddTeams" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                + Add Teams
+            </button>
+        @endenv
         @if($league->usta_link)
             <a href="{{ $league->usta_link }}" target="_blank" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded">
                 🔗 USTA Link
@@ -174,107 +176,68 @@
                 </form>
             @endenv
         @endif
-        <a href="{{ route('leagues.edit', $league->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
-            Edit League
-        </a>
-        <form method="POST" action="{{ route('leagues.destroy', $league->id) }}" onsubmit="return confirm('Are you sure you want to delete this league? Teams will not be deleted.');" class="inline">
-            @csrf
-            @method('DELETE')
-            <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
-                Delete League
-            </button>
-        </form>
+        @env('local')
+            <a href="{{ route('leagues.edit', $league->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
+                Edit League
+            </a>
+            <form method="POST" action="{{ route('leagues.destroy', $league->id) }}" onsubmit="return confirm('Are you sure you want to delete this league? Teams will not be deleted.');" class="inline">
+                @csrf
+                @method('DELETE')
+                <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                    Delete League
+                </button>
+            </form>
+        @endenv
     </div>
 
     <!-- Add Teams Section -->
-    <div id="addTeamsSection" class="bg-white rounded-lg shadow mb-6 hidden">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-xl font-semibold text-gray-800">Add Teams to League</h2>
-                <button id="closeAddTeams" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
-            </div>
+    @env('local')
+        <div id="addTeamsSection" class="bg-white rounded-lg shadow mb-6 hidden">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800">Add Teams to League</h2>
+                    <button id="closeAddTeams" class="text-gray-500 hover:text-gray-700 text-2xl font-bold">&times;</button>
+                </div>
 
-            @if($availableTeams->count() > 0)
-                <form method="POST" action="{{ route('leagues.addTeams', $league->id) }}" id="addTeamsForm">
-                    @csrf
+                @if($availableTeams->count() > 0)
+                    <form method="POST" action="{{ route('leagues.addTeams', $league->id) }}" id="addTeamsForm">
+                        @csrf
 
-                    <div class="mb-4">
-                        <input type="text" id="teamSearch" placeholder="Search teams..." class="w-full border rounded p-2">
-                    </div>
+                        <div class="mb-4">
+                            <input type="text" id="teamSearch" placeholder="Search teams..." class="w-full border rounded p-2">
+                        </div>
 
-                    <div class="mb-4 flex space-x-2">
-                        <button type="button" id="selectAllTeams" class="bg-gray-500 hover:bg-gray-600 text-white text-sm py-1 px-3 rounded">
-                            Select All
+                        <div class="mb-4 flex space-x-2">
+                            <button type="button" id="selectAllTeams" class="bg-gray-500 hover:bg-gray-600 text-white text-sm py-1 px-3 rounded">
+                                Select All
+                            </button>
+                            <button type="button" id="clearAllTeams" class="bg-gray-500 hover:bg-gray-600 text-white text-sm py-1 px-3 rounded">
+                                Clear All
+                            </button>
+                            <span id="selectedCount" class="text-sm text-gray-600 py-1">0 selected</span>
+                        </div>
+
+                        <div class="max-h-96 overflow-y-auto border rounded p-4 mb-4">
+                            @foreach($availableTeams as $team)
+                                <div class="team-item mb-2">
+                                    <label class="flex items-center hover:bg-gray-50 p-2 rounded cursor-pointer">
+                                        <input type="checkbox" name="team_ids[]" value="{{ $team->id }}" class="team-checkbox mr-3">
+                                        <span class="team-name">{{ $team->name }}</span>
+                                    </label>
+                                </div>
+                            @endforeach
+                        </div>
+
+                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded w-full">
+                            Add Selected Teams
                         </button>
-                        <button type="button" id="clearAllTeams" class="bg-gray-500 hover:bg-gray-600 text-white text-sm py-1 px-3 rounded">
-                            Clear All
-                        </button>
-                        <span id="selectedCount" class="text-sm text-gray-600 py-1">0 selected</span>
-                    </div>
-
-                    <div class="max-h-96 overflow-y-auto border rounded p-4 mb-4">
-                        @foreach($availableTeams as $team)
-                            <div class="team-item mb-2">
-                                <label class="flex items-center hover:bg-gray-50 p-2 rounded cursor-pointer">
-                                    <input type="checkbox" name="team_ids[]" value="{{ $team->id }}" class="team-checkbox mr-3">
-                                    <span class="team-name">{{ $team->name }}</span>
-                                </label>
-                            </div>
-                        @endforeach
-                    </div>
-
-                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded w-full">
-                        Add Selected Teams
-                    </button>
-                </form>
-            @else
-                <p class="text-gray-600">No available teams to add. All teams are either in this league or assigned to other leagues.</p>
-            @endif
-        </div>
-    </div>
-
-    <!-- Court Statistics -->
-    @if(isset($courtStats) && count($courtStats) > 0)
-        <div class="mb-6">
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">Court Position Averages</h2>
-            <div class="bg-white rounded-lg shadow overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Court Position</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Avg UTR</th>
-                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Avg USTA Dynamic</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        @foreach($courtStats as $stat)
-                            <tr class="hover:bg-gray-50">
-                                <td class="px-4 py-3 text-sm font-medium text-gray-900">
-                                    {{ ucfirst($stat['court_type']) }} #{{ $stat['court_number'] }}
-                                </td>
-                                <td class="px-4 py-3 text-sm text-center text-gray-700">
-                                    @if($stat['court_type'] === 'singles' && $stat['avg_utr_singles'])
-                                        {{ number_format($stat['avg_utr_singles'], 2) }}
-                                    @elseif($stat['court_type'] === 'doubles' && $stat['avg_utr_doubles'])
-                                        {{ number_format($stat['avg_utr_doubles'], 2) }}
-                                    @else
-                                        <span class="text-gray-400">-</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-sm text-center text-gray-700">
-                                    @if($stat['avg_usta_dynamic'])
-                                        {{ number_format($stat['avg_usta_dynamic'], 2) }}
-                                    @else
-                                        <span class="text-gray-400">-</span>
-                                    @endif
-                                </td>
-                            </tr>
-                        @endforeach
-                    </tbody>
-                </table>
+                    </form>
+                @else
+                    <p class="text-gray-600">No available teams to add. All teams are either in this league or assigned to other leagues.</p>
+                @endif
             </div>
         </div>
-    @endif
+    @endenv
 
     <!-- Teams Table -->
     <div class="bg-white rounded-lg shadow mb-6">
@@ -353,9 +316,22 @@
                         </td>
                         <td class="px-4 py-2 text-sm text-center text-gray-700">
                             @if(isset($teamCourtStats['singles_1']) && ($teamCourtStats['singles_1']['avg_usta'] || $teamCourtStats['singles_1']['avg_utr']))
-                                <div class="text-xs">
-                                    <div>UTR: {{ $teamCourtStats['singles_1']['avg_utr'] ? number_format($teamCourtStats['singles_1']['avg_utr'], 2) : '-' }}</div>
-                                    <div>USTA: {{ $teamCourtStats['singles_1']['avg_usta'] ? number_format($teamCourtStats['singles_1']['avg_usta'], 2) : '-' }}</div>
+                                @php
+                                    $leagueAvgUtr = collect($courtStats)->where('court_type', 'singles')->where('court_number', 1)->first()['avg_utr_singles'] ?? null;
+                                    $leagueAvgUsta = collect($courtStats)->where('court_type', 'singles')->where('court_number', 1)->first()['avg_usta_dynamic'] ?? null;
+                                    $teamUtr = $teamCourtStats['singles_1']['avg_utr'];
+                                    $teamUsta = $teamCourtStats['singles_1']['avg_usta'];
+                                    $utrColor = $teamUtr && $leagueAvgUtr ? ($teamUtr >= $leagueAvgUtr ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                    $ustaColor = $teamUsta && $leagueAvgUsta ? ($teamUsta >= $leagueAvgUsta ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                @endphp
+                                <div class="relative group cursor-pointer text-xs">
+                                    <div class="{{ $utrColor }}">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}</div>
+                                    <div class="{{ $ustaColor }}">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}</div>
+                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
+                                        <div class="font-semibold mb-1">League Average - Singles #1</div>
+                                        <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
+                                        <div>USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
+                                    </div>
                                 </div>
                             @else
                                 <span class="text-gray-400">-</span>
@@ -363,9 +339,22 @@
                         </td>
                         <td class="px-4 py-2 text-sm text-center text-gray-700">
                             @if(isset($teamCourtStats['singles_2']) && ($teamCourtStats['singles_2']['avg_usta'] || $teamCourtStats['singles_2']['avg_utr']))
-                                <div class="text-xs">
-                                    <div>UTR: {{ $teamCourtStats['singles_2']['avg_utr'] ? number_format($teamCourtStats['singles_2']['avg_utr'], 2) : '-' }}</div>
-                                    <div>USTA: {{ $teamCourtStats['singles_2']['avg_usta'] ? number_format($teamCourtStats['singles_2']['avg_usta'], 2) : '-' }}</div>
+                                @php
+                                    $leagueAvgUtr = collect($courtStats)->where('court_type', 'singles')->where('court_number', 2)->first()['avg_utr_singles'] ?? null;
+                                    $leagueAvgUsta = collect($courtStats)->where('court_type', 'singles')->where('court_number', 2)->first()['avg_usta_dynamic'] ?? null;
+                                    $teamUtr = $teamCourtStats['singles_2']['avg_utr'];
+                                    $teamUsta = $teamCourtStats['singles_2']['avg_usta'];
+                                    $utrColor = $teamUtr && $leagueAvgUtr ? ($teamUtr >= $leagueAvgUtr ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                    $ustaColor = $teamUsta && $leagueAvgUsta ? ($teamUsta >= $leagueAvgUsta ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                @endphp
+                                <div class="relative group cursor-pointer text-xs">
+                                    <div class="{{ $utrColor }}">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}</div>
+                                    <div class="{{ $ustaColor }}">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}</div>
+                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
+                                        <div class="font-semibold mb-1">League Average - Singles #2</div>
+                                        <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
+                                        <div>USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
+                                    </div>
                                 </div>
                             @else
                                 <span class="text-gray-400">-</span>
@@ -373,9 +362,22 @@
                         </td>
                         <td class="px-4 py-2 text-sm text-center text-gray-700">
                             @if(isset($teamCourtStats['doubles_1']) && ($teamCourtStats['doubles_1']['avg_usta'] || $teamCourtStats['doubles_1']['avg_utr']))
-                                <div class="text-xs">
-                                    <div>UTR: {{ $teamCourtStats['doubles_1']['avg_utr'] ? number_format($teamCourtStats['doubles_1']['avg_utr'], 2) : '-' }}</div>
-                                    <div>USTA: {{ $teamCourtStats['doubles_1']['avg_usta'] ? number_format($teamCourtStats['doubles_1']['avg_usta'], 2) : '-' }}</div>
+                                @php
+                                    $leagueAvgUtr = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 1)->first()['avg_utr_doubles'] ?? null;
+                                    $leagueAvgUsta = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 1)->first()['avg_usta_dynamic'] ?? null;
+                                    $teamUtr = $teamCourtStats['doubles_1']['avg_utr'];
+                                    $teamUsta = $teamCourtStats['doubles_1']['avg_usta'];
+                                    $utrColor = $teamUtr && $leagueAvgUtr ? ($teamUtr >= $leagueAvgUtr ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                    $ustaColor = $teamUsta && $leagueAvgUsta ? ($teamUsta >= $leagueAvgUsta ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                @endphp
+                                <div class="relative group cursor-pointer text-xs">
+                                    <div class="{{ $utrColor }}">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}</div>
+                                    <div class="{{ $ustaColor }}">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}</div>
+                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
+                                        <div class="font-semibold mb-1">League Average - Doubles #1</div>
+                                        <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
+                                        <div>USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
+                                    </div>
                                 </div>
                             @else
                                 <span class="text-gray-400">-</span>
@@ -383,9 +385,22 @@
                         </td>
                         <td class="px-4 py-2 text-sm text-center text-gray-700">
                             @if(isset($teamCourtStats['doubles_2']) && ($teamCourtStats['doubles_2']['avg_usta'] || $teamCourtStats['doubles_2']['avg_utr']))
-                                <div class="text-xs">
-                                    <div>UTR: {{ $teamCourtStats['doubles_2']['avg_utr'] ? number_format($teamCourtStats['doubles_2']['avg_utr'], 2) : '-' }}</div>
-                                    <div>USTA: {{ $teamCourtStats['doubles_2']['avg_usta'] ? number_format($teamCourtStats['doubles_2']['avg_usta'], 2) : '-' }}</div>
+                                @php
+                                    $leagueAvgUtr = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 2)->first()['avg_utr_doubles'] ?? null;
+                                    $leagueAvgUsta = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 2)->first()['avg_usta_dynamic'] ?? null;
+                                    $teamUtr = $teamCourtStats['doubles_2']['avg_utr'];
+                                    $teamUsta = $teamCourtStats['doubles_2']['avg_usta'];
+                                    $utrColor = $teamUtr && $leagueAvgUtr ? ($teamUtr >= $leagueAvgUtr ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                    $ustaColor = $teamUsta && $leagueAvgUsta ? ($teamUsta >= $leagueAvgUsta ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                @endphp
+                                <div class="relative group cursor-pointer text-xs">
+                                    <div class="{{ $utrColor }}">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}</div>
+                                    <div class="{{ $ustaColor }}">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}</div>
+                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
+                                        <div class="font-semibold mb-1">League Average - Doubles #2</div>
+                                        <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
+                                        <div>USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
+                                    </div>
                                 </div>
                             @else
                                 <span class="text-gray-400">-</span>
@@ -393,9 +408,22 @@
                         </td>
                         <td class="px-4 py-2 text-sm text-center text-gray-700">
                             @if(isset($teamCourtStats['doubles_3']) && ($teamCourtStats['doubles_3']['avg_usta'] || $teamCourtStats['doubles_3']['avg_utr']))
-                                <div class="text-xs">
-                                    <div>UTR: {{ $teamCourtStats['doubles_3']['avg_utr'] ? number_format($teamCourtStats['doubles_3']['avg_utr'], 2) : '-' }}</div>
-                                    <div>USTA: {{ $teamCourtStats['doubles_3']['avg_usta'] ? number_format($teamCourtStats['doubles_3']['avg_usta'], 2) : '-' }}</div>
+                                @php
+                                    $leagueAvgUtr = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 3)->first()['avg_utr_doubles'] ?? null;
+                                    $leagueAvgUsta = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 3)->first()['avg_usta_dynamic'] ?? null;
+                                    $teamUtr = $teamCourtStats['doubles_3']['avg_utr'];
+                                    $teamUsta = $teamCourtStats['doubles_3']['avg_usta'];
+                                    $utrColor = $teamUtr && $leagueAvgUtr ? ($teamUtr >= $leagueAvgUtr ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                    $ustaColor = $teamUsta && $leagueAvgUsta ? ($teamUsta >= $leagueAvgUsta ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                @endphp
+                                <div class="relative group cursor-pointer text-xs">
+                                    <div class="{{ $utrColor }}">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}</div>
+                                    <div class="{{ $ustaColor }}">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}</div>
+                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
+                                        <div class="font-semibold mb-1">League Average - Doubles #3</div>
+                                        <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
+                                        <div>USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
+                                    </div>
                                 </div>
                             @else
                                 <span class="text-gray-400">-</span>
@@ -418,6 +446,30 @@
         @php
             $playersWithUtr = $players->filter(fn($p) => $p->utr_id !== null)->count();
         @endphp
+
+        <!-- Singles Lineup Comparison -->
+        @if($leagueLineupData && count($leagueLineupData) > 0)
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+                <div class="bg-gray-50 border-b border-gray-200 px-6 py-3 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-800">Singles Lineup vs League</h2>
+                    <div class="flex space-x-2">
+                        <button id="toggleLeagueUTR" class="px-4 py-2 bg-blue-500 text-white rounded text-sm font-semibold">
+                            UTR
+                        </button>
+                        <button id="toggleLeagueUSTA" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold">
+                            USTA
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <div id="leagueLineupChart" class="mt-4 overflow-x-auto">
+                        <!-- Chart will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <div class="mb-4 flex justify-between items-center">
             <div>
                 <h2 class="text-2xl font-bold text-gray-800">
@@ -456,19 +508,21 @@
                         </button>
                     @endif
                 @endenv
-                @if($playersWithUtr > 0)
-                    <form id="updateUtrForm" method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;">
-                        @csrf
-                        <input type="hidden" id="updateUtrTeamIds" name="team_ids" value="">
-                        <button type="submit" id="updateUtrButton" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Update UTR ratings for filtered teams">
-                            🔄 Update UTRs (<span id="updateUtrCount">{{ $playersWithUtr }}</span>)
+                @env('local')
+                    @if($playersWithUtr > 0)
+                        <form id="updateUtrForm" method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;">
+                            @csrf
+                            <input type="hidden" id="updateUtrTeamIds" name="team_ids" value="">
+                            <button type="submit" id="updateUtrButton" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded cursor-pointer" title="Update UTR ratings for filtered teams">
+                                🔄 Update UTRs (<span id="updateUtrCount">{{ $playersWithUtr }}</span>)
+                            </button>
+                        </form>
+                    @else
+                        <button type="button" disabled class="bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed" title="No players with UTR IDs found in this league">
+                            🔄 Update UTRs (0)
                         </button>
-                    </form>
-                @else
-                    <button type="button" disabled class="bg-gray-400 text-white font-semibold py-2 px-4 rounded cursor-not-allowed" title="No players with UTR IDs found in this league">
-                        🔄 Update UTRs (0)
-                    </button>
-                @endif
+                    @endif
+                @endenv
                 @env('local')
                     @php
                         $playersWithTennisRecord = $players->filter(fn($p) => $p->tennis_record_link !== null)->count();
@@ -604,7 +658,9 @@
                         <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('leagues.show', $league->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}" data-team-id="{{ $player->team_id }}" data-has-utr="{{ $player->utr_id ? '1' : '0' }}" data-has-tr="{{ $player->tennis_record_link ? '1' : '0' }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}" data-promoted="{{ $isPromoted ? '1' : '0' }}" data-playing-up="{{ $isPlayingUp ? '1' : '0' }}">
                             <td class="px-4 py-2 text-sm text-gray-700 font-semibold">{{ $rank++ }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">
-                                {{ $player->first_name }} {{ $player->last_name }}
+                                <a href="{{ route('players.show', $player->id) }}" class="text-blue-600 hover:underline font-semibold">
+                                    {{ $player->first_name }} {{ $player->last_name }}
+                                </a>
                                 @if(!$league->is_combo)
                                     @if($isPromoted)
                                         <span class="relative inline-block group">
@@ -1558,5 +1614,222 @@
             });
         });
     })();
+
+    // League Lineup Comparison Chart
+    @if($leagueLineupData && count($leagueLineupData) > 0)
+        const leagueLineupData = @json($leagueLineupData);
+        let currentLeagueRatingType = 'utr';
+
+        function renderLeagueLineupChart() {
+            const chartContainer = document.getElementById('leagueLineupChart');
+            if (!chartContainer) return;
+
+            const positions = [1, 2, 3, 4, 5, 6];
+            let minRating = Infinity;
+            let maxRating = -Infinity;
+
+            // Sort and position players based on selected rating type
+            const sortedTeamData = leagueLineupData.map(team => {
+                // Sort players by selected rating (highest first)
+                const sortedPlayers = [...team.players]
+                    .filter(player => {
+                        const rating = currentLeagueRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
+                        return rating != null;
+                    })
+                    .sort((a, b) => {
+                        const ratingA = currentLeagueRatingType === 'utr' ? a.utr_singles : a.usta_dynamic;
+                        const ratingB = currentLeagueRatingType === 'utr' ? b.utr_singles : b.usta_dynamic;
+                        return ratingB - ratingA; // Descending order
+                    })
+                    .slice(0, 6) // Top 6 only
+                    .map((player, index) => ({
+                        ...player,
+                        position: index + 1
+                    }));
+
+                return {
+                    ...team,
+                    players: sortedPlayers
+                };
+            });
+
+            // Find min and max ratings
+            sortedTeamData.forEach(team => {
+                team.players.forEach(player => {
+                    const rating = currentLeagueRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
+                    if (rating) {
+                        minRating = Math.min(minRating, rating);
+                        maxRating = Math.max(maxRating, rating);
+                    }
+                });
+            });
+
+            // Add padding to the range
+            const padding = (maxRating - minRating) * 0.1;
+            minRating -= padding;
+            maxRating += padding;
+
+            // Create SVG
+            const width = chartContainer.offsetWidth || 800;
+            const height = 500;
+            const margin = { top: 20, right: 200, bottom: 70, left: 60 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+
+            let svg = `<svg width="${width}" height="${height}">`;
+
+            // Y-axis (ratings)
+            const yScale = (rating) => {
+                return margin.top + chartHeight - ((rating - minRating) / (maxRating - minRating)) * chartHeight;
+            };
+
+            // X-axis (positions)
+            const xScale = (position) => {
+                return margin.left + ((position - 0.5) / 6) * chartWidth;
+            };
+
+            // Draw grid lines
+            for (let i = 0; i <= 5; i++) {
+                const y = margin.top + (i / 5) * chartHeight;
+                const rating = maxRating - (i / 5) * (maxRating - minRating);
+                svg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>`;
+                svg += `<text x="${margin.left - 10}" y="${y + 5}" text-anchor="end" font-size="12" fill="#6b7280">${rating.toFixed(1)}</text>`;
+            }
+
+            // Draw position labels
+            positions.forEach(pos => {
+                const x = xScale(pos);
+                svg += `<text x="${x}" y="${height - 40}" text-anchor="middle" font-size="12" fill="#6b7280">#${pos}</text>`;
+            });
+
+            // Draw axis labels
+            const ratingLabel = currentLeagueRatingType === 'utr' ? 'Singles UTR' : 'USTA Dynamic Rating';
+            // Y-axis label (rotated)
+            svg += `<text x="${-height / 2}" y="15" transform="rotate(-90)" text-anchor="middle" font-size="13" font-weight="600" fill="#374151">${ratingLabel}</text>`;
+            // X-axis label (below position numbers)
+            svg += `<text x="${margin.left + chartWidth / 2}" y="${height - 15}" text-anchor="middle" font-size="13" font-weight="600" fill="#374151">Lineup Position by ${currentLeagueRatingType.toUpperCase()}</text>`;
+
+            // Colors for teams
+            const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+
+            // Draw dots for each team (no connecting lines, no highlighting)
+            sortedTeamData.forEach((teamData, teamIndex) => {
+                const color = colors[teamIndex % colors.length];
+                const radius = 5;
+                const opacity = 0.7;
+
+                // Draw dots
+                teamData.players.forEach(player => {
+                    const rating = currentLeagueRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
+                    if (rating) {
+                        const x = xScale(player.position);
+                        const y = yScale(rating);
+
+                        svg += `<circle cx="${x}" cy="${y}" r="${radius}" fill="${color}" opacity="${opacity}" class="league-lineup-dot"
+                                data-team="${teamData.team_name}"
+                                data-player="${player.name}"
+                                data-position="${player.position}"
+                                data-utr="${player.utr_singles || 'N/A'}"
+                                data-usta="${player.usta_dynamic || 'N/A'}"
+                                style="cursor: pointer;"/>`;
+                    }
+                });
+            });
+
+            // Draw legend
+            let legendY = margin.top;
+            sortedTeamData.forEach((teamData, teamIndex) => {
+                const color = colors[teamIndex % colors.length];
+
+                svg += `<rect x="${width - margin.right + 10}" y="${legendY}" width="15" height="15" fill="${color}"/>`;
+                svg += `<text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" fill="#374151">${teamData.team_name}</text>`;
+                legendY += 25;
+            });
+
+            svg += '</svg>';
+            chartContainer.innerHTML = svg;
+
+            // Add hover tooltips
+            const dots = chartContainer.querySelectorAll('.league-lineup-dot');
+            dots.forEach(dot => {
+                dot.addEventListener('mouseenter', function(e) {
+                    const team = this.dataset.team;
+                    const player = this.dataset.player;
+                    const position = this.dataset.position;
+                    const utr = this.dataset.utr;
+                    const usta = this.dataset.usta;
+
+                    const tooltip = document.createElement('div');
+                    tooltip.id = 'league-lineup-tooltip';
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.left = e.clientX + 10 + 'px';
+                    tooltip.style.top = e.clientY + 10 + 'px';
+                    tooltip.style.backgroundColor = '#1f2937';
+                    tooltip.style.color = 'white';
+                    tooltip.style.padding = '8px 12px';
+                    tooltip.style.borderRadius = '6px';
+                    tooltip.style.fontSize = '12px';
+                    tooltip.style.zIndex = '1000';
+                    tooltip.style.pointerEvents = 'none';
+
+                    const ratingLine = currentLeagueRatingType === 'utr'
+                        ? `<div>UTR: ${utr}</div>`
+                        : `<div>UTR: ${utr}</div><div>USTA: ${usta}</div>`;
+
+                    tooltip.innerHTML = `
+                        <div style="font-weight: bold;">${player}</div>
+                        <div>${team} - #${position}</div>
+                        ${ratingLine}
+                    `;
+                    document.body.appendChild(tooltip);
+                });
+
+                dot.addEventListener('mouseleave', function() {
+                    const tooltip = document.getElementById('league-lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.remove();
+                    }
+                });
+
+                dot.addEventListener('mousemove', function(e) {
+                    const tooltip = document.getElementById('league-lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.style.left = e.clientX + 10 + 'px';
+                        tooltip.style.top = e.clientY + 10 + 'px';
+                    }
+                });
+            });
+        }
+
+        // Toggle buttons
+        const toggleLeagueUTR = document.getElementById('toggleLeagueUTR');
+        const toggleLeagueUSTA = document.getElementById('toggleLeagueUSTA');
+
+        if (toggleLeagueUTR && toggleLeagueUSTA) {
+            toggleLeagueUTR.addEventListener('click', function() {
+                currentLeagueRatingType = 'utr';
+                toggleLeagueUTR.classList.remove('bg-gray-300', 'text-gray-700');
+                toggleLeagueUTR.classList.add('bg-blue-500', 'text-white');
+                toggleLeagueUSTA.classList.remove('bg-blue-500', 'text-white');
+                toggleLeagueUSTA.classList.add('bg-gray-300', 'text-gray-700');
+                renderLeagueLineupChart();
+            });
+
+            toggleLeagueUSTA.addEventListener('click', function() {
+                currentLeagueRatingType = 'usta';
+                toggleLeagueUSTA.classList.remove('bg-gray-300', 'text-gray-700');
+                toggleLeagueUSTA.classList.add('bg-blue-500', 'text-white');
+                toggleLeagueUTR.classList.remove('bg-blue-500', 'text-white');
+                toggleLeagueUTR.classList.add('bg-gray-300', 'text-gray-700');
+                renderLeagueLineupChart();
+            });
+        }
+
+        // Initial render
+        renderLeagueLineupChart();
+
+        // Re-render on window resize
+        window.addEventListener('resize', renderLeagueLineupChart);
+    @endif
 </script>
 @endsection

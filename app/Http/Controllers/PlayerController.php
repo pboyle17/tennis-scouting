@@ -54,9 +54,68 @@ class PlayerController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Player $player)
     {
-        //
+        // Load player with teams
+        $player->load('teams');
+
+        // Get all court player records for this player (match results)
+        $courtPlayers = \App\Models\CourtPlayer::where('player_id', $player->id)
+            ->with([
+                'court.tennisMatch.homeTeam',
+                'court.tennisMatch.awayTeam',
+                'court.tennisMatch.league',
+                'team'
+            ])
+            ->get()
+            ->sortByDesc(function($courtPlayer) {
+                return $courtPlayer->court->tennisMatch->start_time ?? $courtPlayer->court->tennisMatch->created_at;
+            });
+
+        // Calculate match statistics
+        $totalMatches = $courtPlayers->count();
+        $wins = $courtPlayers->where('won', true)->count();
+        $losses = $courtPlayers->where('won', false)->count();
+        $winPercentage = $totalMatches > 0 ? ($wins / $totalMatches) * 100 : 0;
+
+        // Group matches by court type for statistics
+        $singlesMatches = $courtPlayers->filter(function($cp) {
+            return $cp->court->court_type === 'singles';
+        });
+        $doublesMatches = $courtPlayers->filter(function($cp) {
+            return $cp->court->court_type === 'doubles';
+        });
+
+        $singlesWins = $singlesMatches->where('won', true)->count();
+        $singlesLosses = $singlesMatches->where('won', false)->count();
+        $singlesWinPercentage = $singlesMatches->count() > 0 ? ($singlesWins / $singlesMatches->count()) * 100 : 0;
+
+        $doublesWins = $doublesMatches->where('won', true)->count();
+        $doublesLosses = $doublesMatches->where('won', false)->count();
+        $doublesWinPercentage = $doublesMatches->count() > 0 ? ($doublesWins / $doublesMatches->count()) * 100 : 0;
+
+        $stats = [
+            'total' => [
+                'matches' => $totalMatches,
+                'wins' => $wins,
+                'losses' => $losses,
+                'win_percentage' => $winPercentage
+            ],
+            'singles' => [
+                'matches' => $singlesMatches->count(),
+                'wins' => $singlesWins,
+                'losses' => $singlesLosses,
+                'win_percentage' => $singlesWinPercentage
+            ],
+            'doubles' => [
+                'matches' => $doublesMatches->count(),
+                'wins' => $doublesWins,
+                'losses' => $doublesLosses,
+                'win_percentage' => $doublesWinPercentage
+            ]
+        ];
+
+        return view('players.show', compact('player', 'courtPlayers', 'stats'));
     }
 
     /**
