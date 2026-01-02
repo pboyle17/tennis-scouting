@@ -81,7 +81,13 @@ class TeamController extends Controller
         // Calculate court stats for this team
         $courtStats = $this->calculateTeamCourtStats($team);
 
-        return view('teams.show', compact('team', 'availablePlayers', 'sortField', 'sortDirection', 'matches', 'scoreConflicts', 'courtStats'));
+        // Calculate league lineup comparison data
+        $leagueLineupData = null;
+        if ($team->league) {
+            $leagueLineupData = $this->calculateLeagueLineupData($team->league);
+        }
+
+        return view('teams.show', compact('team', 'availablePlayers', 'sortField', 'sortDirection', 'matches', 'scoreConflicts', 'courtStats', 'leagueLineupData'));
     }
 
     /**
@@ -811,5 +817,41 @@ class TeamController extends Controller
         });
 
         return $stats;
+    }
+
+    /**
+     * Calculate league lineup comparison data (top 6 singles players per team)
+     */
+    protected function calculateLeagueLineupData($league)
+    {
+        $teams = $league->teams()->with('players')->get();
+        $lineupData = [];
+
+        foreach ($teams as $team) {
+            // Get all players with either rating
+            $allPlayers = $team->players()
+                ->where(function($query) {
+                    $query->whereNotNull('utr_singles_rating')
+                          ->orWhereNotNull('USTA_dynamic_rating');
+                })
+                ->get();
+
+            $players = [];
+            foreach ($allPlayers as $player) {
+                $players[] = [
+                    'name' => $player->first_name . ' ' . $player->last_name,
+                    'utr_singles' => $player->utr_singles_rating,
+                    'usta_dynamic' => $player->USTA_dynamic_rating,
+                ];
+            }
+
+            $lineupData[] = [
+                'team_id' => $team->id,
+                'team_name' => $team->name,
+                'players' => $players,
+            ];
+        }
+
+        return $lineupData;
     }
 }
