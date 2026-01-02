@@ -140,7 +140,6 @@
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Avg UTR</th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Avg USTA</th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Win %</th>
-                            <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Matches</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -175,12 +174,9 @@
                                         <span class="text-gray-400">-</span>
                                     @endif
                                 </td>
-                                <td class="px-4 py-2 text-sm text-center text-gray-500">
-                                    {{ $stat['player_count'] }}
-                                </td>
                             </tr>
                             <tr class="court-details hidden" data-court-index="{{ $index }}">
-                                <td colspan="5" class="px-4 py-3 bg-gray-50">
+                                <td colspan="4" class="px-4 py-3 bg-gray-50">
                                     @if(!empty($stat['players']))
                                         <div class="ml-8">
                                             <h4 class="text-sm font-semibold text-gray-700 mb-2">Player Performance at {{ ucfirst($stat['court_type']) }} #{{ $stat['court_number'] }}</h4>
@@ -263,6 +259,27 @@
                         @endforeach
                     </tbody>
                 </table>
+            </div>
+        </div>
+    @endif
+
+    <!-- League Lineup Comparison -->
+    @if($leagueLineupData && count($leagueLineupData) > 0)
+        <div class="max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Singles Lineup vs League</h3>
+                <div class="flex space-x-2">
+                    <button id="toggleUTR" class="px-4 py-2 bg-blue-500 text-white rounded text-sm font-semibold">
+                        UTR
+                    </button>
+                    <button id="toggleUSTA" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold">
+                        USTA
+                    </button>
+                </div>
+            </div>
+
+            <div id="lineupChart" class="mt-4 overflow-x-auto">
+                <!-- Chart will be rendered here -->
             </div>
         </div>
     @endif
@@ -1182,5 +1199,225 @@
             });
         });
     })();
+
+    // League Lineup Comparison Chart
+    @if($leagueLineupData && count($leagueLineupData) > 0)
+        const lineupData = @json($leagueLineupData);
+        const currentTeamId = {{ $team->id }};
+        let currentRatingType = 'utr';
+
+        function renderLineupChart() {
+            const chartContainer = document.getElementById('lineupChart');
+            if (!chartContainer) return;
+
+            const positions = [1, 2, 3, 4, 5, 6];
+            let minRating = Infinity;
+            let maxRating = -Infinity;
+
+            // Sort and position players based on selected rating type
+            const sortedTeamData = lineupData.map(team => {
+                // Sort players by selected rating (highest first)
+                const sortedPlayers = [...team.players]
+                    .filter(player => {
+                        const rating = currentRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
+                        return rating != null;
+                    })
+                    .sort((a, b) => {
+                        const ratingA = currentRatingType === 'utr' ? a.utr_singles : a.usta_dynamic;
+                        const ratingB = currentRatingType === 'utr' ? b.utr_singles : b.usta_dynamic;
+                        return ratingB - ratingA; // Descending order
+                    })
+                    .slice(0, 6) // Top 6 only
+                    .map((player, index) => ({
+                        ...player,
+                        position: index + 1
+                    }));
+
+                return {
+                    ...team,
+                    players: sortedPlayers
+                };
+            });
+
+            // Find min and max ratings
+            sortedTeamData.forEach(team => {
+                team.players.forEach(player => {
+                    const rating = currentRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
+                    if (rating) {
+                        minRating = Math.min(minRating, rating);
+                        maxRating = Math.max(maxRating, rating);
+                    }
+                });
+            });
+
+            // Add padding to the range
+            const padding = (maxRating - minRating) * 0.1;
+            minRating -= padding;
+            maxRating += padding;
+
+            // Create SVG
+            const width = chartContainer.offsetWidth || 800;
+            const height = 500;
+            const margin = { top: 20, right: 200, bottom: 70, left: 60 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+
+            let svg = `<svg width="${width}" height="${height}">`;
+
+            // Y-axis (ratings)
+            const yScale = (rating) => {
+                return margin.top + chartHeight - ((rating - minRating) / (maxRating - minRating)) * chartHeight;
+            };
+
+            // X-axis (positions)
+            const xScale = (position) => {
+                return margin.left + ((position - 0.5) / 6) * chartWidth;
+            };
+
+            // Draw grid lines
+            for (let i = 0; i <= 5; i++) {
+                const y = margin.top + (i / 5) * chartHeight;
+                const rating = maxRating - (i / 5) * (maxRating - minRating);
+                svg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>`;
+                svg += `<text x="${margin.left - 10}" y="${y + 5}" text-anchor="end" font-size="12" fill="#6b7280">${rating.toFixed(1)}</text>`;
+            }
+
+            // Draw position labels
+            positions.forEach(pos => {
+                const x = xScale(pos);
+                svg += `<text x="${x}" y="${height - 40}" text-anchor="middle" font-size="12" fill="#6b7280">#${pos}</text>`;
+            });
+
+            // Draw axis labels
+            const ratingLabel = currentRatingType === 'utr' ? 'Singles UTR' : 'USTA Dynamic Rating';
+            // Y-axis label (rotated)
+            svg += `<text x="${-height / 2}" y="15" transform="rotate(-90)" text-anchor="middle" font-size="13" font-weight="600" fill="#374151">${ratingLabel}</text>`;
+            // X-axis label (below position numbers)
+            svg += `<text x="${margin.left + chartWidth / 2}" y="${height - 15}" text-anchor="middle" font-size="13" font-weight="600" fill="#374151">Lineup Position by ${currentRatingType.toUpperCase()}</text>`;
+
+            // Colors for teams
+            const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+
+            // Draw dots for each team (no connecting lines)
+            sortedTeamData.forEach((teamData, teamIndex) => {
+                const color = colors[teamIndex % colors.length];
+                const isCurrentTeam = teamData.team_id === currentTeamId;
+                const opacity = isCurrentTeam ? 1 : 0.7;
+
+                // Draw dots
+                teamData.players.forEach(player => {
+                    const rating = currentRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
+                    if (rating) {
+                        const x = xScale(player.position);
+                        const y = yScale(rating);
+                        const radius = isCurrentTeam ? 7 : 5;
+
+                        svg += `<circle cx="${x}" cy="${y}" r="${radius}" fill="${color}" opacity="${opacity}" class="lineup-dot"
+                                data-team="${teamData.team_name}"
+                                data-player="${player.name}"
+                                data-position="${player.position}"
+                                data-utr="${player.utr_singles || 'N/A'}"
+                                data-usta="${player.usta_dynamic || 'N/A'}"
+                                style="cursor: pointer;"/>`;
+                    }
+                });
+            });
+
+            // Draw legend
+            let legendY = margin.top;
+            sortedTeamData.forEach((teamData, teamIndex) => {
+                const color = colors[teamIndex % colors.length];
+                const isCurrentTeam = teamData.team_id === currentTeamId;
+                const fontWeight = isCurrentTeam ? 'bold' : 'normal';
+
+                svg += `<rect x="${width - margin.right + 10}" y="${legendY}" width="15" height="15" fill="${color}"/>`;
+                svg += `<text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" font-weight="${fontWeight}" fill="#374151">${teamData.team_name}</text>`;
+                legendY += 25;
+            });
+
+            svg += '</svg>';
+            chartContainer.innerHTML = svg;
+
+            // Add hover tooltips
+            const dots = chartContainer.querySelectorAll('.lineup-dot');
+            dots.forEach(dot => {
+                dot.addEventListener('mouseenter', function(e) {
+                    const team = this.dataset.team;
+                    const player = this.dataset.player;
+                    const position = this.dataset.position;
+                    const utr = this.dataset.utr;
+                    const usta = this.dataset.usta;
+
+                    const tooltip = document.createElement('div');
+                    tooltip.id = 'lineup-tooltip';
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.left = e.clientX + 10 + 'px';
+                    tooltip.style.top = e.clientY + 10 + 'px';
+                    tooltip.style.backgroundColor = '#1f2937';
+                    tooltip.style.color = 'white';
+                    tooltip.style.padding = '8px 12px';
+                    tooltip.style.borderRadius = '6px';
+                    tooltip.style.fontSize = '12px';
+                    tooltip.style.zIndex = '1000';
+                    tooltip.style.pointerEvents = 'none';
+                    const ratingLine = currentRatingType === 'utr'
+                        ? `<div>UTR: ${utr}</div>`
+                        : `<div>UTR: ${utr}</div><div>USTA: ${usta}</div>`;
+
+                    tooltip.innerHTML = `
+                        <div style="font-weight: bold;">${player}</div>
+                        <div>${team} - #${position}</div>
+                        ${ratingLine}
+                    `;
+                    document.body.appendChild(tooltip);
+                });
+
+                dot.addEventListener('mouseleave', function() {
+                    const tooltip = document.getElementById('lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.remove();
+                    }
+                });
+
+                dot.addEventListener('mousemove', function(e) {
+                    const tooltip = document.getElementById('lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.style.left = e.clientX + 10 + 'px';
+                        tooltip.style.top = e.clientY + 10 + 'px';
+                    }
+                });
+            });
+        }
+
+        // Toggle buttons
+        const toggleUTR = document.getElementById('toggleUTR');
+        const toggleUSTA = document.getElementById('toggleUSTA');
+
+        if (toggleUTR && toggleUSTA) {
+            toggleUTR.addEventListener('click', function() {
+                currentRatingType = 'utr';
+                toggleUTR.classList.remove('bg-gray-300', 'text-gray-700');
+                toggleUTR.classList.add('bg-blue-500', 'text-white');
+                toggleUSTA.classList.remove('bg-blue-500', 'text-white');
+                toggleUSTA.classList.add('bg-gray-300', 'text-gray-700');
+                renderLineupChart();
+            });
+
+            toggleUSTA.addEventListener('click', function() {
+                currentRatingType = 'usta';
+                toggleUSTA.classList.remove('bg-gray-300', 'text-gray-700');
+                toggleUSTA.classList.add('bg-blue-500', 'text-white');
+                toggleUTR.classList.remove('bg-blue-500', 'text-white');
+                toggleUTR.classList.add('bg-gray-300', 'text-gray-700');
+                renderLineupChart();
+            });
+        }
+
+        // Initial render
+        renderLineupChart();
+
+        // Re-render on window resize
+        window.addEventListener('resize', renderLineupChart);
+    @endif
 </script>
 @endsection

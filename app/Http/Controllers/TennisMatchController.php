@@ -25,7 +25,10 @@ class TennisMatchController extends Controller
         $homeCourtStats = $this->calculateTeamCourtStats($match->homeTeam);
         $awayCourtStats = $this->calculateTeamCourtStats($match->awayTeam);
 
-        return view('tennis-matches.show', compact('match', 'homeCourtStats', 'awayCourtStats'));
+        // Calculate lineup comparison data for both teams
+        $matchLineupData = $this->calculateMatchLineupData($match);
+
+        return view('tennis-matches.show', compact('match', 'homeCourtStats', 'awayCourtStats', 'matchLineupData'));
     }
 
     /**
@@ -362,5 +365,42 @@ class TennisMatchController extends Controller
         });
 
         return $stats;
+    }
+
+    /**
+     * Calculate singles lineup data for the two teams in the match
+     * Returns player data that can be sorted by either UTR or USTA rating
+     */
+    protected function calculateMatchLineupData(TennisMatch $match)
+    {
+        $teams = [$match->homeTeam, $match->awayTeam];
+        $lineupData = [];
+
+        foreach ($teams as $team) {
+            // Get all players from the team with both ratings
+            $allPlayers = $team->players()
+                ->where(function($query) {
+                    $query->whereNotNull('utr_singles_rating')
+                          ->orWhereNotNull('USTA_dynamic_rating');
+                })
+                ->get();
+
+            // Prepare player data with both ratings
+            $playerData = $allPlayers->map(function($player) {
+                return [
+                    'name' => $player->first_name . ' ' . $player->last_name,
+                    'utr_singles' => $player->utr_singles_rating,
+                    'usta_dynamic' => $player->USTA_dynamic_rating,
+                ];
+            })->toArray();
+
+            $lineupData[] = [
+                'team_id' => $team->id,
+                'team_name' => $team->name,
+                'players' => $playerData,
+            ];
+        }
+
+        return $lineupData;
     }
 }

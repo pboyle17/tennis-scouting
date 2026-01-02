@@ -9,17 +9,19 @@
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-3xl font-bold text-gray-800">Match Details</h1>
             <div class="flex space-x-2">
-                @if($match->tennis_record_match_link)
-                    <form method="POST" action="{{ route('tennis-matches.syncFromTennisRecord', $match->id) }}" style="display:inline;">
-                        @csrf
-                        <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded" title="Sync match details from Tennis Record">
-                            🎾 Sync from Tennis Record
-                        </button>
-                    </form>
-                @endif
-                <a href="{{ route('tennis-matches.edit', $match->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
-                    ✏️ Edit Match
-                </a>
+                @env('local')
+                    @if($match->tennis_record_match_link)
+                        <form method="POST" action="{{ route('tennis-matches.syncFromTennisRecord', $match->id) }}" style="display:inline;">
+                            @csrf
+                            <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded" title="Sync match details from Tennis Record">
+                                🎾 Sync from Tennis Record
+                            </button>
+                        </form>
+                    @endif
+                    <a href="{{ route('tennis-matches.edit', $match->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
+                        ✏️ Edit Match
+                    </a>
+                @endenv
                 @if($match->league)
                     <a href="{{ route('leagues.show', $match->league->id) }}" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded">
                         ← Back to League
@@ -356,6 +358,29 @@
             </div>
         @endif
 
+        <!-- Singles Lineup Comparison -->
+        @if($matchLineupData && count($matchLineupData) > 0)
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+                <div class="bg-gray-50 border-b border-gray-200 px-6 py-3 flex justify-between items-center">
+                    <h2 class="text-lg font-semibold text-gray-800">Singles Lineup Comparison</h2>
+                    <div class="flex space-x-2">
+                        <button id="toggleMatchUTR" class="px-4 py-2 bg-blue-500 text-white rounded text-sm font-semibold">
+                            UTR
+                        </button>
+                        <button id="toggleMatchUSTA" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold">
+                            USTA
+                        </button>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <div id="matchLineupChart" class="mt-4 overflow-x-auto">
+                        <!-- Chart will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        @endif
+
         <!-- Courts Table -->
         @if($match->courts->count() > 0)
             <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
@@ -477,7 +502,12 @@
             </div>
         @else
             <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center text-gray-500">
-                <p class="text-sm">No court results available. Click "Sync from Tennis Record" to import court results.</p>
+                <p class="text-sm">
+                    No court results available.
+                    @env('local')
+                        Click "Sync from Tennis Record" to import court results.
+                    @endenv
+                </p>
             </div>
         @endif
     </div>
@@ -526,6 +556,222 @@
                 }
             });
         });
+
+    // Match Lineup Comparison Chart
+    @if($matchLineupData && count($matchLineupData) > 0)
+        const matchLineupData = @json($matchLineupData);
+        let currentMatchRatingType = 'utr';
+
+        function renderMatchLineupChart() {
+            const chartContainer = document.getElementById('matchLineupChart');
+            if (!chartContainer) return;
+
+            const positions = [1, 2, 3, 4, 5, 6];
+            let minRating = Infinity;
+            let maxRating = -Infinity;
+
+            // Sort and position players based on selected rating type
+            const sortedTeamData = matchLineupData.map(team => {
+                // Sort players by selected rating (highest first)
+                const sortedPlayers = [...team.players]
+                    .filter(player => {
+                        const rating = currentMatchRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
+                        return rating != null;
+                    })
+                    .sort((a, b) => {
+                        const ratingA = currentMatchRatingType === 'utr' ? a.utr_singles : a.usta_dynamic;
+                        const ratingB = currentMatchRatingType === 'utr' ? b.utr_singles : b.usta_dynamic;
+                        return ratingB - ratingA; // Descending order
+                    })
+                    .slice(0, 6) // Top 6 only
+                    .map((player, index) => ({
+                        ...player,
+                        position: index + 1
+                    }));
+
+                return {
+                    ...team,
+                    players: sortedPlayers
+                };
+            });
+
+            // Find min and max ratings
+            sortedTeamData.forEach(team => {
+                team.players.forEach(player => {
+                    const rating = currentMatchRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
+                    if (rating) {
+                        minRating = Math.min(minRating, rating);
+                        maxRating = Math.max(maxRating, rating);
+                    }
+                });
+            });
+
+            // Add padding to the range
+            const padding = (maxRating - minRating) * 0.1;
+            minRating -= padding;
+            maxRating += padding;
+
+            // Create SVG
+            const width = chartContainer.offsetWidth || 800;
+            const height = 500;
+            const margin = { top: 20, right: 200, bottom: 70, left: 60 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+
+            let svg = `<svg width="${width}" height="${height}">`;
+
+            // Y-axis (ratings)
+            const yScale = (rating) => {
+                return margin.top + chartHeight - ((rating - minRating) / (maxRating - minRating)) * chartHeight;
+            };
+
+            // X-axis (positions)
+            const xScale = (position) => {
+                return margin.left + ((position - 0.5) / 6) * chartWidth;
+            };
+
+            // Draw grid lines
+            for (let i = 0; i <= 5; i++) {
+                const y = margin.top + (i / 5) * chartHeight;
+                const rating = maxRating - (i / 5) * (maxRating - minRating);
+                svg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>`;
+                svg += `<text x="${margin.left - 10}" y="${y + 5}" text-anchor="end" font-size="12" fill="#6b7280">${rating.toFixed(1)}</text>`;
+            }
+
+            // Draw position labels
+            positions.forEach(pos => {
+                const x = xScale(pos);
+                svg += `<text x="${x}" y="${height - 40}" text-anchor="middle" font-size="12" fill="#6b7280">#${pos}</text>`;
+            });
+
+            // Draw axis labels
+            const ratingLabel = currentMatchRatingType === 'utr' ? 'Singles UTR' : 'USTA Dynamic Rating';
+            // Y-axis label (rotated)
+            svg += `<text x="${-height / 2}" y="15" transform="rotate(-90)" text-anchor="middle" font-size="13" font-weight="600" fill="#374151">${ratingLabel}</text>`;
+            // X-axis label (below position numbers)
+            svg += `<text x="${margin.left + chartWidth / 2}" y="${height - 15}" text-anchor="middle" font-size="13" font-weight="600" fill="#374151">Lineup Position by ${currentMatchRatingType.toUpperCase()}</text>`;
+
+            // Colors for teams (use different colors for home and away)
+            const colors = ['#3b82f6', '#ef4444'];
+
+            // Draw dots for each team (no connecting lines)
+            sortedTeamData.forEach((teamData, teamIndex) => {
+                const color = colors[teamIndex % colors.length];
+                const radius = 7;
+
+                // Draw dots
+                teamData.players.forEach(player => {
+                    const rating = currentMatchRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
+                    if (rating) {
+                        const x = xScale(player.position);
+                        const y = yScale(rating);
+
+                        svg += `<circle cx="${x}" cy="${y}" r="${radius}" fill="${color}" opacity="1" class="match-lineup-dot"
+                                data-team="${teamData.team_name}"
+                                data-player="${player.name}"
+                                data-position="${player.position}"
+                                data-utr="${player.utr_singles || 'N/A'}"
+                                data-usta="${player.usta_dynamic || 'N/A'}"
+                                style="cursor: pointer;"/>`;
+                    }
+                });
+            });
+
+            // Draw legend
+            let legendY = margin.top;
+            sortedTeamData.forEach((teamData, teamIndex) => {
+                const color = colors[teamIndex % colors.length];
+
+                svg += `<rect x="${width - margin.right + 10}" y="${legendY}" width="15" height="15" fill="${color}"/>`;
+                svg += `<text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" font-weight="bold" fill="#374151">${teamData.team_name}</text>`;
+                legendY += 25;
+            });
+
+            svg += '</svg>';
+            chartContainer.innerHTML = svg;
+
+            // Add hover tooltips
+            const dots = chartContainer.querySelectorAll('.match-lineup-dot');
+            dots.forEach(dot => {
+                dot.addEventListener('mouseenter', function(e) {
+                    const team = this.dataset.team;
+                    const player = this.dataset.player;
+                    const position = this.dataset.position;
+                    const utr = this.dataset.utr;
+                    const usta = this.dataset.usta;
+
+                    const tooltip = document.createElement('div');
+                    tooltip.id = 'match-lineup-tooltip';
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.left = e.clientX + 10 + 'px';
+                    tooltip.style.top = e.clientY + 10 + 'px';
+                    tooltip.style.backgroundColor = '#1f2937';
+                    tooltip.style.color = 'white';
+                    tooltip.style.padding = '8px 12px';
+                    tooltip.style.borderRadius = '6px';
+                    tooltip.style.fontSize = '12px';
+                    tooltip.style.zIndex = '1000';
+                    tooltip.style.pointerEvents = 'none';
+
+                    const ratingLine = currentMatchRatingType === 'utr'
+                        ? `<div>UTR: ${utr}</div>`
+                        : `<div>UTR: ${utr}</div><div>USTA: ${usta}</div>`;
+
+                    tooltip.innerHTML = `
+                        <div style="font-weight: bold;">${player}</div>
+                        <div>${team} - #${position}</div>
+                        ${ratingLine}
+                    `;
+                    document.body.appendChild(tooltip);
+                });
+
+                dot.addEventListener('mouseleave', function() {
+                    const tooltip = document.getElementById('match-lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.remove();
+                    }
+                });
+
+                dot.addEventListener('mousemove', function(e) {
+                    const tooltip = document.getElementById('match-lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.style.left = e.clientX + 10 + 'px';
+                        tooltip.style.top = e.clientY + 10 + 'px';
+                    }
+                });
+            });
+        }
+
+        // Toggle buttons
+        const toggleMatchUTR = document.getElementById('toggleMatchUTR');
+        const toggleMatchUSTA = document.getElementById('toggleMatchUSTA');
+
+        if (toggleMatchUTR && toggleMatchUSTA) {
+            toggleMatchUTR.addEventListener('click', function() {
+                currentMatchRatingType = 'utr';
+                toggleMatchUTR.classList.remove('bg-gray-300', 'text-gray-700');
+                toggleMatchUTR.classList.add('bg-blue-500', 'text-white');
+                toggleMatchUSTA.classList.remove('bg-blue-500', 'text-white');
+                toggleMatchUSTA.classList.add('bg-gray-300', 'text-gray-700');
+                renderMatchLineupChart();
+            });
+
+            toggleMatchUSTA.addEventListener('click', function() {
+                currentMatchRatingType = 'usta';
+                toggleMatchUSTA.classList.remove('bg-gray-300', 'text-gray-700');
+                toggleMatchUSTA.classList.add('bg-blue-500', 'text-white');
+                toggleMatchUTR.classList.remove('bg-blue-500', 'text-white');
+                toggleMatchUTR.classList.add('bg-gray-300', 'text-gray-700');
+                renderMatchLineupChart();
+            });
+        }
+
+        // Initial render
+        renderMatchLineupChart();
+
+        // Re-render on window resize
+        window.addEventListener('resize', renderMatchLineupChart);
+    @endif
     });
 </script>
 @endsection
