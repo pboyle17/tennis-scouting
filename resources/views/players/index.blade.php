@@ -54,9 +54,11 @@
             </button>
         </div>
         <div class="flex space-x-2">
+            @env('local')
             <a href="{{ route('players.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
                 + Add Player
             </a>
+            @endenv
         </div>
     </div>
 

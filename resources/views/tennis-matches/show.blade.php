@@ -420,7 +420,9 @@
                                                 $ustaRating = $cp->usta_dynamic_rating;
                                             @endphp
                                             <div class="relative group {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
-                                                <span>{{ $cp->player->first_name }} {{ $cp->player->last_name }}</span>
+                                                <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
+                                                    {{ $cp->player->first_name }} {{ $cp->player->last_name }}
+                                                </a>
                                                 @if($utrRating || $ustaRating)
                                                     <div class="absolute left-0 bottom-full mb-2
                                                                 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
@@ -465,7 +467,9 @@
                                                 $ustaRating = $cp->usta_dynamic_rating;
                                             @endphp
                                             <div class="relative group {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
-                                                <span>{{ $cp->player->first_name }} {{ $cp->player->last_name }}</span>
+                                                <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
+                                                    {{ $cp->player->first_name }} {{ $cp->player->last_name }}
+                                                </a>
                                                 @if($utrRating || $ustaRating)
                                                     <div class="absolute left-0 bottom-full mb-2
                                                                 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
