@@ -197,9 +197,18 @@
                                                         <tr class="hover:bg-gray-100">
                                                             <td class="px-3 py-2 text-gray-700">
                                                                 @if($player['is_team'])
-                                                                    {{ $player['player_name'] }}
+                                                                    {{-- For doubles teams, create links for each player --}}
+                                                                    @php
+                                                                        $names = explode(' / ', $player['player_name']);
+                                                                        $ids = $player['player_ids'];
+                                                                    @endphp
+                                                                    @foreach($names as $index => $name)
+                                                                        @if($index > 0) / @endif
+                                                                        <a href="{{ route('players.show', $ids[$index]) }}" class="text-blue-600 hover:underline">{{ $name }}</a>
+                                                                    @endforeach
                                                                 @else
-                                                                    <a href="{{ route('players.edit', $player['player_id']) }}" class="text-blue-600 hover:underline">
+                                                                    {{-- For singles players, single link --}}
+                                                                    <a href="{{ route('players.show', $player['player_id']) }}" class="text-blue-600 hover:underline">
                                                                         {{ $player['player_name'] }}
                                                                     </a>
                                                                 @endif
