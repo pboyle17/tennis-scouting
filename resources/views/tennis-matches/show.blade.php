@@ -197,7 +197,20 @@
                                                                         <tr class="hover:bg-gray-100">
                                                                             <td class="px-2 py-1 text-gray-700">
                                                                                 <div class="relative group cursor-pointer inline-block">
-                                                                                    <span>{{ $player['player_name'] }}</span>
+                                                                                    @if($player['is_team'])
+                                                                                        {{-- For doubles teams, create links for each player --}}
+                                                                                        @php
+                                                                                            $names = explode(' / ', $player['player_name']);
+                                                                                            $ids = $player['player_ids'];
+                                                                                        @endphp
+                                                                                        @foreach($names as $index => $name)
+                                                                                            @if($index > 0) / @endif
+                                                                                            <a href="{{ route('players.show', $ids[$index]) }}" class="text-blue-600 hover:underline">{{ $name }}</a>
+                                                                                        @endforeach
+                                                                                    @else
+                                                                                        {{-- For singles players, single link --}}
+                                                                                        <a href="{{ route('players.show', $player['player_id']) }}" class="text-blue-600 hover:underline">{{ $player['player_name'] }}</a>
+                                                                                    @endif
                                                                                     @if($player['avg_utr'] || $player['avg_usta'])
                                                                                         <div class="absolute left-0 bottom-full mb-2
                                                                                                     opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
@@ -307,7 +320,20 @@
                                                                         <tr class="hover:bg-gray-100">
                                                                             <td class="px-2 py-1 text-gray-700">
                                                                                 <div class="relative group cursor-pointer inline-block">
-                                                                                    <span>{{ $player['player_name'] }}</span>
+                                                                                    @if($player['is_team'])
+                                                                                        {{-- For doubles teams, create links for each player --}}
+                                                                                        @php
+                                                                                            $names = explode(' / ', $player['player_name']);
+                                                                                            $ids = $player['player_ids'];
+                                                                                        @endphp
+                                                                                        @foreach($names as $index => $name)
+                                                                                            @if($index > 0) / @endif
+                                                                                            <a href="{{ route('players.show', $ids[$index]) }}" class="text-blue-600 hover:underline">{{ $name }}</a>
+                                                                                        @endforeach
+                                                                                    @else
+                                                                                        {{-- For singles players, single link --}}
+                                                                                        <a href="{{ route('players.show', $player['player_id']) }}" class="text-blue-600 hover:underline">{{ $player['player_name'] }}</a>
+                                                                                    @endif
                                                                                     @if($player['avg_utr'] || $player['avg_usta'])
                                                                                         <div class="absolute left-0 bottom-full mb-2
                                                                                                     opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
@@ -377,6 +403,156 @@
                     <div id="matchLineupChart" class="mt-4 overflow-x-auto">
                         <!-- Chart will be rendered here -->
                     </div>
+                </div>
+            </div>
+        @endif
+
+        <!-- Players Table -->
+        @if($players->count() > 0)
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+                <div class="bg-gray-50 border-b border-gray-200 px-6 py-3">
+                    <h2 class="text-lg font-semibold text-gray-800">Match Players</h2>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Player</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Team</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField == 'utr_singles_rating' && $sortDirection == 'asc') ? 'desc' : 'asc']) }}" class="hover:text-blue-600">
+                                        UTR Singles
+                                        @if($sortField == 'utr_singles_rating')
+                                            <span class="ml-1">{{ $sortDirection == 'asc' ? '↑' : '↓' }}</span>
+                                        @endif
+                                    </a>
+                                </th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField == 'utr_doubles_rating' && $sortDirection == 'asc') ? 'desc' : 'asc']) }}" class="hover:text-blue-600">
+                                        UTR Doubles
+                                        @if($sortField == 'utr_doubles_rating')
+                                            <span class="ml-1">{{ $sortDirection == 'asc' ? '↑' : '↓' }}</span>
+                                        @endif
+                                    </a>
+                                </th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField == 'USTA_dynamic_rating' && $sortDirection == 'asc') ? 'desc' : 'asc']) }}" class="hover:text-blue-600">
+                                        USTA Dynamic
+                                        @if($sortField == 'USTA_dynamic_rating')
+                                            <span class="ml-1">{{ $sortDirection == 'asc' ? '↑' : '↓' }}</span>
+                                        @endif
+                                    </a>
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            @php
+                                $rank = 1;
+                            @endphp
+                            @foreach($players as $player)
+                                @php
+                                    $isPromoted = $match->league && $match->league->NTRP_rating && $player->USTA_rating && $player->USTA_rating > $match->league->NTRP_rating;
+                                    $isPlayingUp = $match->league && $match->league->NTRP_rating && $player->USTA_rating && $player->USTA_rating < $match->league->NTRP_rating;
+                                @endphp
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-2 text-sm text-gray-700 font-semibold">{{ $rank++ }}</td>
+                                    <td class="px-4 py-2 text-sm">
+                                        <a href="{{ route('players.show', $player->id) }}" class="text-blue-600 hover:underline font-semibold">
+                                            {{ $player->first_name }} {{ $player->last_name }}
+                                        </a>
+                                        @if(!$match->league->is_combo)
+                                            @if($isPromoted)
+                                                <span class="relative inline-block group">
+                                                    <span class="text-yellow-500">🏅</span>
+                                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                                opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                                bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                                whitespace-nowrap z-50">
+                                                        Promoted to {{ number_format($player->USTA_rating, 1) }}
+                                                    </div>
+                                                </span>
+                                            @endif
+                                            @if($isPlayingUp)
+                                                <span class="relative inline-block group">
+                                                    <span>⚔️</span>
+                                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                                opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                                bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                                whitespace-nowrap z-50">
+                                                        Playing up from {{ number_format($player->USTA_rating, 1) }}
+                                                    </div>
+                                                </span>
+                                            @endif
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-2 text-sm">
+                                        <a href="{{ route('teams.show', $player->team_id) }}" class="text-blue-600 hover:underline">
+                                            {{ $player->team_name }}
+                                        </a>
+                                    </td>
+                                    <td class="px-4 py-2 text-sm text-gray-700">
+                                        @if($player->utr_singles_rating)
+                                            <div class="relative inline-block group">
+                                                <span>{{ number_format($player->utr_singles_rating, 2) }}</span>
+                                                @if($player->utr_singles_reliable)
+                                                    <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                                @endif
+                                                @if($player->utr_singles_updated_at)
+                                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                                opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                                bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                                whitespace-nowrap z-50">
+                                                        Last updated: {{ \Carbon\Carbon::parse($player->utr_singles_updated_at)->format('M d, Y h:i A') }}
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-2 text-sm text-gray-700">
+                                        @if($player->utr_doubles_rating)
+                                            <div class="relative inline-block group">
+                                                <span>{{ number_format($player->utr_doubles_rating, 2) }}</span>
+                                                @if($player->utr_doubles_reliable)
+                                                    <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                                @endif
+                                                @if($player->utr_doubles_updated_at)
+                                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                                opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                                bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                                whitespace-nowrap z-50">
+                                                        Last updated: {{ \Carbon\Carbon::parse($player->utr_doubles_updated_at)->format('M d, Y h:i A') }}
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                    <td class="px-4 py-2 text-sm text-gray-700">
+                                        @if($player->USTA_dynamic_rating)
+                                            <div class="relative inline-block group">
+                                                <span>{{ $player->USTA_dynamic_rating }}</span>
+                                                @if($player->tennis_record_last_sync)
+                                                    <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                                opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                                bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                                whitespace-nowrap z-50">
+                                                        Last synced: {{ \Carbon\Carbon::parse($player->tennis_record_last_sync)->format('M d, Y h:i A') }}
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @else
+                                            -
+                                        @endif
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
             </div>
         @endif

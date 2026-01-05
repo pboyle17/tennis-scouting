@@ -174,7 +174,7 @@
     </div>
 
     <!-- Match History -->
-    <div class="bg-white rounded-lg shadow-md p-6">
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
         <h2 class="text-2xl font-bold text-gray-800 mb-4">Match History</h2>
 
         @if($courtPlayers->count() > 0)
@@ -185,6 +185,7 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Date</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Match</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Court</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Partner / Opponent</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Result</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">UTR Singles</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">UTR Doubles</th>
@@ -203,6 +204,19 @@
                                 $court = $courtPlayer->court;
                                 $isHomeTeam = $courtPlayer->team_id === $match->home_team_id;
                                 $opponentTeam = $isHomeTeam ? $match->awayTeam : $match->homeTeam;
+
+                                // Get all court players for this court
+                                $allCourtPlayers = $court->courtPlayers;
+
+                                // Find teammate (same team, different player)
+                                $teammate = $allCourtPlayers->first(function($cp) use ($courtPlayer, $player) {
+                                    return $cp->team_id === $courtPlayer->team_id && $cp->player_id !== $player->id;
+                                });
+
+                                // Find opponents (different team)
+                                $opponents = $allCourtPlayers->filter(function($cp) use ($courtPlayer) {
+                                    return $cp->team_id !== $courtPlayer->team_id;
+                                });
 
                                 // Calculate rating changes
                                 $utrSinglesChange = null;
@@ -239,6 +253,38 @@
                                 </td>
                                 <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ ucfirst($court->court_type) }} #{{ $court->court_number }}
+                                </td>
+                                <td class="px-4 py-3 text-sm text-gray-700">
+                                    @if($court->court_type === 'doubles' && $teammate)
+                                        {{-- Doubles: Show partner and opponents --}}
+                                        <div class="mb-1">
+                                            <span class="text-xs text-gray-500">Partner:</span>
+                                            <a href="{{ route('players.show', $teammate->player_id) }}" class="text-blue-600 hover:underline font-semibold">
+                                                {{ $teammate->player->first_name }} {{ $teammate->player->last_name }}
+                                            </a>
+                                        </div>
+                                        <div>
+                                            <span class="text-xs text-gray-500">vs</span>
+                                            @foreach($opponents as $index => $opponent)
+                                                @if($index > 0) / @endif
+                                                <a href="{{ route('players.show', $opponent->player_id) }}" class="text-red-600 hover:underline">
+                                                    {{ $opponent->player->first_name }} {{ $opponent->player->last_name }}
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                    @elseif($court->court_type === 'singles')
+                                        {{-- Singles: Show opponent only --}}
+                                        <div>
+                                            <span class="text-xs text-gray-500">vs</span>
+                                            @foreach($opponents as $opponent)
+                                                <a href="{{ route('players.show', $opponent->player_id) }}" class="text-red-600 hover:underline font-semibold">
+                                                    {{ $opponent->player->first_name }} {{ $opponent->player->last_name }}
+                                                </a>
+                                            @endforeach
+                                        </div>
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
                                 </td>
                                 <td class="px-4 py-3 text-sm">
                                     @if($courtPlayer->won)
