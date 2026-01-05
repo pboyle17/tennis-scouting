@@ -124,6 +124,140 @@
             </div>
         </div>
 
+        <!-- Courts Table -->
+        @if($match->courts->count() > 0)
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+                <div class="bg-gray-50 border-b border-gray-200 px-6 py-3">
+                    <h2 class="text-lg font-semibold text-gray-800">Court Results</h2>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Court</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Home Players</th>
+                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Away Players</th>
+                                @env('local')
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                                @endenv
+                            </tr>
+                        </thead>
+                        <tbody class="bg-white divide-y divide-gray-200">
+                            @foreach($match->courts->sortBy(function($court) {
+                                // Singles (1) come before doubles (2), then sort by court number
+                                return ($court->court_type === 'singles' ? '1' : '2') . str_pad($court->court_number, 3, '0', STR_PAD_LEFT);
+                            }) as $court)
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {{ ucfirst($court->court_type) }} #{{ $court->court_number }}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm">
+                                        @php
+                                            $homePlayers = $court->courtPlayers->where('team_id', $match->home_team_id);
+                                        @endphp
+                                        @foreach($homePlayers as $cp)
+                                            @php
+                                                $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
+                                                $ustaRating = $cp->usta_dynamic_rating;
+                                            @endphp
+                                            <div class="relative group {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                                <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
+                                                    {{ $cp->player->first_name }} {{ $cp->player->last_name }}
+                                                </a>
+                                                @if($utrRating || $ustaRating)
+                                                    <div class="absolute left-0 bottom-full mb-2
+                                                                opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
+                                                                bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                                whitespace-nowrap z-50">
+                                                        @if($utrRating)
+                                                            UTR: {{ number_format($utrRating, 2) }}
+                                                        @endif
+                                                        @if($utrRating && $ustaRating)
+                                                            <br>
+                                                        @endif
+                                                        @if($ustaRating)
+                                                            USTA: {{ number_format($ustaRating, 2) }}
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </td>
+                                    <td class="px-6 py-4 text-center">
+                                        @if($court->courtSets->count() > 0)
+                                            <div class="text-sm font-semibold">
+                                                @foreach($court->courtSets->sortBy('set_number') as $set)
+                                                    <div>
+                                                        <span class="{{ $set->home_score > $set->away_score ? 'text-green-600' : 'text-gray-900' }}">{{ $set->home_score }}</span>
+                                                        <span class="text-gray-900">-</span>
+                                                        <span class="{{ $set->away_score > $set->home_score ? 'text-green-600' : 'text-gray-900' }}">{{ $set->away_score }}</span>
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @else
+                                            <span class="text-gray-400 italic">-</span>
+                                        @endif
+                                    </td>
+                                    <td class="px-6 py-4 text-sm">
+                                        @php
+                                            $awayPlayers = $court->courtPlayers->where('team_id', $match->away_team_id);
+                                        @endphp
+                                        @foreach($awayPlayers as $cp)
+                                            @php
+                                                $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
+                                                $ustaRating = $cp->usta_dynamic_rating;
+                                            @endphp
+                                            <div class="relative group {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                                <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
+                                                    {{ $cp->player->first_name }} {{ $cp->player->last_name }}
+                                                </a>
+                                                @if($utrRating || $ustaRating)
+                                                    <div class="absolute left-0 bottom-full mb-2
+                                                                opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
+                                                                bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                                whitespace-nowrap z-50">
+                                                        @if($utrRating)
+                                                            UTR: {{ number_format($utrRating, 2) }}
+                                                        @endif
+                                                        @if($utrRating && $ustaRating)
+                                                            <br>
+                                                        @endif
+                                                        @if($ustaRating)
+                                                            USTA: {{ number_format($ustaRating, 2) }}
+                                                        @endif
+                                                    </div>
+                                                @endif
+                                            </div>
+                                        @endforeach
+                                    </td>
+                                    @env('local')
+                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                            <form method="POST" action="{{ route('courts.destroy', $court->id) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this court?');">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="text-red-600 hover:text-red-900 ml-3">Delete</button>
+                                            </form>
+                                        </td>
+                                    @endenv
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        @else
+            <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center text-gray-500">
+                <p class="text-sm">
+                    No court results available.
+                    @env('local')
+                        Click "Sync from Tennis Record" to import court results.
+                    @endenv
+                </p>
+            </div>
+        @endif
+
         <!-- Match Preview -->
         @if((!empty($homeCourtStats) || !empty($awayCourtStats)))
             <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
@@ -554,140 +688,6 @@
                         </tbody>
                     </table>
                 </div>
-            </div>
-        @endif
-
-        <!-- Courts Table -->
-        @if($match->courts->count() > 0)
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
-                <div class="bg-gray-50 border-b border-gray-200 px-6 py-3">
-                    <h2 class="text-lg font-semibold text-gray-800">Court Results</h2>
-                </div>
-
-                <div class="overflow-x-auto">
-                    <table class="min-w-full divide-y divide-gray-200">
-                        <thead class="bg-gray-50">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Court</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Home Players</th>
-                                <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Score</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Away Players</th>
-                                @env('local')
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                                @endenv
-                            </tr>
-                        </thead>
-                        <tbody class="bg-white divide-y divide-gray-200">
-                            @foreach($match->courts->sortBy(function($court) {
-                                // Singles (1) come before doubles (2), then sort by court number
-                                return ($court->court_type === 'singles' ? '1' : '2') . str_pad($court->court_number, 3, '0', STR_PAD_LEFT);
-                            }) as $court)
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        {{ ucfirst($court->court_type) }} #{{ $court->court_number }}
-                                    </td>
-                                    <td class="px-6 py-4 text-sm">
-                                        @php
-                                            $homePlayers = $court->courtPlayers->where('team_id', $match->home_team_id);
-                                        @endphp
-                                        @foreach($homePlayers as $cp)
-                                            @php
-                                                $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
-                                                $ustaRating = $cp->usta_dynamic_rating;
-                                            @endphp
-                                            <div class="relative group {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
-                                                <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
-                                                    {{ $cp->player->first_name }} {{ $cp->player->last_name }}
-                                                </a>
-                                                @if($utrRating || $ustaRating)
-                                                    <div class="absolute left-0 bottom-full mb-2
-                                                                opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
-                                                                bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                                whitespace-nowrap z-50">
-                                                        @if($utrRating)
-                                                            UTR: {{ number_format($utrRating, 2) }}
-                                                        @endif
-                                                        @if($utrRating && $ustaRating)
-                                                            <br>
-                                                        @endif
-                                                        @if($ustaRating)
-                                                            USTA: {{ number_format($ustaRating, 2) }}
-                                                        @endif
-                                                    </div>
-                                                @endif
-                                            </div>
-                                        @endforeach
-                                    </td>
-                                    <td class="px-6 py-4 text-center">
-                                        @if($court->courtSets->count() > 0)
-                                            <div class="text-sm font-semibold">
-                                                @foreach($court->courtSets->sortBy('set_number') as $set)
-                                                    <div>
-                                                        <span class="{{ $set->home_score > $set->away_score ? 'text-green-600' : 'text-gray-900' }}">{{ $set->home_score }}</span>
-                                                        <span class="text-gray-900">-</span>
-                                                        <span class="{{ $set->away_score > $set->home_score ? 'text-green-600' : 'text-gray-900' }}">{{ $set->away_score }}</span>
-                                                    </div>
-                                                @endforeach
-                                            </div>
-                                        @else
-                                            <span class="text-gray-400 italic">-</span>
-                                        @endif
-                                    </td>
-                                    <td class="px-6 py-4 text-sm">
-                                        @php
-                                            $awayPlayers = $court->courtPlayers->where('team_id', $match->away_team_id);
-                                        @endphp
-                                        @foreach($awayPlayers as $cp)
-                                            @php
-                                                $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
-                                                $ustaRating = $cp->usta_dynamic_rating;
-                                            @endphp
-                                            <div class="relative group {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
-                                                <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
-                                                    {{ $cp->player->first_name }} {{ $cp->player->last_name }}
-                                                </a>
-                                                @if($utrRating || $ustaRating)
-                                                    <div class="absolute left-0 bottom-full mb-2
-                                                                opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
-                                                                bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                                whitespace-nowrap z-50">
-                                                        @if($utrRating)
-                                                            UTR: {{ number_format($utrRating, 2) }}
-                                                        @endif
-                                                        @if($utrRating && $ustaRating)
-                                                            <br>
-                                                        @endif
-                                                        @if($ustaRating)
-                                                            USTA: {{ number_format($ustaRating, 2) }}
-                                                        @endif
-                                                    </div>
-                                                @endif
-                                            </div>
-                                        @endforeach
-                                    </td>
-                                    @env('local')
-                                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                            <form method="POST" action="{{ route('courts.destroy', $court->id) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this court?');">
-                                                @csrf
-                                                @method('DELETE')
-                                                <button type="submit" class="text-red-600 hover:text-red-900 ml-3">Delete</button>
-                                            </form>
-                                        </td>
-                                    @endenv
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        @else
-            <div class="bg-gray-50 border border-gray-200 rounded-lg p-6 text-center text-gray-500">
-                <p class="text-sm">
-                    No court results available.
-                    @env('local')
-                        Click "Sync from Tennis Record" to import court results.
-                    @endenv
-                </p>
             </div>
         @endif
     </div>
