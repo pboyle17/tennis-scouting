@@ -186,10 +186,12 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Match</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Court</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Partner / Opponent</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Score</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Result</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">UTR Singles</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">UTR Doubles</th>
-                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">USTA Dynamic</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">My UTR</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">My USTA</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Opp UTR</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Opp USTA</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -237,6 +239,51 @@
                                 $previousUtrSingles = $courtPlayer->utr_singles_rating;
                                 $previousUtrDoubles = $courtPlayer->utr_doubles_rating;
                                 $previousUsta = $courtPlayer->usta_dynamic_rating;
+
+                                // Get my team's ratings
+                                if ($court->court_type === 'singles') {
+                                    $myUtr = $courtPlayer->utr_singles_rating;
+                                    $myUsta = $courtPlayer->usta_dynamic_rating;
+                                } else {
+                                    // For doubles, average player and partner ratings
+                                    $myTeamUtrRatings = [];
+                                    $myTeamUstaRatings = [];
+
+                                    if ($courtPlayer->utr_doubles_rating) {
+                                        $myTeamUtrRatings[] = $courtPlayer->utr_doubles_rating;
+                                    }
+                                    if ($courtPlayer->usta_dynamic_rating) {
+                                        $myTeamUstaRatings[] = $courtPlayer->usta_dynamic_rating;
+                                    }
+
+                                    if ($teammate) {
+                                        if ($teammate->utr_doubles_rating) {
+                                            $myTeamUtrRatings[] = $teammate->utr_doubles_rating;
+                                        }
+                                        if ($teammate->usta_dynamic_rating) {
+                                            $myTeamUstaRatings[] = $teammate->usta_dynamic_rating;
+                                        }
+                                    }
+
+                                    $myUtr = !empty($myTeamUtrRatings) ? array_sum($myTeamUtrRatings) / count($myTeamUtrRatings) : null;
+                                    $myUsta = !empty($myTeamUstaRatings) ? array_sum($myTeamUstaRatings) / count($myTeamUstaRatings) : null;
+                                }
+
+                                // Calculate opponent average ratings
+                                $opponentUtrRatings = [];
+                                $opponentUstaRatings = [];
+                                foreach ($opponents as $opponent) {
+                                    if ($court->court_type === 'singles' && $opponent->utr_singles_rating) {
+                                        $opponentUtrRatings[] = $opponent->utr_singles_rating;
+                                    } elseif ($court->court_type === 'doubles' && $opponent->utr_doubles_rating) {
+                                        $opponentUtrRatings[] = $opponent->utr_doubles_rating;
+                                    }
+                                    if ($opponent->usta_dynamic_rating) {
+                                        $opponentUstaRatings[] = $opponent->usta_dynamic_rating;
+                                    }
+                                }
+                                $avgOpponentUtr = !empty($opponentUtrRatings) ? array_sum($opponentUtrRatings) / count($opponentUtrRatings) : null;
+                                $avgOpponentUsta = !empty($opponentUstaRatings) ? array_sum($opponentUstaRatings) / count($opponentUstaRatings) : null;
                             @endphp
                             <tr class="hover:bg-gray-50">
                                 <td class="px-4 py-3 text-sm text-gray-700">
@@ -286,6 +333,25 @@
                                         <span class="text-gray-400">-</span>
                                     @endif
                                 </td>
+                                {{-- Score --}}
+                                <td class="px-4 py-3 text-sm">
+                                    @if($court->courtSets && $court->courtSets->count() > 0)
+                                        @foreach($court->courtSets->sortBy('set_number') as $set)
+                                            <div class="whitespace-nowrap">
+                                                @php
+                                                    $myScore = $isHomeTeam ? $set->home_score : $set->away_score;
+                                                    $oppScore = $isHomeTeam ? $set->away_score : $set->home_score;
+                                                @endphp
+                                                <span class="{{ $myScore > $oppScore ? 'font-semibold text-green-600' : 'text-gray-700' }}">{{ $myScore }}</span>
+                                                <span class="text-gray-700">-</span>
+                                                <span class="{{ $oppScore > $myScore ? 'font-semibold text-red-600' : 'text-gray-700' }}">{{ $oppScore }}</span>
+                                            </div>
+                                        @endforeach
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+                                {{-- Result --}}
                                 <td class="px-4 py-3 text-sm">
                                     @if($courtPlayer->won)
                                         <span class="bg-green-100 text-green-800 px-2 py-1 rounded font-semibold">Win</span>
@@ -293,37 +359,63 @@
                                         <span class="bg-red-100 text-red-800 px-2 py-1 rounded font-semibold">Loss</span>
                                     @endif
                                 </td>
+                                {{-- My UTR --}}
                                 <td class="px-4 py-3 text-sm">
-                                    @if($courtPlayer->utr_singles_rating)
-                                        <div>{{ number_format($courtPlayer->utr_singles_rating, 2) }}</div>
-                                        @if($utrSinglesChange !== null)
-                                            <div class="text-xs {{ $utrSinglesChange > 0 ? 'text-green-600' : ($utrSinglesChange < 0 ? 'text-red-600' : 'text-gray-500') }}">
-                                                {{ $utrSinglesChange > 0 ? '+' : '' }}{{ number_format($utrSinglesChange, 2) }}
+                                    @if($myUtr)
+                                        <div>{{ number_format($myUtr, 2) }}</div>
+                                        @if($court->court_type === 'doubles' && $teammate)
+                                            <div class="text-xs text-gray-500">avg</div>
+                                        @endif
+                                        @php
+                                            $utrChange = null;
+                                            if ($court->court_type === 'singles' && $previousUtrSingles !== null && $courtPlayer->utr_singles_rating !== null) {
+                                                $utrChange = $courtPlayer->utr_singles_rating - $previousUtrSingles;
+                                            } elseif ($court->court_type === 'doubles' && $previousUtrDoubles !== null && $courtPlayer->utr_doubles_rating !== null) {
+                                                $utrChange = $courtPlayer->utr_doubles_rating - $previousUtrDoubles;
+                                            }
+                                        @endphp
+                                        @if($utrChange !== null)
+                                            <div class="text-xs {{ $utrChange > 0 ? 'text-green-600' : ($utrChange < 0 ? 'text-red-600' : 'text-gray-500') }}">
+                                                {{ $utrChange > 0 ? '+' : '' }}{{ number_format($utrChange, 2) }}
                                             </div>
                                         @endif
                                     @else
                                         <span class="text-gray-400">-</span>
                                     @endif
                                 </td>
+                                {{-- My USTA --}}
                                 <td class="px-4 py-3 text-sm">
-                                    @if($courtPlayer->utr_doubles_rating)
-                                        <div>{{ number_format($courtPlayer->utr_doubles_rating, 2) }}</div>
-                                        @if($utrDoublesChange !== null)
-                                            <div class="text-xs {{ $utrDoublesChange > 0 ? 'text-green-600' : ($utrDoublesChange < 0 ? 'text-red-600' : 'text-gray-500') }}">
-                                                {{ $utrDoublesChange > 0 ? '+' : '' }}{{ number_format($utrDoublesChange, 2) }}
-                                            </div>
+                                    @if($myUsta)
+                                        <div>{{ number_format($myUsta, 2) }}</div>
+                                        @if($court->court_type === 'doubles' && $teammate)
+                                            <div class="text-xs text-gray-500">avg</div>
                                         @endif
-                                    @else
-                                        <span class="text-gray-400">-</span>
-                                    @endif
-                                </td>
-                                <td class="px-4 py-3 text-sm">
-                                    @if($courtPlayer->usta_dynamic_rating)
-                                        <div>{{ number_format($courtPlayer->usta_dynamic_rating, 2) }}</div>
                                         @if($ustaChange !== null)
                                             <div class="text-xs {{ $ustaChange > 0 ? 'text-green-600' : ($ustaChange < 0 ? 'text-red-600' : 'text-gray-500') }}">
                                                 {{ $ustaChange > 0 ? '+' : '' }}{{ number_format($ustaChange, 2) }}
                                             </div>
+                                        @endif
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+                                {{-- Opponent UTR --}}
+                                <td class="px-4 py-3 text-sm">
+                                    @if($avgOpponentUtr)
+                                        <div>{{ number_format($avgOpponentUtr, 2) }}</div>
+                                        @if(count($opponentUtrRatings) > 1)
+                                            <div class="text-xs text-gray-500">avg</div>
+                                        @endif
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+                                {{-- Opponent USTA --}}
+                                <td class="px-4 py-3 text-sm">
+                                    @if($avgOpponentUsta)
+                                        <div>{{ number_format($avgOpponentUsta, 2) }}</div>
+                                        @if(count($opponentUstaRatings) > 1)
+                                            <div class="text-xs text-gray-500">avg</div>
                                         @endif
                                     @else
                                         <span class="text-gray-400">-</span>
