@@ -65,6 +65,7 @@ class PlayerController extends Controller
                 'court.tennisMatch.homeTeam',
                 'court.tennisMatch.awayTeam',
                 'court.tennisMatch.league',
+                'court.courtPlayers.player',
                 'team'
             ])
             ->get()

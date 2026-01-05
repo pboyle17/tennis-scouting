@@ -11,11 +11,11 @@ class TennisMatchController extends Controller
     /**
      * Display the specified match.
      */
-    public function show(TennisMatch $match)
+    public function show(Request $request, TennisMatch $match)
     {
         $match->load([
-            'homeTeam',
-            'awayTeam',
+            'homeTeam.players',
+            'awayTeam.players',
             'league',
             'courts.courtPlayers.player',
             'courts.courtSets'
@@ -28,7 +28,35 @@ class TennisMatchController extends Controller
         // Calculate lineup comparison data for both teams
         $matchLineupData = $this->calculateMatchLineupData($match);
 
-        return view('tennis-matches.show', compact('match', 'homeCourtStats', 'awayCourtStats', 'matchLineupData'));
+        // Get all players from both teams with their team name
+        $players = collect();
+
+        foreach ($match->homeTeam->players as $player) {
+            $playerData = $player->toArray();
+            $playerData['team_id'] = $match->homeTeam->id;
+            $playerData['team_name'] = $match->homeTeam->name;
+            $players->push((object)$playerData);
+        }
+
+        foreach ($match->awayTeam->players as $player) {
+            $playerData = $player->toArray();
+            $playerData['team_id'] = $match->awayTeam->id;
+            $playerData['team_name'] = $match->awayTeam->name;
+            $players->push((object)$playerData);
+        }
+
+        // Get sort parameters
+        $sortField = $request->get('sort', 'utr_singles_rating');
+        $sortDirection = $request->get('direction', 'desc');
+
+        // Sort players
+        if ($sortDirection === 'asc') {
+            $players = $players->sortBy($sortField)->values();
+        } else {
+            $players = $players->sortByDesc($sortField)->values();
+        }
+
+        return view('tennis-matches.show', compact('match', 'homeCourtStats', 'awayCourtStats', 'matchLineupData', 'players', 'sortField', 'sortDirection'));
     }
 
     /**
