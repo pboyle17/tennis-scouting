@@ -192,6 +192,7 @@
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">My USTA</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Opp UTR</th>
                             <th class="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase">Opp USTA</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase">Links</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -417,6 +418,16 @@
                                         @if(count($opponentUstaRatings) > 1)
                                             <div class="text-xs text-gray-500">avg</div>
                                         @endif
+                                    @else
+                                        <span class="text-gray-400">-</span>
+                                    @endif
+                                </td>
+                                {{-- Tennis Record Link --}}
+                                <td class="px-4 py-3 text-sm text-center">
+                                    @if($match->tennis_record_match_link)
+                                        <a href="{{ $match->tennis_record_match_link }}" target="_blank" rel="noopener noreferrer" class="text-2xl hover:opacity-70 transition-opacity" title="View on Tennis Record">
+                                            🎾
+                                        </a>
                                     @else
                                         <span class="text-gray-400">-</span>
                                     @endif

@@ -471,7 +471,9 @@
                             </a>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Player Links</th>
+                        @env('local')
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                        @endenv
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -616,6 +618,7 @@
                                     @endif
                                 </div>
                             </td>
+                            @env('local')
                             <td class="px-4 py-2 text-sm text-center">
                                 <form method="POST" action="{{ route('teams.removePlayer', [$team->id, $player->id]) }}" style="display:inline;"
                                       onsubmit="return confirm('Remove {{ $player->first_name }} {{ $player->last_name }} from this team?')">
@@ -626,6 +629,7 @@
                                     </button>
                                 </form>
                             </td>
+                            @endenv
                         </tr>
                     @endforeach
                 </tbody>
@@ -726,7 +730,9 @@
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Score</th>
                             <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Location</th>
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Match</th>
+                            @env('local')
                             <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                            @endenv
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -786,6 +792,7 @@
                                         <span class="text-gray-400">-</span>
                                     @endif
                                 </td>
+                                @env('local')
                                 <td class="px-4 py-2 text-sm text-center">
                                     <div class="flex items-center justify-center space-x-2">
                                         <a href="{{ route('tennis-matches.edit', $match->id) }}" class="text-blue-600 hover:text-blue-800">
@@ -800,6 +807,7 @@
                                         </form>
                                     </div>
                                 </td>
+                                @endenv
                             </tr>
                         @endforeach
                     </tbody>
