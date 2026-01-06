@@ -277,13 +277,19 @@
         <div class="max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold">Singles Lineup vs League</h3>
-                <div class="flex space-x-2">
-                    <button id="toggleUTR" class="px-4 py-2 bg-blue-500 text-white rounded text-sm font-semibold">
-                        UTR
-                    </button>
-                    <button id="toggleUSTA" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold">
-                        USTA
-                    </button>
+                <div class="flex items-center space-x-4">
+                    <label class="flex items-center space-x-2 text-sm cursor-pointer">
+                        <input type="checkbox" id="verifiedOnlyFilter" class="rounded text-blue-600 focus:ring-blue-500">
+                        <span class="font-semibold text-green-600">✓ Verified UTR Only</span>
+                    </label>
+                    <div class="flex space-x-2">
+                        <button id="toggleUTR" class="px-4 py-2 bg-blue-500 text-white rounded text-sm font-semibold">
+                            UTR
+                        </button>
+                        <button id="toggleUSTA" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold">
+                            USTA
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -1224,6 +1230,7 @@
         const lineupData = @json($leagueLineupData);
         const currentTeamId = {{ $team->id }};
         let currentRatingType = 'utr';
+        let verifiedOnlyEnabled = false;
 
         function renderLineupChart() {
             const chartContainer = document.getElementById('lineupChart');
@@ -1239,7 +1246,14 @@
                 const sortedPlayers = [...team.players]
                     .filter(player => {
                         const rating = currentRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
-                        return rating != null;
+                        if (rating == null) return false;
+
+                        // If verified filter is enabled and viewing UTR, only show verified players
+                        if (verifiedOnlyEnabled && currentRatingType === 'utr') {
+                            return player.utr_singles_reliable === true;
+                        }
+
+                        return true;
                     })
                     .sort((a, b) => {
                         const ratingA = currentRatingType === 'utr' ? a.utr_singles : a.usta_dynamic;
@@ -1317,28 +1331,74 @@
             // Colors for teams
             const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
-            // Draw dots for each team (no connecting lines)
+            // Collect all points first to detect overlaps
+            const allPoints = [];
             sortedTeamData.forEach((teamData, teamIndex) => {
                 const color = colors[teamIndex % colors.length];
                 const isCurrentTeam = teamData.team_id === currentTeamId;
                 const opacity = isCurrentTeam ? 1 : 0.7;
 
-                // Draw dots
                 teamData.players.forEach(player => {
                     const rating = currentRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
                     if (rating) {
-                        const x = xScale(player.position);
-                        const y = yScale(rating);
-                        const radius = isCurrentTeam ? 7 : 5;
-
-                        svg += `<circle cx="${x}" cy="${y}" r="${radius}" fill="${color}" opacity="${opacity}" class="lineup-dot"
-                                data-team="${teamData.team_name}"
-                                data-player="${player.name}"
-                                data-position="${player.position}"
-                                data-utr="${player.utr_singles || 'N/A'}"
-                                data-usta="${player.usta_dynamic || 'N/A'}"
-                                style="cursor: pointer;"/>`;
+                        allPoints.push({
+                            teamData,
+                            player,
+                            position: player.position,
+                            rating,
+                            color,
+                            opacity,
+                            radius: isCurrentTeam ? 7 : 5,
+                            isCurrentTeam
+                        });
                     }
+                });
+            });
+
+            // Group points by position, considering overlaps within 0.1 rating if current team is involved
+            const pointGroups = [];
+            allPoints.forEach(point => {
+                // Find if this point should join an existing group
+                let joinedGroup = false;
+                for (let group of pointGroups) {
+                    // Check if same position and within 0.1 rating
+                    if (group[0].position === point.position) {
+                        const ratingDiff = Math.abs(group[0].rating - point.rating);
+                        // Group if within 0.1 AND at least one point in the group (or the current point) is from current team
+                        const hasCurrentTeam = group.some(p => p.isCurrentTeam) || point.isCurrentTeam;
+                        if (ratingDiff <= 0.1 && hasCurrentTeam) {
+                            group.push(point);
+                            joinedGroup = true;
+                            break;
+                        }
+                    }
+                }
+                // If didn't join a group, create new group
+                if (!joinedGroup) {
+                    pointGroups.push([point]);
+                }
+            });
+
+            // Draw dots with jitter for overlapping points
+            pointGroups.forEach(group => {
+                group.forEach((point, index) => {
+                    let x = xScale(point.position);
+                    const y = yScale(point.rating);
+
+                    // If multiple points in group, spread them horizontally
+                    if (group.length > 1) {
+                        const totalWidth = (group.length - 1) * 12; // 12px between dots
+                        const offset = (index * 12) - (totalWidth / 2);
+                        x += offset;
+                    }
+
+                    svg += `<circle cx="${x}" cy="${y}" r="${point.radius}" fill="${point.color}" opacity="${point.opacity}" class="lineup-dot"
+                            data-team="${point.teamData.team_name}"
+                            data-player="${point.player.name}"
+                            data-position="${point.position}"
+                            data-utr="${point.player.utr_singles || 'N/A'}"
+                            data-usta="${point.player.usta_dynamic || 'N/A'}"
+                            style="cursor: pointer;"/>`;
                 });
             });
 
@@ -1411,6 +1471,7 @@
         // Toggle buttons
         const toggleUTR = document.getElementById('toggleUTR');
         const toggleUSTA = document.getElementById('toggleUSTA');
+        const verifiedOnlyFilter = document.getElementById('verifiedOnlyFilter');
 
         if (toggleUTR && toggleUSTA) {
             toggleUTR.addEventListener('click', function() {
@@ -1428,6 +1489,14 @@
                 toggleUSTA.classList.add('bg-blue-500', 'text-white');
                 toggleUTR.classList.remove('bg-blue-500', 'text-white');
                 toggleUTR.classList.add('bg-gray-300', 'text-gray-700');
+                renderLineupChart();
+            });
+        }
+
+        // Verified filter checkbox
+        if (verifiedOnlyFilter) {
+            verifiedOnlyFilter.addEventListener('change', function() {
+                verifiedOnlyEnabled = this.checked;
                 renderLineupChart();
             });
         }
