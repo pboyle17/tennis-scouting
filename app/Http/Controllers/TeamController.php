@@ -842,6 +842,7 @@ class TeamController extends Controller
                     'name' => $player->first_name . ' ' . $player->last_name,
                     'utr_singles' => $player->utr_singles_rating,
                     'usta_dynamic' => $player->USTA_dynamic_rating,
+                    'utr_singles_reliable' => $player->utr_singles_reliable,
                 ];
             }
 

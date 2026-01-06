@@ -452,13 +452,19 @@
             <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
                 <div class="bg-gray-50 border-b border-gray-200 px-6 py-3 flex justify-between items-center">
                     <h2 class="text-lg font-semibold text-gray-800">Singles Lineup vs League</h2>
-                    <div class="flex space-x-2">
-                        <button id="toggleLeagueUTR" class="px-4 py-2 bg-blue-500 text-white rounded text-sm font-semibold">
-                            UTR
-                        </button>
-                        <button id="toggleLeagueUSTA" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold">
-                            USTA
-                        </button>
+                    <div class="flex items-center space-x-4">
+                        <label class="flex items-center space-x-2 text-sm cursor-pointer">
+                            <input type="checkbox" id="leagueVerifiedOnlyFilter" class="rounded text-blue-600 focus:ring-blue-500">
+                            <span class="font-semibold text-green-600">✓ Verified UTR Only</span>
+                        </label>
+                        <div class="flex space-x-2">
+                            <button id="toggleLeagueUTR" class="px-4 py-2 bg-blue-500 text-white rounded text-sm font-semibold">
+                                UTR
+                            </button>
+                            <button id="toggleLeagueUSTA" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold">
+                                USTA
+                            </button>
+                        </div>
                     </div>
                 </div>
 
@@ -1619,6 +1625,7 @@
     @if($leagueLineupData && count($leagueLineupData) > 0)
         const leagueLineupData = @json($leagueLineupData);
         let currentLeagueRatingType = 'utr';
+        let leagueVerifiedOnlyEnabled = false;
 
         function renderLeagueLineupChart() {
             const chartContainer = document.getElementById('leagueLineupChart');
@@ -1634,7 +1641,14 @@
                 const sortedPlayers = [...team.players]
                     .filter(player => {
                         const rating = currentLeagueRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
-                        return rating != null;
+                        if (rating == null) return false;
+
+                        // If verified filter is enabled and viewing UTR, only show verified players
+                        if (leagueVerifiedOnlyEnabled && currentLeagueRatingType === 'utr') {
+                            return player.utr_singles_reliable === true;
+                        }
+
+                        return true;
                     })
                     .sort((a, b) => {
                         const ratingA = currentLeagueRatingType === 'utr' ? a.utr_singles : a.usta_dynamic;
@@ -1712,27 +1726,71 @@
             // Colors for teams
             const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
-            // Draw dots for each team (no connecting lines, no highlighting)
+            // Collect all points first to detect overlaps
+            const allLeaguePoints = [];
             sortedTeamData.forEach((teamData, teamIndex) => {
                 const color = colors[teamIndex % colors.length];
                 const radius = 5;
                 const opacity = 0.7;
 
-                // Draw dots
                 teamData.players.forEach(player => {
                     const rating = currentLeagueRatingType === 'utr' ? player.utr_singles : player.usta_dynamic;
                     if (rating) {
-                        const x = xScale(player.position);
-                        const y = yScale(rating);
-
-                        svg += `<circle cx="${x}" cy="${y}" r="${radius}" fill="${color}" opacity="${opacity}" class="league-lineup-dot"
-                                data-team="${teamData.team_name}"
-                                data-player="${player.name}"
-                                data-position="${player.position}"
-                                data-utr="${player.utr_singles || 'N/A'}"
-                                data-usta="${player.usta_dynamic || 'N/A'}"
-                                style="cursor: pointer;"/>`;
+                        allLeaguePoints.push({
+                            teamData,
+                            player,
+                            position: player.position,
+                            rating,
+                            color,
+                            opacity,
+                            radius
+                        });
                     }
+                });
+            });
+
+            // Group points by position, considering overlaps within 0.1 rating
+            const leaguePointGroups = [];
+            allLeaguePoints.forEach(point => {
+                // Find if this point should join an existing group
+                let joinedGroup = false;
+                for (let group of leaguePointGroups) {
+                    // Check if same position and within 0.1 rating
+                    if (group[0].position === point.position) {
+                        const ratingDiff = Math.abs(group[0].rating - point.rating);
+                        if (ratingDiff <= 0.1) {
+                            group.push(point);
+                            joinedGroup = true;
+                            break;
+                        }
+                    }
+                }
+                // If didn't join a group, create new group
+                if (!joinedGroup) {
+                    leaguePointGroups.push([point]);
+                }
+            });
+
+            // Draw dots with jitter for overlapping points
+            leaguePointGroups.forEach(group => {
+                group.forEach((point, index) => {
+                    let x = xScale(point.position);
+                    const y = yScale(point.rating);
+
+                    // If multiple points in group, spread them horizontally
+                    if (group.length > 1) {
+                        const totalWidth = (group.length - 1) * 12; // 12px between dots
+                        const offset = (index * 12) - (totalWidth / 2);
+                        x += offset;
+                    }
+
+                    svg += `<circle cx="${x}" cy="${y}" r="${point.radius}" fill="${point.color}" opacity="${point.opacity}" class="league-lineup-dot"
+                            data-team="${point.teamData.team_name}"
+                            data-player="${point.player.name}"
+                            data-position="${point.position}"
+                            data-utr="${point.player.utr_singles || 'N/A'}"
+                            data-usta="${point.player.usta_dynamic || 'N/A'}"
+                            style="cursor: pointer;"/>`;
                 });
             });
 
@@ -1804,6 +1862,7 @@
         // Toggle buttons
         const toggleLeagueUTR = document.getElementById('toggleLeagueUTR');
         const toggleLeagueUSTA = document.getElementById('toggleLeagueUSTA');
+        const leagueVerifiedOnlyFilter = document.getElementById('leagueVerifiedOnlyFilter');
 
         if (toggleLeagueUTR && toggleLeagueUSTA) {
             toggleLeagueUTR.addEventListener('click', function() {
@@ -1821,6 +1880,14 @@
                 toggleLeagueUSTA.classList.add('bg-blue-500', 'text-white');
                 toggleLeagueUTR.classList.remove('bg-blue-500', 'text-white');
                 toggleLeagueUTR.classList.add('bg-gray-300', 'text-gray-700');
+                renderLeagueLineupChart();
+            });
+        }
+
+        // Verified filter checkbox
+        if (leagueVerifiedOnlyFilter) {
+            leagueVerifiedOnlyFilter.addEventListener('change', function() {
+                leagueVerifiedOnlyEnabled = this.checked;
                 renderLeagueLineupChart();
             });
         }
