@@ -81,13 +81,19 @@ class TeamController extends Controller
         // Calculate court stats for this team
         $courtStats = $this->calculateTeamCourtStats($team);
 
+        // Calculate league court stats for comparison
+        $leagueCourtStats = null;
+        if ($team->league) {
+            $leagueCourtStats = $this->calculateLeagueCourtStats($team->league);
+        }
+
         // Calculate league lineup comparison data
         $leagueLineupData = null;
         if ($team->league) {
             $leagueLineupData = $this->calculateLeagueLineupData($team->league);
         }
 
-        return view('teams.show', compact('team', 'availablePlayers', 'sortField', 'sortDirection', 'matches', 'scoreConflicts', 'courtStats', 'leagueLineupData'));
+        return view('teams.show', compact('team', 'availablePlayers', 'sortField', 'sortDirection', 'matches', 'scoreConflicts', 'courtStats', 'leagueCourtStats', 'leagueLineupData'));
     }
 
     /**
@@ -815,6 +821,64 @@ class TeamController extends Controller
             }
             return $a['court_number'] <=> $b['court_number'];
         });
+
+        return $stats;
+    }
+
+    /**
+     * Calculate average ratings by court position for the league
+     */
+    protected function calculateLeagueCourtStats($league)
+    {
+        $teamIds = $league->teams->pluck('id');
+
+        // Get all match IDs for this league
+        $matchIds = \App\Models\TennisMatch::where(function($query) use ($teamIds) {
+            $query->whereIn('home_team_id', $teamIds)
+                  ->orWhereIn('away_team_id', $teamIds);
+        })->pluck('id');
+
+        // Get all courts for these matches
+        $courts = \App\Models\Court::whereIn('tennis_match_id', $matchIds)
+            ->with('courtPlayers')
+            ->get();
+
+        $stats = [];
+
+        // Group courts by type and number
+        $courtGroups = $courts->groupBy(function($court) {
+            return $court->court_type . '_' . $court->court_number;
+        });
+
+        foreach ($courtGroups as $key => $courtsInGroup) {
+            list($type, $number) = explode('_', $key);
+
+            // Get all court players for this court position
+            $allCourtPlayers = $courtsInGroup->flatMap(function($court) {
+                return $court->courtPlayers;
+            });
+
+            // Calculate averages
+            $avgUtrSingles = null;
+            $avgUtrDoubles = null;
+            $avgUstaDynamic = null;
+
+            if ($type === 'singles') {
+                $avgUtrSingles = $allCourtPlayers->whereNotNull('utr_singles_rating')->avg('utr_singles_rating');
+            } else {
+                $avgUtrDoubles = $allCourtPlayers->whereNotNull('utr_doubles_rating')->avg('utr_doubles_rating');
+            }
+
+            $avgUstaDynamic = $allCourtPlayers->whereNotNull('usta_dynamic_rating')->avg('usta_dynamic_rating');
+
+            $stats[] = [
+                'court_type' => $type,
+                'court_number' => $number,
+                'avg_utr_singles' => $avgUtrSingles,
+                'avg_utr_doubles' => $avgUtrDoubles,
+                'avg_usta_dynamic' => $avgUstaDynamic,
+            ];
+        }
 
         return $stats;
     }

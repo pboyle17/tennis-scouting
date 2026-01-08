@@ -241,6 +241,14 @@
 
     <!-- Teams Table -->
     <div class="bg-white rounded-lg shadow mb-6">
+        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 m-4">
+            <p class="text-sm text-gray-700">
+                <span class="font-semibold">Team Comparison:</span> Each team's average rating by court position is shown, with differences from the league average in parentheses.
+                <span class="text-green-600 font-semibold">Green (+)</span> means above league average,
+                <span class="text-red-600 font-semibold">Red (-)</span> means below league average.
+                Hover over any cell to see the league average for that position.
+            </p>
+        </div>
         <table class="w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
@@ -277,9 +285,9 @@
                         foreach ($courtGroups as $key => $courts) {
                             list($courtType, $courtNumber) = explode('_', $key);
 
-                            // Get all court players for this group
-                            $allCourtPlayers = $courts->flatMap(function($court) {
-                                return $court->courtPlayers;
+                            // Get all court players for this group (only for this team)
+                            $allCourtPlayers = $courts->flatMap(function($court) use ($team) {
+                                return $court->courtPlayers->where('team_id', $team->id);
                             });
 
                             // Calculate averages based on court type
@@ -323,10 +331,22 @@
                                     $teamUsta = $teamCourtStats['singles_1']['avg_usta'];
                                     $utrColor = $teamUtr && $leagueAvgUtr ? ($teamUtr >= $leagueAvgUtr ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
                                     $ustaColor = $teamUsta && $leagueAvgUsta ? ($teamUsta >= $leagueAvgUsta ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                    $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                                    $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                                 @endphp
                                 <div class="relative group cursor-pointer text-xs">
-                                    <div class="{{ $utrColor }}">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}</div>
-                                    <div class="{{ $ustaColor }}">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}</div>
+                                    <div class="{{ $utrColor }}">
+                                        UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                        @if($utrDiff !== null)
+                                            <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                        @endif
+                                    </div>
+                                    <div class="{{ $ustaColor }}">
+                                        USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                        @if($ustaDiff !== null)
+                                            <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                        @endif
+                                    </div>
                                     <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
                                         <div class="font-semibold mb-1">League Average - Singles #1</div>
                                         <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
@@ -346,10 +366,22 @@
                                     $teamUsta = $teamCourtStats['singles_2']['avg_usta'];
                                     $utrColor = $teamUtr && $leagueAvgUtr ? ($teamUtr >= $leagueAvgUtr ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
                                     $ustaColor = $teamUsta && $leagueAvgUsta ? ($teamUsta >= $leagueAvgUsta ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                    $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                                    $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                                 @endphp
                                 <div class="relative group cursor-pointer text-xs">
-                                    <div class="{{ $utrColor }}">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}</div>
-                                    <div class="{{ $ustaColor }}">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}</div>
+                                    <div class="{{ $utrColor }}">
+                                        UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                        @if($utrDiff !== null)
+                                            <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                        @endif
+                                    </div>
+                                    <div class="{{ $ustaColor }}">
+                                        USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                        @if($ustaDiff !== null)
+                                            <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                        @endif
+                                    </div>
                                     <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
                                         <div class="font-semibold mb-1">League Average - Singles #2</div>
                                         <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
@@ -369,10 +401,22 @@
                                     $teamUsta = $teamCourtStats['doubles_1']['avg_usta'];
                                     $utrColor = $teamUtr && $leagueAvgUtr ? ($teamUtr >= $leagueAvgUtr ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
                                     $ustaColor = $teamUsta && $leagueAvgUsta ? ($teamUsta >= $leagueAvgUsta ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                    $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                                    $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                                 @endphp
                                 <div class="relative group cursor-pointer text-xs">
-                                    <div class="{{ $utrColor }}">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}</div>
-                                    <div class="{{ $ustaColor }}">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}</div>
+                                    <div class="{{ $utrColor }}">
+                                        UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                        @if($utrDiff !== null)
+                                            <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                        @endif
+                                    </div>
+                                    <div class="{{ $ustaColor }}">
+                                        USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                        @if($ustaDiff !== null)
+                                            <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                        @endif
+                                    </div>
                                     <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
                                         <div class="font-semibold mb-1">League Average - Doubles #1</div>
                                         <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
@@ -392,10 +436,22 @@
                                     $teamUsta = $teamCourtStats['doubles_2']['avg_usta'];
                                     $utrColor = $teamUtr && $leagueAvgUtr ? ($teamUtr >= $leagueAvgUtr ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
                                     $ustaColor = $teamUsta && $leagueAvgUsta ? ($teamUsta >= $leagueAvgUsta ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                    $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                                    $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                                 @endphp
                                 <div class="relative group cursor-pointer text-xs">
-                                    <div class="{{ $utrColor }}">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}</div>
-                                    <div class="{{ $ustaColor }}">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}</div>
+                                    <div class="{{ $utrColor }}">
+                                        UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                        @if($utrDiff !== null)
+                                            <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                        @endif
+                                    </div>
+                                    <div class="{{ $ustaColor }}">
+                                        USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                        @if($ustaDiff !== null)
+                                            <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                        @endif
+                                    </div>
                                     <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
                                         <div class="font-semibold mb-1">League Average - Doubles #2</div>
                                         <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
@@ -415,10 +471,22 @@
                                     $teamUsta = $teamCourtStats['doubles_3']['avg_usta'];
                                     $utrColor = $teamUtr && $leagueAvgUtr ? ($teamUtr >= $leagueAvgUtr ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
                                     $ustaColor = $teamUsta && $leagueAvgUsta ? ($teamUsta >= $leagueAvgUsta ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold') : '';
+                                    $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                                    $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                                 @endphp
                                 <div class="relative group cursor-pointer text-xs">
-                                    <div class="{{ $utrColor }}">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}</div>
-                                    <div class="{{ $ustaColor }}">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}</div>
+                                    <div class="{{ $utrColor }}">
+                                        UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                        @if($utrDiff !== null)
+                                            <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                        @endif
+                                    </div>
+                                    <div class="{{ $ustaColor }}">
+                                        USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                        @if($ustaDiff !== null)
+                                            <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                        @endif
+                                    </div>
                                     <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
                                         <div class="font-semibold mb-1">League Average - Doubles #3</div>
                                         <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
