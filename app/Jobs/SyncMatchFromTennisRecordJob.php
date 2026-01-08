@@ -20,6 +20,8 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
     public $tries = 3;
 
     protected TennisMatch $match;
+    protected bool $hasChanges = false;
+    protected array $oldCourtPlayerRatings = [];
 
     /**
      * Create a new job instance.
@@ -63,6 +65,24 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                 'away_players_count' => $this->match->awayTeam->players->count(),
             ]);
 
+            // Store original match score to check if anything changed
+            $originalHomeScore = $this->match->home_score;
+            $originalAwayScore = $this->match->away_score;
+            $originalCourtsCount = $this->match->courts()->count();
+
+            // Store existing court player ratings before deletion (in case scores haven't changed)
+            $existingCourts = $this->match->courts()->with('courtPlayers')->get();
+            foreach ($existingCourts as $court) {
+                foreach ($court->courtPlayers as $courtPlayer) {
+                    $key = "{$court->court_type}_{$court->court_number}_{$courtPlayer->player_id}_{$courtPlayer->team_id}";
+                    $this->oldCourtPlayerRatings[$key] = [
+                        'utr_singles_rating' => $courtPlayer->utr_singles_rating,
+                        'utr_doubles_rating' => $courtPlayer->utr_doubles_rating,
+                        'usta_dynamic_rating' => $courtPlayer->usta_dynamic_rating,
+                    ];
+                }
+            }
+
             // Delete existing courts for this match (if re-syncing)
             $deletedCount = $this->match->courts()->count();
             $this->match->courts()->delete();
@@ -77,11 +97,19 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
             // Calculate match score based on courts won
             $this->updateMatchScore();
 
+            // Check if anything actually changed
+            $newCourtsCount = $this->match->courts()->count();
+            $this->hasChanges = ($originalHomeScore !== $this->match->home_score ||
+                                 $originalAwayScore !== $this->match->away_score ||
+                                 $originalCourtsCount !== $newCourtsCount);
+
             $courtsCreated = $this->match->courts()->count();
             Log::info("Successfully synced match {$this->match->id} from Tennis Record", [
                 'courts_created' => $courtsCreated,
                 'home_score' => $this->match->home_score,
-                'away_score' => $this->match->away_score
+                'away_score' => $this->match->away_score,
+                'had_changes' => $this->hasChanges,
+                'preserved_ratings' => !$this->hasChanges
             ]);
 
         } catch (\Exception $e) {
@@ -165,10 +193,14 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                 $cells = $row->filter('td');
                 Log::info("Row {$index} has {$cells->count()} cells");
                 if ($cells->count() >= 3 && $dataRow === null) {
-                    // Check if this row has player links (contains 'a' tags)
+                    // Check if this row has player links (contains 'a' tags) OR contains dashes (default)
                     $linkCount = $cells->eq(0)->filter('a')->count();
-                    Log::info("Row {$index} first cell has {$linkCount} links");
-                    if ($linkCount > 0) {
+                    $firstCellText = trim($cells->eq(0)->text());
+                    // Remove whitespace to check for dashes (handles "---\n---" format)
+                    $withoutWhitespace = preg_replace('/\s+/', '', $firstCellText);
+                    $hasDashes = !empty($withoutWhitespace) && preg_match('/^-+$/', $withoutWhitespace);
+                    Log::info("Row {$index} first cell has {$linkCount} links", ['text' => substr($firstCellText, 0, 50), 'has_dashes' => $hasDashes]);
+                    if ($linkCount > 0 || $hasDashes) {
                         $dataRow = $row;
                     }
                 }
@@ -185,12 +217,14 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
             // Extract home team player (first cell)
             $homeCell = $cells->eq(0);
             $homePlayerName = $this->extractPlayerName($homeCell->text());
-            Log::info("Singles #{$courtNumber} - Home player: {$homePlayerName}");
+            $homeDefaulted = $this->isDefaulted($homePlayerName);
+            Log::info("Singles #{$courtNumber} - Home player: {$homePlayerName}", ['defaulted' => $homeDefaulted]);
 
             // Extract away team player (last cell)
             $awayCell = $cells->eq($cells->count() - 1);
             $awayPlayerName = $this->extractPlayerName($awayCell->text());
-            Log::info("Singles #{$courtNumber} - Away player: {$awayPlayerName}");
+            $awayDefaulted = $this->isDefaulted($awayPlayerName);
+            Log::info("Singles #{$courtNumber} - Away player: {$awayPlayerName}", ['defaulted' => $awayDefaulted]);
 
             // Find the score cell - look for the cell containing the score text
             $scoreText = '';
@@ -225,11 +259,42 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
             list($homeScore, $awayScore, $setScores) = $this->parseScore($scoreText, $homeWon);
             Log::info("Singles #{$courtNumber} - Parsed score: Home {$homeScore} - Away {$awayScore}, Sets: " . count($setScores));
 
-            // Find players in database
-            $homePlayer = $this->findPlayer($homePlayerName, $this->match->homeTeam);
-            $awayPlayer = $this->findPlayer($awayPlayerName, $this->match->awayTeam);
+            // If sets are tied, determine winner by total games
+            if ($homeScore === $awayScore && count($setScores) > 0) {
+                $totalHomeGames = array_sum(array_column($setScores, 'home_score'));
+                $totalAwayGames = array_sum(array_column($setScores, 'away_score'));
+                Log::info("Singles #{$courtNumber} - Sets tied, checking total games", [
+                    'home_games' => $totalHomeGames,
+                    'away_games' => $totalAwayGames
+                ]);
 
-            if (!$homePlayer || !$awayPlayer) {
+                if ($totalHomeGames > $totalAwayGames) {
+                    $homeScore = 2; // Home wins the court
+                    $awayScore = 0;
+                    $homeWon = true;
+                    Log::info("Singles #{$courtNumber} - Home wins by total games");
+                } elseif ($totalAwayGames > $totalHomeGames) {
+                    $homeScore = 0;
+                    $awayScore = 2; // Away wins the court
+                    $homeWon = false;
+                    Log::info("Singles #{$courtNumber} - Away wins by total games");
+                }
+            }
+
+            // Find players in database (skip if defaulted)
+            $homePlayer = null;
+            $awayPlayer = null;
+
+            if (!$homeDefaulted) {
+                $homePlayer = $this->findPlayer($homePlayerName, $this->match->homeTeam);
+            }
+
+            if (!$awayDefaulted) {
+                $awayPlayer = $this->findPlayer($awayPlayerName, $this->match->awayTeam);
+            }
+
+            // If neither team defaulted but we can't find players, warn and skip
+            if (!$homeDefaulted && !$awayDefaulted && (!$homePlayer || !$awayPlayer)) {
                 Log::warning("Could not find players for Singles #{$courtNumber}", [
                     'home_player' => $homePlayerName,
                     'home_found' => $homePlayer ? 'yes' : 'no',
@@ -240,9 +305,28 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                 return;
             }
 
-            Log::info("Singles #{$courtNumber} - Found both players", [
-                'home_player_id' => $homePlayer->id,
-                'away_player_id' => $awayPlayer->id
+            // If one side defaulted, determine winner
+            if ($homeDefaulted) {
+                $homeWon = false;
+                $awayWon = true;
+                // Set default score if no score was parsed
+                if ($homeScore === 0 && $awayScore === 0) {
+                    $awayScore = 1; // Away wins by default
+                }
+                Log::info("Singles #{$courtNumber} - Home team defaulted, away team wins");
+            } elseif ($awayDefaulted) {
+                $homeWon = true;
+                $awayWon = false;
+                // Set default score if no score was parsed
+                if ($homeScore === 0 && $awayScore === 0) {
+                    $homeScore = 1; // Home wins by default
+                }
+                Log::info("Singles #{$courtNumber} - Away team defaulted, home team wins");
+            }
+
+            Log::info("Singles #{$courtNumber} - Player status", [
+                'home_player_id' => $homePlayer ? $homePlayer->id : 'defaulted',
+                'away_player_id' => $awayPlayer ? $awayPlayer->id : 'defaulted'
             ]);
 
             // Create court record
@@ -263,14 +347,19 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
             }
 
             // Create court player records with snapshots
-            // If no arrow was found, determine winner by score
-            if ($homeScore === 0 && $awayScore === 0) {
+            // If no arrow was found and no default, determine winner by score
+            if (!$homeDefaulted && !$awayDefaulted && $homeScore === 0 && $awayScore === 0) {
                 // Try to determine from score text if possible
                 $homeWon = $homeScore > $awayScore;
             }
 
-            $this->createCourtPlayer($court, $homePlayer, $this->match->home_team_id, $homeWon);
-            $this->createCourtPlayer($court, $awayPlayer, $this->match->away_team_id, !$homeWon);
+            // Only create court player records for players who didn't default
+            if ($homePlayer) {
+                $this->createCourtPlayer($court, $homePlayer, $this->match->home_team_id, $homeWon);
+            }
+            if ($awayPlayer) {
+                $this->createCourtPlayer($court, $awayPlayer, $this->match->away_team_id, !$homeWon);
+            }
 
             Log::info("Singles #{$courtNumber} - Created court player records");
 
@@ -347,10 +436,14 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                 $cells = $row->filter('td');
                 Log::info("Doubles row {$index} has {$cells->count()} cells");
                 if ($cells->count() >= 3 && $dataRow === null) {
-                    // Check if this row has player links (contains 'a' tags)
+                    // Check if this row has player links (contains 'a' tags) OR contains dashes (default)
                     $linkCount = $cells->eq(0)->filter('a')->count();
-                    Log::info("Doubles row {$index} first cell has {$linkCount} links");
-                    if ($linkCount > 0) {
+                    $firstCellText = trim($cells->eq(0)->text());
+                    // Remove whitespace to check for dashes (handles "---\n---" format)
+                    $withoutWhitespace = preg_replace('/\s+/', '', $firstCellText);
+                    $hasDashes = !empty($withoutWhitespace) && preg_match('/^-+$/', $withoutWhitespace);
+                    Log::info("Doubles row {$index} first cell has {$linkCount} links", ['text' => substr($firstCellText, 0, 50), 'has_dashes' => $hasDashes]);
+                    if ($linkCount > 0 || $hasDashes) {
                         $dataRow = $row;
                     }
                 }
@@ -367,14 +460,20 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
             // Extract home team players (first cell, separated by <br>)
             $homeCell = $cells->eq(0);
             Log::info("Doubles #{$courtNumber} - Extracting home players");
-            $homePlayerNames = $this->extractDoublesPlayerNames($homeCell);
-            Log::info("Doubles #{$courtNumber} - Home players: " . implode(', ', $homePlayerNames));
+            // Check if cell contains only dashes (default) before extracting names
+            $homeCellText = trim($homeCell->text());
+            $homeDefaulted = $this->isDefaulted($homeCellText);
+            $homePlayerNames = $homeDefaulted ? [] : $this->extractDoublesPlayerNames($homeCell);
+            Log::info("Doubles #{$courtNumber} - Home players: " . implode(', ', $homePlayerNames), ['defaulted' => $homeDefaulted]);
 
             // Extract away team players (last cell, separated by <br>)
             $awayCell = $cells->eq($cells->count() - 1);
             Log::info("Doubles #{$courtNumber} - Extracting away players");
-            $awayPlayerNames = $this->extractDoublesPlayerNames($awayCell);
-            Log::info("Doubles #{$courtNumber} - Away players: " . implode(', ', $awayPlayerNames));
+            // Check if cell contains only dashes (default) before extracting names
+            $awayCellText = trim($awayCell->text());
+            $awayDefaulted = $this->isDefaulted($awayCellText);
+            $awayPlayerNames = $awayDefaulted ? [] : $this->extractDoublesPlayerNames($awayCell);
+            Log::info("Doubles #{$courtNumber} - Away players: " . implode(', ', $awayPlayerNames), ['defaulted' => $awayDefaulted]);
 
             // Find the score cell and winner arrow
             $scoreText = '';
@@ -409,20 +508,51 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
             list($homeScore, $awayScore, $setScores) = $this->parseScore($scoreText, $homeWon);
             Log::info("Doubles #{$courtNumber} - Parsed score: Home {$homeScore} - Away {$awayScore}, Sets: " . count($setScores));
 
-            // Find players
-            $homePlayers = array_map(fn($name) => $this->findPlayer($name, $this->match->homeTeam), $homePlayerNames);
-            $awayPlayers = array_map(fn($name) => $this->findPlayer($name, $this->match->awayTeam), $awayPlayerNames);
+            // If sets are tied, determine winner by total games
+            if ($homeScore === $awayScore && count($setScores) > 0) {
+                $totalHomeGames = array_sum(array_column($setScores, 'home_score'));
+                $totalAwayGames = array_sum(array_column($setScores, 'away_score'));
+                Log::info("Doubles #{$courtNumber} - Sets tied, checking total games", [
+                    'home_games' => $totalHomeGames,
+                    'away_games' => $totalAwayGames
+                ]);
 
-            // Filter out nulls
-            $homePlayers = array_filter($homePlayers);
-            $awayPlayers = array_filter($awayPlayers);
+                if ($totalHomeGames > $totalAwayGames) {
+                    $homeScore = 2; // Home wins the court
+                    $awayScore = 0;
+                    $homeWon = true;
+                    Log::info("Doubles #{$courtNumber} - Home wins by total games");
+                } elseif ($totalAwayGames > $totalHomeGames) {
+                    $homeScore = 0;
+                    $awayScore = 2; // Away wins the court
+                    $homeWon = false;
+                    Log::info("Doubles #{$courtNumber} - Away wins by total games");
+                }
+            }
+
+            // Find players (skip if defaulted)
+            $homePlayers = [];
+            $awayPlayers = [];
+
+            if (!$homeDefaulted) {
+                $homePlayers = array_map(fn($name) => $this->findPlayer($name, $this->match->homeTeam), $homePlayerNames);
+                $homePlayers = array_filter($homePlayers); // Filter out nulls
+            }
+
+            if (!$awayDefaulted) {
+                $awayPlayers = array_map(fn($name) => $this->findPlayer($name, $this->match->awayTeam), $awayPlayerNames);
+                $awayPlayers = array_filter($awayPlayers); // Filter out nulls
+            }
 
             Log::info("Doubles #{$courtNumber} - Found players", [
                 'home_count' => count($homePlayers),
-                'away_count' => count($awayPlayers)
+                'away_count' => count($awayPlayers),
+                'home_defaulted' => $homeDefaulted,
+                'away_defaulted' => $awayDefaulted
             ]);
 
-            if (count($homePlayers) !== 2 || count($awayPlayers) !== 2) {
+            // If neither team defaulted but we can't find all players, warn and skip
+            if (!$homeDefaulted && !$awayDefaulted && (count($homePlayers) !== 2 || count($awayPlayers) !== 2)) {
                 Log::warning("Could not find all players for Doubles #{$courtNumber}", [
                     'home_players' => $homePlayerNames,
                     'away_players' => $awayPlayerNames,
@@ -431,6 +561,25 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                     'match_id' => $this->match->id
                 ]);
                 return;
+            }
+
+            // If one side defaulted, determine winner
+            if ($homeDefaulted) {
+                $homeWon = false;
+                $awayWon = true;
+                // Set default score if no score was parsed
+                if ($homeScore === 0 && $awayScore === 0) {
+                    $awayScore = 1; // Away wins by default
+                }
+                Log::info("Doubles #{$courtNumber} - Home team defaulted, away team wins");
+            } elseif ($awayDefaulted) {
+                $homeWon = true;
+                $awayWon = false;
+                // Set default score if no score was parsed
+                if ($homeScore === 0 && $awayScore === 0) {
+                    $homeScore = 1; // Home wins by default
+                }
+                Log::info("Doubles #{$courtNumber} - Away team defaulted, home team wins");
             }
 
             // Create court record
@@ -450,12 +599,13 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                 Log::info("Doubles #{$courtNumber} - Created set #{$setData['set_number']}: {$setData['home_score']}-{$setData['away_score']}");
             }
 
-            // Create court player records for all 4 players
-            // If no arrow was found, determine winner by score
-            if ($homeScore === 0 && $awayScore === 0) {
+            // Create court player records for players who didn't default
+            // If no arrow was found and no default, determine winner by score
+            if (!$homeDefaulted && !$awayDefaulted && $homeScore === 0 && $awayScore === 0) {
                 $homeWon = $homeScore > $awayScore;
             }
 
+            // Only create court player records for players who didn't default
             foreach ($homePlayers as $player) {
                 $this->createCourtPlayer($court, $player, $this->match->home_team_id, $homeWon);
             }
@@ -470,6 +620,19 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                 'trace' => $e->getTraceAsString()
             ]);
         }
+    }
+
+    /**
+     * Check if a player name indicates a default (dashes)
+     * Example: "-----------------" or "---" or "-----\n-----" -> true
+     */
+    protected function isDefaulted(string $text): bool
+    {
+        $trimmed = trim($text);
+        // Check if the string is only dashes and whitespace (including newlines/br tags)
+        // Remove all whitespace and check if what remains is only dashes
+        $withoutWhitespace = preg_replace('/\s+/', '', $trimmed);
+        return empty($withoutWhitespace) || preg_match('/^-+$/', $withoutWhitespace);
     }
 
     /**
@@ -600,15 +763,33 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
 
     protected function createCourtPlayer(Court $court, Player $player, int $teamId, bool $won): void
     {
-        CourtPlayer::create([
-            'court_id' => $court->id,
-            'player_id' => $player->id,
-            'team_id' => $teamId,
-            'won' => $won,
-            'utr_singles_rating' => $player->utr_singles_rating,
-            'utr_doubles_rating' => $player->utr_doubles_rating,
-            'usta_dynamic_rating' => $player->USTA_dynamic_rating,
-        ]);
+        // Check if we have old ratings to preserve (when scores haven't changed)
+        $key = "{$court->court_type}_{$court->court_number}_{$player->id}_{$teamId}";
+        $useOldRatings = !$this->hasChanges && isset($this->oldCourtPlayerRatings[$key]);
+
+        if ($useOldRatings) {
+            $oldRatings = $this->oldCourtPlayerRatings[$key];
+            CourtPlayer::create([
+                'court_id' => $court->id,
+                'player_id' => $player->id,
+                'team_id' => $teamId,
+                'won' => $won,
+                'utr_singles_rating' => $oldRatings['utr_singles_rating'],
+                'utr_doubles_rating' => $oldRatings['utr_doubles_rating'],
+                'usta_dynamic_rating' => $oldRatings['usta_dynamic_rating'],
+            ]);
+        } else {
+            // Use current player ratings for new/changed matches
+            CourtPlayer::create([
+                'court_id' => $court->id,
+                'player_id' => $player->id,
+                'team_id' => $teamId,
+                'won' => $won,
+                'utr_singles_rating' => $player->utr_singles_rating,
+                'utr_doubles_rating' => $player->utr_doubles_rating,
+                'usta_dynamic_rating' => $player->USTA_dynamic_rating,
+            ]);
+        }
     }
 
     /**

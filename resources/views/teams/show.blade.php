@@ -132,6 +132,15 @@
         <div class="max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
             <h3 class="text-lg font-semibold mb-4">Court Position Averages</h3>
             <p class="text-sm text-gray-500 mb-3">Click on any row to see player details</p>
+            @if($leagueCourtStats)
+                <div class="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4">
+                    <p class="text-sm text-gray-700">
+                        <span class="font-semibold">League Comparison:</span> Numbers in parentheses show your team's difference from the league average.
+                        <span class="text-green-600 font-semibold">Green (+)</span> means above average,
+                        <span class="text-red-600 font-semibold">Red (-)</span> means below average.
+                    </p>
+                </div>
+            @endif
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -144,6 +153,26 @@
                     </thead>
                     <tbody>
                         @foreach($courtStats as $index => $stat)
+                            @php
+                                // Get league average for this court position
+                                $leagueAvgUtr = null;
+                                $leagueAvgUsta = null;
+                                if ($leagueCourtStats) {
+                                    $leagueStat = collect($leagueCourtStats)
+                                        ->where('court_type', $stat['court_type'])
+                                        ->where('court_number', $stat['court_number'])
+                                        ->first();
+                                    if ($leagueStat) {
+                                        $leagueAvgUtr = $stat['court_type'] === 'singles' ? $leagueStat['avg_utr_singles'] : $leagueStat['avg_utr_doubles'];
+                                        $leagueAvgUsta = $leagueStat['avg_usta_dynamic'];
+                                    }
+                                }
+
+                                $teamUtr = $stat['court_type'] === 'singles' ? $stat['avg_utr_singles'] : $stat['avg_utr_doubles'];
+                                $teamUsta = $stat['avg_usta_dynamic'];
+                                $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                                $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
+                            @endphp
                             <tr class="hover:bg-gray-50 cursor-pointer border-t border-gray-200 court-row" data-court-index="{{ $index }}">
                                 <td class="px-4 py-2 text-sm text-gray-700">
                                     <span class="inline-block w-4 transition-transform duration-200">▶</span>
@@ -152,8 +181,14 @@
                                 <td class="px-4 py-2 text-sm text-center text-gray-700">
                                     @if($stat['court_type'] === 'singles' && $stat['avg_utr_singles'])
                                         {{ number_format($stat['avg_utr_singles'], 2) }}
+                                        @if($utrDiff !== null)
+                                            <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                        @endif
                                     @elseif($stat['court_type'] === 'doubles' && $stat['avg_utr_doubles'])
                                         {{ number_format($stat['avg_utr_doubles'], 2) }}
+                                        @if($utrDiff !== null)
+                                            <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                        @endif
                                     @else
                                         -
                                     @endif
@@ -161,6 +196,9 @@
                                 <td class="px-4 py-2 text-sm text-center text-gray-700">
                                     @if($stat['avg_usta_dynamic'])
                                         {{ number_format($stat['avg_usta_dynamic'], 2) }}
+                                        @if($ustaDiff !== null)
+                                            <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                        @endif
                                     @else
                                         -
                                     @endif
