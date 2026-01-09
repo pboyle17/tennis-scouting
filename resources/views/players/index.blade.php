@@ -95,7 +95,11 @@
             <tbody class="divide-y divide-gray-200">
                 @foreach ($players as $player)
                     <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}">
-                        <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }} {{ $player->last_name }}</td>
+                        <td class="px-4 py-2 text-sm text-gray-700">
+                            <a href="{{ route('players.show', $player->id) }}" class="text-blue-600 hover:underline" onclick="event.stopPropagation()">
+                                {{ $player->first_name }} {{ $player->last_name }}
+                            </a>
+                        </td>
                         <td class="px-4 py-2 text-sm text-gray-700">
                             @if($player->utr_singles_rating)
                                 <div class="relative inline-block group">
