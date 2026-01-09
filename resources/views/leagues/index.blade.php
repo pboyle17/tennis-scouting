@@ -13,11 +13,13 @@
         </div>
     @endif
 
-    <div class="flex justify-end mb-4">
-        <a href="{{ route('leagues.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
-            + Add League
-        </a>
-    </div>
+    @env('local')
+        <div class="flex justify-end mb-4">
+            <a href="{{ route('leagues.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
+                + Add League
+            </a>
+        </div>
+    @endenv
 
     <div class="overflow-x-auto bg-white rounded-lg shadow">
         <table class="min-w-full divide-y divide-gray-200">
@@ -25,7 +27,9 @@
                 <tr>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Teams</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                    @env('local')
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                    @endenv
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -39,9 +43,11 @@
                         <td class="px-4 py-2 text-sm text-gray-700">
                             {{ $league->teams->count() }} {{ $league->teams->count() === 1 ? 'team' : 'teams' }}
                         </td>
-                        <td class="px-4 py-2 text-sm">
-                            <a href="{{ route('leagues.edit', $league->id) }}" class="text-blue-600 hover:text-blue-800 mr-3">Edit</a>
-                        </td>
+                        @env('local')
+                            <td class="px-4 py-2 text-sm">
+                                <a href="{{ route('leagues.edit', $league->id) }}" class="text-blue-600 hover:text-blue-800 mr-3">Edit</a>
+                            </td>
+                        @endenv
                     </tr>
                 @endforeach
             </tbody>
