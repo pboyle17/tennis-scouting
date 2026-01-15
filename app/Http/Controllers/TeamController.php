@@ -54,7 +54,10 @@ class TeamController extends Controller
         $sortField = $request->get('sort', 'utr_singles_rating');
         $sortDirection = $request->get('direction', 'desc');
 
-        $team->load('players', 'league');
+        $team->load([
+            'players.courtPlayers.court.tennisMatch',
+            'league'
+        ]);
 
         // Get players not on this team for the add player functionality
         $availablePlayers = Player::whereNotIn('id', $team->players->pluck('id'))
@@ -93,7 +96,13 @@ class TeamController extends Controller
             $leagueLineupData = $this->calculateLeagueLineupData($team->league);
         }
 
-        return view('teams.show', compact('team', 'availablePlayers', 'sortField', 'sortDirection', 'matches', 'scoreConflicts', 'courtStats', 'leagueCourtStats', 'leagueLineupData'));
+        // Calculate league doubles lineup comparison data
+        $leagueDoublesLineupData = null;
+        if ($team->league) {
+            $leagueDoublesLineupData = $this->calculateLeagueDoublesLineupData($team->league);
+        }
+
+        return view('teams.show', compact('team', 'availablePlayers', 'sortField', 'sortDirection', 'matches', 'scoreConflicts', 'courtStats', 'leagueCourtStats', 'leagueLineupData', 'leagueDoublesLineupData'));
     }
 
     /**
@@ -907,6 +916,40 @@ class TeamController extends Controller
                     'utr_singles' => $player->utr_singles_rating,
                     'usta_dynamic' => $player->USTA_dynamic_rating,
                     'utr_singles_reliable' => $player->utr_singles_reliable,
+                ];
+            }
+
+            $lineupData[] = [
+                'team_id' => $team->id,
+                'team_name' => $team->name,
+                'players' => $players,
+            ];
+        }
+
+        return $lineupData;
+    }
+
+    protected function calculateLeagueDoublesLineupData($league)
+    {
+        $teams = $league->teams()->with('players')->get();
+        $lineupData = [];
+
+        foreach ($teams as $team) {
+            // Get all players with either doubles rating
+            $allPlayers = $team->players()
+                ->where(function($query) {
+                    $query->whereNotNull('utr_doubles_rating')
+                          ->orWhereNotNull('USTA_dynamic_rating');
+                })
+                ->get();
+
+            $players = [];
+            foreach ($allPlayers as $player) {
+                $players[] = [
+                    'name' => $player->first_name . ' ' . $player->last_name,
+                    'utr_doubles' => $player->utr_doubles_rating,
+                    'usta_dynamic' => $player->USTA_dynamic_rating,
+                    'utr_doubles_reliable' => $player->utr_doubles_reliable,
                 ];
             }
 

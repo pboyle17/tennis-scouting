@@ -30,4 +30,9 @@ class Player extends Model
         return $this->belongsToMany(Tournament::class, 'tournament_player')
                     ->withTimestamps();
     }
+
+    public function courtPlayers()
+    {
+        return $this->hasMany(CourtPlayer::class);
+    }
 }

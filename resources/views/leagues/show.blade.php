@@ -241,7 +241,7 @@
 
     <!-- Teams Table -->
     <div class="bg-white rounded-lg shadow mb-6">
-        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 m-4">
+        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mt-8 mx-4 mb-4">
             <p class="text-sm text-gray-700">
                 <span class="font-semibold">Team Comparison:</span> Each team's average rating by court position is shown, with differences from the league average in parentheses.
                 <span class="text-green-600 font-semibold">Green (+)</span> means above league average,
@@ -538,6 +538,35 @@
 
                 <div class="p-6">
                     <div id="leagueLineupChart" class="mt-4 overflow-x-auto">
+                        <!-- Chart will be rendered here -->
+                    </div>
+                </div>
+            </div>
+        @endif
+
+        <!-- Doubles Lineup Comparison -->
+        @if($leagueDoublesLineupData && count($leagueDoublesLineupData) > 0)
+            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+                <div class="bg-gray-50 border-b border-gray-200 px-3 sm:px-6 py-3">
+                    <h2 class="text-base sm:text-lg font-semibold text-gray-800 mb-2 sm:mb-0">Doubles Lineup vs League (Top 8)</h2>
+                    <div class="flex flex-wrap items-center gap-2 sm:gap-4">
+                        <label class="flex items-center space-x-2 text-xs sm:text-sm cursor-pointer">
+                            <input type="checkbox" id="leagueDoublesVerifiedOnlyFilter" class="rounded text-blue-600 focus:ring-blue-500">
+                            <span class="font-semibold text-green-600">✓ Verified</span>
+                        </label>
+                        <div class="flex gap-2">
+                            <button id="toggleLeagueDoublesUTR" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-blue-500 text-white rounded text-xs sm:text-sm font-semibold">
+                                UTR
+                            </button>
+                            <button id="toggleLeagueDoublesUSTA" class="px-3 sm:px-4 py-1.5 sm:py-2 bg-gray-300 text-gray-700 rounded text-xs sm:text-sm font-semibold">
+                                USTA
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-3 sm:p-6">
+                    <div id="leagueDoublesLineupChart" class="mt-2 sm:mt-4 overflow-x-auto">
                         <!-- Chart will be rendered here -->
                     </div>
                 </div>
@@ -1965,6 +1994,284 @@
 
         // Re-render on window resize
         window.addEventListener('resize', renderLeagueLineupChart);
+    @endif
+
+    // League Doubles Lineup Comparison Chart
+    @if($leagueDoublesLineupData && count($leagueDoublesLineupData) > 0)
+        const leagueDoublesLineupData = @json($leagueDoublesLineupData);
+        let currentLeagueDoublesRatingType = 'utr';
+        let leagueDoublesVerifiedOnlyEnabled = false;
+
+        function renderLeagueDoublesLineupChart() {
+            const chartContainer = document.getElementById('leagueDoublesLineupChart');
+            if (!chartContainer) return;
+
+            const positions = [1, 2, 3, 4, 5, 6, 7, 8];
+            let minRating = Infinity;
+            let maxRating = -Infinity;
+
+            // Sort and position players based on selected rating type
+            const sortedTeamData = leagueDoublesLineupData.map(team => {
+                // Sort players by selected rating (highest first)
+                const sortedPlayers = [...team.players]
+                    .filter(player => {
+                        const rating = currentLeagueDoublesRatingType === 'utr' ? player.utr_doubles : player.usta_dynamic;
+                        if (rating == null) return false;
+
+                        // If verified filter is enabled and viewing UTR, only show verified players
+                        if (leagueDoublesVerifiedOnlyEnabled && currentLeagueDoublesRatingType === 'utr') {
+                            return player.utr_doubles_reliable === true;
+                        }
+
+                        return true;
+                    })
+                    .sort((a, b) => {
+                        const ratingA = currentLeagueDoublesRatingType === 'utr' ? a.utr_doubles : a.usta_dynamic;
+                        const ratingB = currentLeagueDoublesRatingType === 'utr' ? b.utr_doubles : b.usta_dynamic;
+                        return ratingB - ratingA; // Descending order
+                    })
+                    .slice(0, 8) // Top 8 only
+                    .map((player, index) => ({
+                        ...player,
+                        position: index + 1
+                    }));
+
+                return {
+                    ...team,
+                    players: sortedPlayers
+                };
+            });
+
+            // Find min and max ratings
+            sortedTeamData.forEach(team => {
+                team.players.forEach(player => {
+                    const rating = currentLeagueDoublesRatingType === 'utr' ? player.utr_doubles : player.usta_dynamic;
+                    if (rating) {
+                        minRating = Math.min(minRating, rating);
+                        maxRating = Math.max(maxRating, rating);
+                    }
+                });
+            });
+
+            // Add padding to the range
+            const padding = (maxRating - minRating) * 0.1;
+            minRating -= padding;
+            maxRating += padding;
+
+            // Create SVG
+            const width = chartContainer.offsetWidth || 800;
+            const height = 500;
+            const margin = { top: 20, right: 200, bottom: 70, left: 60 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+
+            let svg = `<svg width="${width}" height="${height}">`;
+
+            // Y-axis (ratings)
+            const yScale = (rating) => {
+                return margin.top + chartHeight - ((rating - minRating) / (maxRating - minRating)) * chartHeight;
+            };
+
+            // X-axis (positions)
+            const xScale = (position) => {
+                return margin.left + ((position - 0.5) / 8) * chartWidth;
+            };
+
+            // Draw grid lines
+            for (let i = 0; i <= 5; i++) {
+                const y = margin.top + (i / 5) * chartHeight;
+                const rating = maxRating - (i / 5) * (maxRating - minRating);
+                svg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>`;
+                svg += `<text x="${margin.left - 10}" y="${y + 5}" text-anchor="end" font-size="12" fill="#6b7280">${rating.toFixed(1)}</text>`;
+            }
+
+            // Draw position labels
+            positions.forEach(pos => {
+                const x = xScale(pos);
+                svg += `<text x="${x}" y="${height - 40}" text-anchor="middle" font-size="12" fill="#6b7280">#${pos}</text>`;
+            });
+
+            // Draw axis labels
+            const ratingLabel = currentLeagueDoublesRatingType === 'utr' ? 'Doubles UTR' : 'USTA Dynamic Rating';
+            // Y-axis label (rotated)
+            svg += `<text x="${-height / 2}" y="15" transform="rotate(-90)" text-anchor="middle" font-size="13" font-weight="600" fill="#374151">${ratingLabel}</text>`;
+            // X-axis label (below position numbers)
+            svg += `<text x="${margin.left + chartWidth / 2}" y="${height - 15}" text-anchor="middle" font-size="13" font-weight="600" fill="#374151">Lineup Position by ${currentLeagueDoublesRatingType.toUpperCase()}</text>`;
+
+            // Colors for teams
+            const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+
+            // Collect all points first to detect overlaps
+            const allLeagueDoublesPoints = [];
+            sortedTeamData.forEach((teamData, teamIndex) => {
+                const color = colors[teamIndex % colors.length];
+                const radius = 5;
+                const opacity = 0.7;
+
+                teamData.players.forEach(player => {
+                    const rating = currentLeagueDoublesRatingType === 'utr' ? player.utr_doubles : player.usta_dynamic;
+                    if (rating) {
+                        allLeagueDoublesPoints.push({
+                            teamData,
+                            player,
+                            position: player.position,
+                            rating,
+                            color,
+                            opacity,
+                            radius
+                        });
+                    }
+                });
+            });
+
+            // Group points by position, considering overlaps within 0.1 rating
+            const leagueDoublesPointGroups = [];
+            allLeagueDoublesPoints.forEach(point => {
+                // Find if this point should join an existing group
+                let joinedGroup = false;
+                for (let group of leagueDoublesPointGroups) {
+                    // Check if same position and within 0.1 rating
+                    if (group[0].position === point.position) {
+                        const ratingDiff = Math.abs(group[0].rating - point.rating);
+                        if (ratingDiff <= 0.1) {
+                            group.push(point);
+                            joinedGroup = true;
+                            break;
+                        }
+                    }
+                }
+                // If didn't join a group, create new group
+                if (!joinedGroup) {
+                    leagueDoublesPointGroups.push([point]);
+                }
+            });
+
+            // Draw dots with jitter for overlapping points
+            leagueDoublesPointGroups.forEach(group => {
+                group.forEach((point, index) => {
+                    let x = xScale(point.position);
+                    const y = yScale(point.rating);
+
+                    // If multiple points in group, spread them horizontally
+                    if (group.length > 1) {
+                        const totalWidth = (group.length - 1) * 12; // 12px between dots
+                        const offset = (index * 12) - (totalWidth / 2);
+                        x += offset;
+                    }
+
+                    svg += `<circle cx="${x}" cy="${y}" r="${point.radius}" fill="${point.color}" opacity="${point.opacity}" class="league-doubles-lineup-dot"
+                            data-team="${point.teamData.team_name}"
+                            data-player="${point.player.name}"
+                            data-position="${point.position}"
+                            data-utr="${point.player.utr_doubles || 'N/A'}"
+                            data-usta="${point.player.usta_dynamic || 'N/A'}"
+                            style="cursor: pointer;"/>`;
+                });
+            });
+
+            // Draw legend
+            let legendY = margin.top;
+            sortedTeamData.forEach((teamData, teamIndex) => {
+                const color = colors[teamIndex % colors.length];
+
+                svg += `<rect x="${width - margin.right + 10}" y="${legendY}" width="15" height="15" fill="${color}"/>`;
+                svg += `<text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" fill="#374151">${teamData.team_name}</text>`;
+                legendY += 25;
+            });
+
+            svg += '</svg>';
+            chartContainer.innerHTML = svg;
+
+            // Add hover tooltips
+            const dots = chartContainer.querySelectorAll('.league-doubles-lineup-dot');
+            dots.forEach(dot => {
+                dot.addEventListener('mouseenter', function(e) {
+                    const team = this.dataset.team;
+                    const player = this.dataset.player;
+                    const position = this.dataset.position;
+                    const utr = this.dataset.utr;
+                    const usta = this.dataset.usta;
+
+                    const tooltip = document.createElement('div');
+                    tooltip.id = 'league-doubles-lineup-tooltip';
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.left = e.clientX + 10 + 'px';
+                    tooltip.style.top = e.clientY + 10 + 'px';
+                    tooltip.style.backgroundColor = '#1f2937';
+                    tooltip.style.color = 'white';
+                    tooltip.style.padding = '8px 12px';
+                    tooltip.style.borderRadius = '6px';
+                    tooltip.style.fontSize = '12px';
+                    tooltip.style.zIndex = '1000';
+                    tooltip.style.pointerEvents = 'none';
+
+                    const ratingLine = currentLeagueDoublesRatingType === 'utr'
+                        ? `<div>UTR Doubles: ${utr}</div>`
+                        : `<div>UTR Doubles: ${utr}</div><div>USTA: ${usta}</div>`;
+
+                    tooltip.innerHTML = `
+                        <div style="font-weight: bold;">${player}</div>
+                        <div>${team} - #${position}</div>
+                        ${ratingLine}
+                    `;
+                    document.body.appendChild(tooltip);
+                });
+
+                dot.addEventListener('mouseleave', function() {
+                    const tooltip = document.getElementById('league-doubles-lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.remove();
+                    }
+                });
+
+                dot.addEventListener('mousemove', function(e) {
+                    const tooltip = document.getElementById('league-doubles-lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.style.left = e.clientX + 10 + 'px';
+                        tooltip.style.top = e.clientY + 10 + 'px';
+                    }
+                });
+            });
+        }
+
+        // Toggle buttons
+        const toggleLeagueDoublesUTR = document.getElementById('toggleLeagueDoublesUTR');
+        const toggleLeagueDoublesUSTA = document.getElementById('toggleLeagueDoublesUSTA');
+        const leagueDoublesVerifiedOnlyFilter = document.getElementById('leagueDoublesVerifiedOnlyFilter');
+
+        if (toggleLeagueDoublesUTR && toggleLeagueDoublesUSTA) {
+            toggleLeagueDoublesUTR.addEventListener('click', function() {
+                currentLeagueDoublesRatingType = 'utr';
+                toggleLeagueDoublesUTR.classList.remove('bg-gray-300', 'text-gray-700');
+                toggleLeagueDoublesUTR.classList.add('bg-blue-500', 'text-white');
+                toggleLeagueDoublesUSTA.classList.remove('bg-blue-500', 'text-white');
+                toggleLeagueDoublesUSTA.classList.add('bg-gray-300', 'text-gray-700');
+                renderLeagueDoublesLineupChart();
+            });
+
+            toggleLeagueDoublesUSTA.addEventListener('click', function() {
+                currentLeagueDoublesRatingType = 'usta';
+                toggleLeagueDoublesUSTA.classList.remove('bg-gray-300', 'text-gray-700');
+                toggleLeagueDoublesUSTA.classList.add('bg-blue-500', 'text-white');
+                toggleLeagueDoublesUTR.classList.remove('bg-blue-500', 'text-white');
+                toggleLeagueDoublesUTR.classList.add('bg-gray-300', 'text-gray-700');
+                renderLeagueDoublesLineupChart();
+            });
+        }
+
+        // Verified filter checkbox
+        if (leagueDoublesVerifiedOnlyFilter) {
+            leagueDoublesVerifiedOnlyFilter.addEventListener('change', function() {
+                leagueDoublesVerifiedOnlyEnabled = this.checked;
+                renderLeagueDoublesLineupChart();
+            });
+        }
+
+        // Initial render
+        renderLeagueDoublesLineupChart();
+
+        // Re-render on window resize
+        window.addEventListener('resize', renderLeagueDoublesLineupChart);
     @endif
 </script>
 @endsection

@@ -14,8 +14,8 @@ class TennisMatchController extends Controller
     public function show(Request $request, TennisMatch $match)
     {
         $match->load([
-            'homeTeam.players',
-            'awayTeam.players',
+            'homeTeam.players.courtPlayers.court.tennisMatch',
+            'awayTeam.players.courtPlayers.court.tennisMatch',
             'league',
             'courts.courtPlayers.player',
             'courts.courtSets'
@@ -28,21 +28,22 @@ class TennisMatchController extends Controller
         // Calculate lineup comparison data for both teams
         $matchLineupData = $this->calculateMatchLineupData($match);
 
+        // Calculate doubles lineup comparison data for both teams
+        $matchDoublesLineupData = $this->calculateMatchDoublesLineupData($match);
+
         // Get all players from both teams with their team name
         $players = collect();
 
         foreach ($match->homeTeam->players as $player) {
-            $playerData = $player->toArray();
-            $playerData['team_id'] = $match->homeTeam->id;
-            $playerData['team_name'] = $match->homeTeam->name;
-            $players->push((object)$playerData);
+            $player->team_id = $match->homeTeam->id;
+            $player->team_name = $match->homeTeam->name;
+            $players->push($player);
         }
 
         foreach ($match->awayTeam->players as $player) {
-            $playerData = $player->toArray();
-            $playerData['team_id'] = $match->awayTeam->id;
-            $playerData['team_name'] = $match->awayTeam->name;
-            $players->push((object)$playerData);
+            $player->team_id = $match->awayTeam->id;
+            $player->team_name = $match->awayTeam->name;
+            $players->push($player);
         }
 
         // Get sort parameters
@@ -56,7 +57,7 @@ class TennisMatchController extends Controller
             $players = $players->sortByDesc($sortField)->values();
         }
 
-        return view('tennis-matches.show', compact('match', 'homeCourtStats', 'awayCourtStats', 'matchLineupData', 'players', 'sortField', 'sortDirection'));
+        return view('tennis-matches.show', compact('match', 'homeCourtStats', 'awayCourtStats', 'matchLineupData', 'matchDoublesLineupData', 'players', 'sortField', 'sortDirection'));
     }
 
     /**
@@ -420,6 +421,40 @@ class TennisMatchController extends Controller
                     'utr_singles' => $player->utr_singles_rating,
                     'usta_dynamic' => $player->USTA_dynamic_rating,
                     'utr_singles_reliable' => $player->utr_singles_reliable,
+                ];
+            })->toArray();
+
+            $lineupData[] = [
+                'team_id' => $team->id,
+                'team_name' => $team->name,
+                'players' => $playerData,
+            ];
+        }
+
+        return $lineupData;
+    }
+
+    protected function calculateMatchDoublesLineupData(TennisMatch $match)
+    {
+        $teams = [$match->homeTeam, $match->awayTeam];
+        $lineupData = [];
+
+        foreach ($teams as $team) {
+            // Get all players from the team with doubles ratings
+            $allPlayers = $team->players()
+                ->where(function($query) {
+                    $query->whereNotNull('utr_doubles_rating')
+                          ->orWhereNotNull('USTA_dynamic_rating');
+                })
+                ->get();
+
+            // Prepare player data with both ratings
+            $playerData = $allPlayers->map(function($player) {
+                return [
+                    'name' => $player->first_name . ' ' . $player->last_name,
+                    'utr_doubles' => $player->utr_doubles_rating,
+                    'usta_dynamic' => $player->USTA_dynamic_rating,
+                    'utr_doubles_reliable' => $player->utr_doubles_reliable,
                 ];
             })->toArray();
 
