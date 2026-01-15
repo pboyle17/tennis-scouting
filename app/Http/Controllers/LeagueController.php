@@ -87,8 +87,9 @@ class LeagueController extends Controller
 
         // Calculate lineup comparison data
         $leagueLineupData = $this->calculateLeagueLineupData($league);
+        $leagueDoublesLineupData = $this->calculateLeagueDoublesLineupData($league);
 
-        return view('leagues.show', compact('league', 'availableTeams', 'players', 'sortField', 'sortDirection', 'matches', 'courtStats', 'leagueLineupData'));
+        return view('leagues.show', compact('league', 'availableTeams', 'players', 'sortField', 'sortDirection', 'matches', 'courtStats', 'leagueLineupData', 'leagueDoublesLineupData'));
     }
 
     /**
@@ -636,6 +637,43 @@ class LeagueController extends Controller
                     'utr_singles' => $player->utr_singles_rating,
                     'usta_dynamic' => $player->USTA_dynamic_rating,
                     'utr_singles_reliable' => $player->utr_singles_reliable,
+                ];
+            }
+
+            $lineupData[] = [
+                'team_id' => $team->id,
+                'team_name' => $team->name,
+                'players' => $players,
+            ];
+        }
+
+        return $lineupData;
+    }
+
+    /**
+     * Calculate league doubles lineup comparison data (top 8 doubles players per team)
+     */
+    protected function calculateLeagueDoublesLineupData($league)
+    {
+        $teams = $league->teams()->with('players')->get();
+        $lineupData = [];
+
+        foreach ($teams as $team) {
+            // Get all players with either rating
+            $allPlayers = $team->players()
+                ->where(function($query) {
+                    $query->whereNotNull('utr_doubles_rating')
+                          ->orWhereNotNull('USTA_dynamic_rating');
+                })
+                ->get();
+
+            $players = [];
+            foreach ($allPlayers as $player) {
+                $players[] = [
+                    'name' => $player->first_name . ' ' . $player->last_name,
+                    'utr_doubles' => $player->utr_doubles_rating,
+                    'usta_dynamic' => $player->USTA_dynamic_rating,
+                    'utr_doubles_reliable' => $player->utr_doubles_reliable,
                 ];
             }
 

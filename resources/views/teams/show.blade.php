@@ -337,6 +337,32 @@
         </div>
     @endif
 
+    @if($leagueDoublesLineupData && count($leagueDoublesLineupData) > 0)
+        <div class="max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold">Doubles Lineup vs League (Top 8)</h3>
+                <div class="flex items-center space-x-4">
+                    <label class="flex items-center space-x-2 text-sm cursor-pointer">
+                        <input type="checkbox" id="doublesVerifiedOnlyFilter" class="rounded text-blue-600 focus:ring-blue-500">
+                        <span class="font-semibold text-green-600">✓ Verified UTR Only</span>
+                    </label>
+                    <div class="flex space-x-2">
+                        <button id="toggleDoublesUTR" class="px-4 py-2 bg-blue-500 text-white rounded text-sm font-semibold">
+                            UTR
+                        </button>
+                        <button id="toggleDoublesUSTA" class="px-4 py-2 bg-gray-300 text-gray-700 rounded text-sm font-semibold">
+                            USTA
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="doublesLineupChart" class="mt-4 overflow-x-auto">
+                <!-- Chart will be rendered here -->
+            </div>
+        </div>
+    @endif
+
     <div class="mb-4 flex justify-between items-center">
         <div class="text-sm text-gray-600">
             <strong>{{ $team->players->count() }}</strong> players on this team
@@ -523,10 +549,9 @@
                                 @endif
                             </a>
                         </th>
+                        <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Singles Record</th>
+                        <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Doubles Record</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Player Links</th>
-                        @env('local')
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
-                        @endenv
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -635,6 +660,76 @@
                                     -
                                 @endif
                             </td>
+                            <td class="px-4 py-2 text-sm text-center text-gray-700">
+                                @php
+                                    // Calculate singles record (wins-losses) for this league only
+                                    $singlesWins = 0;
+                                    $singlesLosses = 0;
+
+                                    foreach ($player->courtPlayers as $courtPlayer) {
+                                        if ($courtPlayer->court->court_type === 'singles') {
+                                            $court = $courtPlayer->court;
+
+                                            // Only count matches in this team's league
+                                            if ($team->league && $court->tennisMatch->league_id !== $team->league->id) {
+                                                continue;
+                                            }
+
+                                            $isHomeTeam = $court->tennisMatch->home_team_id === $team->id;
+
+                                            if ($isHomeTeam && $court->home_score > $court->away_score) {
+                                                $singlesWins++;
+                                            } elseif ($isHomeTeam && $court->home_score < $court->away_score) {
+                                                $singlesLosses++;
+                                            } elseif (!$isHomeTeam && $court->away_score > $court->home_score) {
+                                                $singlesWins++;
+                                            } elseif (!$isHomeTeam && $court->away_score < $court->home_score) {
+                                                $singlesLosses++;
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                @if($singlesWins > 0 || $singlesLosses > 0)
+                                    <span class="font-semibold">{{ $singlesWins }}-{{ $singlesLosses }}</span>
+                                @else
+                                    -
+                                @endif
+                            </td>
+                            <td class="px-4 py-2 text-sm text-center text-gray-700">
+                                @php
+                                    // Calculate doubles record (wins-losses) for this league only
+                                    $doublesWins = 0;
+                                    $doublesLosses = 0;
+
+                                    foreach ($player->courtPlayers as $courtPlayer) {
+                                        if ($courtPlayer->court->court_type === 'doubles') {
+                                            $court = $courtPlayer->court;
+
+                                            // Only count matches in this team's league
+                                            if ($team->league && $court->tennisMatch->league_id !== $team->league->id) {
+                                                continue;
+                                            }
+
+                                            $isHomeTeam = $court->tennisMatch->home_team_id === $team->id;
+
+                                            if ($isHomeTeam && $court->home_score > $court->away_score) {
+                                                $doublesWins++;
+                                            } elseif ($isHomeTeam && $court->home_score < $court->away_score) {
+                                                $doublesLosses++;
+                                            } elseif (!$isHomeTeam && $court->away_score > $court->home_score) {
+                                                $doublesWins++;
+                                            } elseif (!$isHomeTeam && $court->away_score < $court->home_score) {
+                                                $doublesLosses++;
+                                            }
+                                        }
+                                    }
+                                @endphp
+                                @if($doublesWins > 0 || $doublesLosses > 0)
+                                    <span class="font-semibold">{{ $doublesWins }}-{{ $doublesLosses }}</span>
+                                @else
+                                    -
+                                @endif
+                            </td>
                             <td class="px-4 py-2 text-sm text-center">
                                 <div class="flex items-center justify-center space-x-2">
                                     @if($player->utr_id)
@@ -671,18 +766,6 @@
                                     @endif
                                 </div>
                             </td>
-                            @env('local')
-                            <td class="px-4 py-2 text-sm text-center">
-                                <form method="POST" action="{{ route('teams.removePlayer', [$team->id, $player->id]) }}" style="display:inline;"
-                                      onsubmit="return confirm('Remove {{ $player->first_name }} {{ $player->last_name }} from this team?')">
-                                    @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-600 hover:text-red-800 text-xs" onclick="event.stopPropagation()">
-                                        Remove
-                                    </button>
-                                </form>
-                            </td>
-                            @endenv
                         </tr>
                     @endforeach
                 </tbody>
@@ -1544,6 +1627,293 @@
 
         // Re-render on window resize
         window.addEventListener('resize', renderLineupChart);
+    @endif
+
+    // League Doubles Lineup Comparison Chart
+    @if($leagueDoublesLineupData && count($leagueDoublesLineupData) > 0)
+        const doublesLineupData = @json($leagueDoublesLineupData);
+        const currentDoublesTeamId = {{ $team->id }};
+        let currentDoublesRatingType = 'utr';
+        let doublesVerifiedOnlyEnabled = false;
+
+        function renderDoublesLineupChart() {
+            const chartContainer = document.getElementById('doublesLineupChart');
+            if (!chartContainer) return;
+
+            const positions = [1, 2, 3, 4, 5, 6, 7, 8];
+            let minRating = Infinity;
+            let maxRating = -Infinity;
+
+            // Sort and position players based on selected rating type
+            const sortedTeamData = doublesLineupData.map(team => {
+                // Sort players by selected rating (highest first)
+                const sortedPlayers = [...team.players]
+                    .filter(player => {
+                        const rating = currentDoublesRatingType === 'utr' ? player.utr_doubles : player.usta_dynamic;
+                        if (rating == null) return false;
+
+                        // If verified filter is enabled and viewing UTR, only show verified players
+                        if (doublesVerifiedOnlyEnabled && currentDoublesRatingType === 'utr') {
+                            return player.utr_doubles_reliable === true;
+                        }
+
+                        return true;
+                    })
+                    .sort((a, b) => {
+                        const ratingA = currentDoublesRatingType === 'utr' ? a.utr_doubles : a.usta_dynamic;
+                        const ratingB = currentDoublesRatingType === 'utr' ? b.utr_doubles : b.usta_dynamic;
+                        return ratingB - ratingA; // Descending order
+                    })
+                    .slice(0, 8) // Top 8 only
+                    .map((player, index) => ({
+                        ...player,
+                        position: index + 1
+                    }));
+
+                return {
+                    ...team,
+                    players: sortedPlayers
+                };
+            });
+
+            // Find min and max ratings
+            sortedTeamData.forEach(team => {
+                team.players.forEach(player => {
+                    const rating = currentDoublesRatingType === 'utr' ? player.utr_doubles : player.usta_dynamic;
+                    if (rating) {
+                        minRating = Math.min(minRating, rating);
+                        maxRating = Math.max(maxRating, rating);
+                    }
+                });
+            });
+
+            // Add padding to the range
+            const padding = (maxRating - minRating) * 0.1;
+            minRating -= padding;
+            maxRating += padding;
+
+            // Create SVG
+            const width = chartContainer.offsetWidth || 800;
+            const height = 500;
+            const margin = { top: 20, right: 200, bottom: 70, left: 60 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+
+            let svg = `<svg width="${width}" height="${height}">`;
+
+            // Y-axis (ratings)
+            const yScale = (rating) => {
+                return margin.top + chartHeight - ((rating - minRating) / (maxRating - minRating)) * chartHeight;
+            };
+
+            // X-axis (positions)
+            const xScale = (position) => {
+                return margin.left + ((position - 0.5) / 8) * chartWidth;
+            };
+
+            // Draw grid lines
+            for (let i = 0; i <= 5; i++) {
+                const y = margin.top + (i / 5) * chartHeight;
+                const rating = maxRating - (i / 5) * (maxRating - minRating);
+                svg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="#e5e7eb" stroke-width="1"/>`;
+                svg += `<text x="${margin.left - 10}" y="${y + 5}" text-anchor="end" font-size="12" fill="#6b7280">${rating.toFixed(1)}</text>`;
+            }
+
+            // Draw position labels
+            positions.forEach(pos => {
+                const x = xScale(pos);
+                svg += `<text x="${x}" y="${height - 40}" text-anchor="middle" font-size="12" fill="#6b7280">#${pos}</text>`;
+            });
+
+            // Draw axis labels
+            const ratingLabel = currentDoublesRatingType === 'utr' ? 'Doubles UTR' : 'USTA Dynamic Rating';
+            // Y-axis label (rotated)
+            svg += `<text x="${-height / 2}" y="15" transform="rotate(-90)" text-anchor="middle" font-size="13" font-weight="600" fill="#374151">${ratingLabel}</text>`;
+            // X-axis label (below position numbers)
+            svg += `<text x="${margin.left + chartWidth / 2}" y="${height - 15}" text-anchor="middle" font-size="13" font-weight="600" fill="#374151">Lineup Position by ${currentDoublesRatingType.toUpperCase()}</text>`;
+
+            // Colors for teams (highlight current team)
+            const colors = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+
+            // Collect all points first to detect overlaps
+            const allDoublesPoints = [];
+            sortedTeamData.forEach((teamData, teamIndex) => {
+                const isCurrentTeam = teamData.team_id === currentDoublesTeamId;
+                const color = colors[teamIndex % colors.length];
+                const radius = isCurrentTeam ? 7 : 5;
+                const opacity = isCurrentTeam ? 1.0 : 0.5;
+
+                teamData.players.forEach(player => {
+                    const rating = currentDoublesRatingType === 'utr' ? player.utr_doubles : player.usta_dynamic;
+                    if (rating) {
+                        allDoublesPoints.push({
+                            teamData,
+                            player,
+                            position: player.position,
+                            rating,
+                            color,
+                            opacity,
+                            radius,
+                            isCurrentTeam
+                        });
+                    }
+                });
+            });
+
+            // Group points by position, considering overlaps within 0.1 rating
+            const doublesPointGroups = [];
+            allDoublesPoints.forEach(point => {
+                // Find if this point should join an existing group
+                let joinedGroup = false;
+                for (let group of doublesPointGroups) {
+                    // Check if same position and within 0.1 rating
+                    if (group[0].position === point.position) {
+                        const ratingDiff = Math.abs(group[0].rating - point.rating);
+                        if (ratingDiff <= 0.1) {
+                            group.push(point);
+                            joinedGroup = true;
+                            break;
+                        }
+                    }
+                }
+                // If didn't join a group, create new group
+                if (!joinedGroup) {
+                    doublesPointGroups.push([point]);
+                }
+            });
+
+            // Draw dots with jitter for overlapping points (current team on top)
+            doublesPointGroups.forEach(group => {
+                // Sort so current team is drawn last (on top)
+                group.sort((a, b) => a.isCurrentTeam ? 1 : -1);
+
+                group.forEach((point, index) => {
+                    let x = xScale(point.position);
+                    const y = yScale(point.rating);
+
+                    // If multiple points in group, spread them horizontally
+                    if (group.length > 1) {
+                        const totalWidth = (group.length - 1) * 12; // 12px between dots
+                        const offset = (index * 12) - (totalWidth / 2);
+                        x += offset;
+                    }
+
+                    svg += `<circle cx="${x}" cy="${y}" r="${point.radius}" fill="${point.color}" opacity="${point.opacity}" class="doubles-lineup-dot"
+                            data-team="${point.teamData.team_name}"
+                            data-player="${point.player.name}"
+                            data-position="${point.position}"
+                            data-utr="${point.player.utr_doubles || 'N/A'}"
+                            data-usta="${point.player.usta_dynamic || 'N/A'}"
+                            style="cursor: pointer;"/>`;
+                });
+            });
+
+            // Draw legend
+            let legendY = margin.top;
+            sortedTeamData.forEach((teamData, teamIndex) => {
+                const isCurrentTeam = teamData.team_id === currentDoublesTeamId;
+                const color = colors[teamIndex % colors.length];
+                const opacity = isCurrentTeam ? 1.0 : 0.5;
+                const fontWeight = isCurrentTeam ? 'bold' : 'normal';
+
+                svg += `<rect x="${width - margin.right + 10}" y="${legendY}" width="15" height="15" fill="${color}" opacity="${opacity}"/>`;
+                svg += `<text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" font-weight="${fontWeight}" fill="#374151">${teamData.team_name}</text>`;
+                legendY += 25;
+            });
+
+            svg += '</svg>';
+            chartContainer.innerHTML = svg;
+
+            // Add hover tooltips
+            const dots = chartContainer.querySelectorAll('.doubles-lineup-dot');
+            dots.forEach(dot => {
+                dot.addEventListener('mouseenter', function(e) {
+                    const team = this.dataset.team;
+                    const player = this.dataset.player;
+                    const position = this.dataset.position;
+                    const utr = this.dataset.utr;
+                    const usta = this.dataset.usta;
+
+                    const tooltip = document.createElement('div');
+                    tooltip.id = 'doubles-lineup-tooltip';
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.left = e.clientX + 10 + 'px';
+                    tooltip.style.top = e.clientY + 10 + 'px';
+                    tooltip.style.backgroundColor = '#1f2937';
+                    tooltip.style.color = 'white';
+                    tooltip.style.padding = '8px 12px';
+                    tooltip.style.borderRadius = '6px';
+                    tooltip.style.fontSize = '12px';
+                    tooltip.style.zIndex = '1000';
+                    tooltip.style.pointerEvents = 'none';
+
+                    const ratingLine = currentDoublesRatingType === 'utr'
+                        ? `<div>UTR Doubles: ${utr}</div>`
+                        : `<div>UTR Doubles: ${utr}</div><div>USTA: ${usta}</div>`;
+
+                    tooltip.innerHTML = `
+                        <div style="font-weight: bold;">${player}</div>
+                        <div>${team} - #${position}</div>
+                        ${ratingLine}
+                    `;
+                    document.body.appendChild(tooltip);
+                });
+
+                dot.addEventListener('mouseleave', function() {
+                    const tooltip = document.getElementById('doubles-lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.remove();
+                    }
+                });
+
+                dot.addEventListener('mousemove', function(e) {
+                    const tooltip = document.getElementById('doubles-lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.style.left = e.clientX + 10 + 'px';
+                        tooltip.style.top = e.clientY + 10 + 'px';
+                    }
+                });
+            });
+        }
+
+        // Toggle buttons
+        const toggleDoublesUTR = document.getElementById('toggleDoublesUTR');
+        const toggleDoublesUSTA = document.getElementById('toggleDoublesUSTA');
+        const doublesVerifiedOnlyFilter = document.getElementById('doublesVerifiedOnlyFilter');
+
+        if (toggleDoublesUTR && toggleDoublesUSTA) {
+            toggleDoublesUTR.addEventListener('click', function() {
+                currentDoublesRatingType = 'utr';
+                toggleDoublesUTR.classList.remove('bg-gray-300', 'text-gray-700');
+                toggleDoublesUTR.classList.add('bg-blue-500', 'text-white');
+                toggleDoublesUSTA.classList.remove('bg-blue-500', 'text-white');
+                toggleDoublesUSTA.classList.add('bg-gray-300', 'text-gray-700');
+                renderDoublesLineupChart();
+            });
+
+            toggleDoublesUSTA.addEventListener('click', function() {
+                currentDoublesRatingType = 'usta';
+                toggleDoublesUSTA.classList.remove('bg-gray-300', 'text-gray-700');
+                toggleDoublesUSTA.classList.add('bg-blue-500', 'text-white');
+                toggleDoublesUTR.classList.remove('bg-blue-500', 'text-white');
+                toggleDoublesUTR.classList.add('bg-gray-300', 'text-gray-700');
+                renderDoublesLineupChart();
+            });
+        }
+
+        // Verified filter checkbox
+        if (doublesVerifiedOnlyFilter) {
+            doublesVerifiedOnlyFilter.addEventListener('change', function() {
+                doublesVerifiedOnlyEnabled = this.checked;
+                renderDoublesLineupChart();
+            });
+        }
+
+        // Initial render
+        renderDoublesLineupChart();
+
+        // Re-render on window resize
+        window.addEventListener('resize', renderDoublesLineupChart);
     @endif
 </script>
 @endsection
