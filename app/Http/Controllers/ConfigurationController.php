@@ -99,9 +99,10 @@ class ConfigurationController extends Controller
           $dbUser = $db['username'];
           $dbPassword = $db['password'];
 
-          // Create filename with timestamp
+          // Create filename with environment, database name, and timestamp
+          $env = app()->environment();
           $timestamp = now()->format('Y-m-d_His');
-          $filename = "backup_{$dbName}_{$timestamp}.sql";
+          $filename = "{$env}_backup_{$dbName}_{$timestamp}.sql";
           $localPath = storage_path("app/backups/{$filename}");
 
           // Ensure backup directory exists
@@ -178,8 +179,8 @@ class ConfigurationController extends Controller
           foreach ($files as $file) {
               $filename = basename($file);
 
-              // Parse timestamp from filename (format: backup_dbname_Y-m-d_His.sql)
-              preg_match('/backup_.*?_(\d{4}-\d{2}-\d{2}_\d{6})/', $filename, $matches);
+              // Parse timestamp from filename (format: env_backup_dbname_Y-m-d_His.sql)
+              preg_match('/.*?_backup_.*?_(\d{4}-\d{2}-\d{2}_\d{6})/', $filename, $matches);
               $dateStr = 'Unknown';
               if (isset($matches[1])) {
                   $date = \DateTime::createFromFormat('Y-m-d_His', $matches[1]);
