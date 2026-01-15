@@ -35,4 +35,9 @@ class Player extends Model
     {
         return $this->hasMany(CourtPlayer::class);
     }
+
+    public function rackets()
+    {
+        return $this->hasMany(Racket::class);
+    }
 }

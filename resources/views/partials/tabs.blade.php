@@ -12,6 +12,12 @@
            class="px-4 py-2 {{ str_contains($current, 'players') ? 'border-b-2 border-blue-500 font-semibold' : 'text-gray-500 hover:text-blue-500' }}">
             Players
         </a>
+        @env('local')
+        <a href="{{ route('rackets.index') }}"
+           class="px-4 py-2 {{ str_contains($current, 'rackets') || str_contains($current, 'string-jobs') ? 'border-b-2 border-blue-500 font-semibold' : 'text-gray-500 hover:text-blue-500' }}">
+            Rackets
+        </a>
+        @endenv
     </div>
     @env('local')
         <a href="{{ route('configurations.index') }}"

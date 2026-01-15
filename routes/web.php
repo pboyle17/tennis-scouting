@@ -6,6 +6,8 @@ use App\Http\Controllers\ConfigurationController;
 use App\Http\Controllers\LeagueController;
 use App\Http\Controllers\TeamController;
 use App\Http\Controllers\TournamentController;
+use App\Http\Controllers\RacketController;
+use App\Http\Controllers\StringJobController;
 
 Route::get('/', function () {
     return redirect()->route('leagues.index');
@@ -68,6 +70,15 @@ Route::put('/tennis-matches/{match}', [\App\Http\Controllers\TennisMatchControll
 Route::delete('/tennis-matches/{match}', [\App\Http\Controllers\TennisMatchController::class, 'destroy'])->name('tennis-matches.destroy');
 Route::post('/tennis-matches/{match}/update-score', [\App\Http\Controllers\TennisMatchController::class, 'updateScore'])->name('tennis-matches.updateScore');
 Route::post('/tennis-matches/{match}/sync-from-tennis-record', [\App\Http\Controllers\TennisMatchController::class, 'syncFromTennisRecord'])->name('tennis-matches.syncFromTennisRecord');
+
+Route::resource('rackets', RacketController::class);
+Route::get('/rackets/{racket}/string-jobs/create', [StringJobController::class, 'create'])->name('rackets.string-jobs.create');
+Route::post('/rackets/{racket}/string-jobs', [StringJobController::class, 'store'])->name('rackets.string-jobs.store');
+Route::get('/string-jobs/{stringJob}/edit', [StringJobController::class, 'edit'])->name('string-jobs.edit');
+Route::put('/string-jobs/{stringJob}', [StringJobController::class, 'update'])->name('string-jobs.update');
+Route::delete('/string-jobs/{stringJob}', [StringJobController::class, 'destroy'])->name('string-jobs.destroy');
+Route::post('/string-jobs/{stringJob}/set-current', [StringJobController::class, 'setCurrent'])->name('string-jobs.setCurrent');
+Route::post('/string-jobs/{stringJob}/add-time', [StringJobController::class, 'addTime'])->name('string-jobs.addTime');
 
 Route::delete('/courts/{court}', [\App\Http\Controllers\CourtController::class, 'destroy'])->name('courts.destroy');
 
