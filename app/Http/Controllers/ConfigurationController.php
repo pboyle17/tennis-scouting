@@ -280,22 +280,52 @@ class ConfigurationController extends Controller
           );
           exec($terminateCommand, $terminateOutput, $terminateReturnCode);
 
-          // Restore database using pg_restore with flags to handle existing data
+          // Generate table of contents from backup, filtering out rackets and string_jobs tables
+          // This preserves equipment data during restores
+          $tocPath = storage_path('app/backups/toc.txt');
+          $filteredTocPath = storage_path('app/backups/toc_filtered.txt');
+
+          // Get list of objects in backup
+          $listCommand = sprintf(
+              'pg_restore -l %s 2>&1',
+              escapeshellarg($localPath)
+          );
+          exec($listCommand, $tocOutput, $listReturnCode);
+
+          // Filter out rackets and string_jobs tables
+          $filteredToc = array_filter($tocOutput, function($line) {
+              // Exclude lines that reference rackets or string_jobs tables
+              return !preg_match('/\brackets\b/', $line) && !preg_match('/\bstring_jobs\b/', $line);
+          });
+          file_put_contents($filteredTocPath, implode("\n", $filteredToc));
+
+          \Log::info('Generated filtered TOC for restore', [
+              'original_lines' => count($tocOutput),
+              'filtered_lines' => count($filteredToc)
+          ]);
+
+          // Restore database using filtered list
           // --clean: clean (drop) database objects before recreating
           // --if-exists: use IF EXISTS when dropping objects
           // --no-owner: skip restoration of object ownership
           // --no-privileges: skip restoration of access privileges (ACL)
-          // --exclude-table: preserve rackets and string_jobs tables (equipment data)
+          // -L: use filtered list to exclude rackets and string_jobs tables
           $restoreCommand = sprintf(
-              'pg_restore -h %s -p %s -U %s -d %s --clean --if-exists --no-owner --no-privileges --exclude-table=rackets --exclude-table=string_jobs -v %s 2>&1',
+              'pg_restore -h %s -p %s -U %s -d %s --clean --if-exists --no-owner --no-privileges -L %s -v %s 2>&1',
               escapeshellarg($dbHost),
               escapeshellarg($dbPort),
               escapeshellarg($dbUser),
               escapeshellarg($dbName),
+              escapeshellarg($filteredTocPath),
               escapeshellarg($localPath)
           );
 
           exec($restoreCommand, $restoreOutput, $restoreReturnCode);
+
+          // Clean up TOC file
+          if (file_exists($filteredTocPath)) {
+              unlink($filteredTocPath);
+          }
 
           // Clear PGPASSWORD
           putenv('PGPASSWORD');
