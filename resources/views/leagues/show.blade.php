@@ -1721,6 +1721,7 @@
     // League Lineup Comparison Chart
     @if($leagueLineupData && count($leagueLineupData) > 0)
         const leagueLineupData = @json($leagueLineupData);
+        const leagueNtrpRating = {{ $league->NTRP_rating ?? 'null' }};
         let currentLeagueRatingType = 'utr';
         let leagueVerifiedOnlyEnabled = false;
 
@@ -1813,6 +1814,30 @@
                 svg += `<text x="${x}" y="${height - 40}" text-anchor="middle" font-size="12" fill="#6b7280">#${pos}</text>`;
             });
 
+            // Get court averages from courtStats data
+            const courtStats = @json($courtStats ?? []);
+            const leagueAverages = {};
+            [1, 2].forEach(pos => {
+                const courtStat = courtStats.find(s => s.court_type === 'singles' && parseInt(s.court_number) === pos);
+                if (courtStat) {
+                    const avg = currentLeagueRatingType === 'utr' ? courtStat.avg_utr_singles : courtStat.avg_usta_dynamic;
+                    if (avg) leagueAverages[pos] = avg;
+                }
+            });
+
+            // Store league average lines to draw later (after axis labels, before dots)
+            const avgLineColors = { 1: '#dc2626', 2: '#2563eb' }; // Red for #1, Blue for #2
+            let avgLinesSvg = '';
+            Object.entries(leagueAverages).forEach(([pos, avgRating]) => {
+                const y = yScale(avgRating);
+                const color = avgLineColors[pos];
+                // Visible dashed line
+                avgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="${color}" stroke-width="2" stroke-dasharray="6,4" opacity="0.7"/>`;
+                // Invisible thick hitbox for hover
+                avgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="league-avg-line" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" style="cursor: pointer;"/>`;
+            });
+            svg += avgLinesSvg;
+
             // Draw axis labels
             const ratingLabel = currentLeagueRatingType === 'utr' ? 'Singles UTR' : 'USTA Dynamic Rating';
             // Y-axis label (rotated)
@@ -1884,35 +1909,60 @@
                     svg += `<circle cx="${x}" cy="${y}" r="${point.radius}" fill="${point.color}" opacity="${point.opacity}" class="league-lineup-dot"
                             data-team="${point.teamData.team_name}"
                             data-player="${point.player.name}"
+                            data-player-id="${point.player.id}"
                             data-position="${point.position}"
                             data-utr="${point.player.utr_singles || 'N/A'}"
                             data-usta="${point.player.usta_dynamic || 'N/A'}"
+                            data-usta-rating="${point.player.usta_rating || ''}"
                             style="cursor: pointer;"/>`;
                 });
             });
 
-            // Draw legend
+            // Draw legend with clickable team names
             let legendY = margin.top;
             sortedTeamData.forEach((teamData, teamIndex) => {
                 const color = colors[teamIndex % colors.length];
 
                 svg += `<rect x="${width - margin.right + 10}" y="${legendY}" width="15" height="15" fill="${color}"/>`;
-                svg += `<text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" fill="#374151">${teamData.team_name}</text>`;
+                svg += `<a href="/teams/${teamData.team_id}" class="legend-team-link"><text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" fill="#374151" style="cursor: pointer;" class="hover:underline">${teamData.team_name}</text></a>`;
                 legendY += 25;
             });
 
             svg += '</svg>';
             chartContainer.innerHTML = svg;
 
-            // Add hover tooltips
+            // Add click handler for player dots
             const dots = chartContainer.querySelectorAll('.league-lineup-dot');
             dots.forEach(dot => {
+                dot.addEventListener('click', function() {
+                    const playerId = this.dataset.playerId;
+                    if (playerId) {
+                        window.location.href = `/players/${playerId}`;
+                    }
+                });
+
                 dot.addEventListener('mouseenter', function(e) {
+                    // Increase dot size on hover
+                    const currentRadius = parseFloat(this.getAttribute('r'));
+                    this.dataset.originalRadius = currentRadius;
+                    this.setAttribute('r', currentRadius + 3);
+
                     const team = this.dataset.team;
                     const player = this.dataset.player;
                     const position = this.dataset.position;
                     const utr = this.dataset.utr;
                     const usta = this.dataset.usta;
+                    const ustaRating = parseFloat(this.dataset.ustaRating);
+
+                    // Determine promoted/playing up status
+                    let statusIcon = '';
+                    if (leagueNtrpRating && ustaRating) {
+                        if (ustaRating > leagueNtrpRating) {
+                            statusIcon = '<span title="Promoted">🏅</span> ';
+                        } else if (ustaRating < leagueNtrpRating) {
+                            statusIcon = '<span title="Playing Up">⚔️</span> ';
+                        }
+                    }
 
                     const tooltip = document.createElement('div');
                     tooltip.id = 'league-lineup-tooltip';
@@ -1932,7 +1982,7 @@
                         : `<div>UTR: ${utr}</div><div>USTA: ${usta}</div>`;
 
                     tooltip.innerHTML = `
-                        <div style="font-weight: bold;">${player}</div>
+                        <div style="font-weight: bold;">${statusIcon}${player}</div>
                         <div>${team} - #${position}</div>
                         ${ratingLine}
                     `;
@@ -1940,6 +1990,12 @@
                 });
 
                 dot.addEventListener('mouseleave', function() {
+                    // Restore original dot size
+                    const originalRadius = this.dataset.originalRadius;
+                    if (originalRadius) {
+                        this.setAttribute('r', originalRadius);
+                    }
+
                     const tooltip = document.getElementById('league-lineup-tooltip');
                     if (tooltip) {
                         tooltip.remove();
@@ -1948,6 +2004,43 @@
 
                 dot.addEventListener('mousemove', function(e) {
                     const tooltip = document.getElementById('league-lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.style.left = e.clientX + 10 + 'px';
+                        tooltip.style.top = e.clientY + 10 + 'px';
+                    }
+                });
+            });
+
+            // Add hover tooltips for average lines
+            const avgLines = chartContainer.querySelectorAll('.league-avg-line');
+            avgLines.forEach(line => {
+                line.addEventListener('mouseenter', function(e) {
+                    const pos = this.dataset.pos;
+                    const avg = this.dataset.avg;
+
+                    const tooltip = document.createElement('div');
+                    tooltip.id = 'league-avg-line-tooltip';
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.left = e.clientX + 10 + 'px';
+                    tooltip.style.top = e.clientY + 10 + 'px';
+                    tooltip.style.backgroundColor = '#1f2937';
+                    tooltip.style.color = 'white';
+                    tooltip.style.padding = '8px 12px';
+                    tooltip.style.borderRadius = '6px';
+                    tooltip.style.fontSize = '12px';
+                    tooltip.style.zIndex = '1000';
+                    tooltip.style.pointerEvents = 'none';
+                    tooltip.innerHTML = `<div style="font-weight: bold;">Singles #${pos} League Average</div><div>${avg}</div>`;
+                    document.body.appendChild(tooltip);
+                });
+
+                line.addEventListener('mouseleave', function() {
+                    const tooltip = document.getElementById('league-avg-line-tooltip');
+                    if (tooltip) tooltip.remove();
+                });
+
+                line.addEventListener('mousemove', function(e) {
+                    const tooltip = document.getElementById('league-avg-line-tooltip');
                     if (tooltip) {
                         tooltip.style.left = e.clientX + 10 + 'px';
                         tooltip.style.top = e.clientY + 10 + 'px';
@@ -1999,6 +2092,7 @@
     // League Doubles Lineup Comparison Chart
     @if($leagueDoublesLineupData && count($leagueDoublesLineupData) > 0)
         const leagueDoublesLineupData = @json($leagueDoublesLineupData);
+        const doublesLeagueNtrpRating = {{ $league->NTRP_rating ?? 'null' }};
         let currentLeagueDoublesRatingType = 'utr';
         let leagueDoublesVerifiedOnlyEnabled = false;
 
@@ -2091,6 +2185,30 @@
                 svg += `<text x="${x}" y="${height - 40}" text-anchor="middle" font-size="12" fill="#6b7280">#${pos}</text>`;
             });
 
+            // Get court averages from courtStats data
+            const doublesCourtStats = @json($courtStats ?? []);
+            const doublesLeagueAverages = {};
+            [1, 2, 3].forEach(pos => {
+                const courtStat = doublesCourtStats.find(s => s.court_type === 'doubles' && parseInt(s.court_number) === pos);
+                if (courtStat) {
+                    const avg = currentLeagueDoublesRatingType === 'utr' ? courtStat.avg_utr_doubles : courtStat.avg_usta_dynamic;
+                    if (avg) doublesLeagueAverages[pos] = avg;
+                }
+            });
+
+            // Store league average lines to draw later (after axis labels, before dots)
+            const doublesAvgLineColors = { 1: '#dc2626', 2: '#2563eb', 3: '#059669' }; // Red for #1, Blue for #2, Green for #3
+            let doublesAvgLinesSvg = '';
+            Object.entries(doublesLeagueAverages).forEach(([pos, avgRating]) => {
+                const y = yScale(avgRating);
+                const color = doublesAvgLineColors[pos];
+                // Visible dashed line
+                doublesAvgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="${color}" stroke-width="2" stroke-dasharray="6,4" opacity="0.7"/>`;
+                // Invisible thick hitbox for hover
+                doublesAvgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="league-doubles-avg-line" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" style="cursor: pointer;"/>`;
+            });
+            svg += doublesAvgLinesSvg;
+
             // Draw axis labels
             const ratingLabel = currentLeagueDoublesRatingType === 'utr' ? 'Doubles UTR' : 'USTA Dynamic Rating';
             // Y-axis label (rotated)
@@ -2162,35 +2280,60 @@
                     svg += `<circle cx="${x}" cy="${y}" r="${point.radius}" fill="${point.color}" opacity="${point.opacity}" class="league-doubles-lineup-dot"
                             data-team="${point.teamData.team_name}"
                             data-player="${point.player.name}"
+                            data-player-id="${point.player.id}"
                             data-position="${point.position}"
                             data-utr="${point.player.utr_doubles || 'N/A'}"
                             data-usta="${point.player.usta_dynamic || 'N/A'}"
+                            data-usta-rating="${point.player.usta_rating || ''}"
                             style="cursor: pointer;"/>`;
                 });
             });
 
-            // Draw legend
+            // Draw legend with clickable team names
             let legendY = margin.top;
             sortedTeamData.forEach((teamData, teamIndex) => {
                 const color = colors[teamIndex % colors.length];
 
                 svg += `<rect x="${width - margin.right + 10}" y="${legendY}" width="15" height="15" fill="${color}"/>`;
-                svg += `<text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" fill="#374151">${teamData.team_name}</text>`;
+                svg += `<a href="/teams/${teamData.team_id}" class="legend-team-link"><text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" fill="#374151" style="cursor: pointer;" class="hover:underline">${teamData.team_name}</text></a>`;
                 legendY += 25;
             });
 
             svg += '</svg>';
             chartContainer.innerHTML = svg;
 
-            // Add hover tooltips
+            // Add click handler for player dots
             const dots = chartContainer.querySelectorAll('.league-doubles-lineup-dot');
             dots.forEach(dot => {
+                dot.addEventListener('click', function() {
+                    const playerId = this.dataset.playerId;
+                    if (playerId) {
+                        window.location.href = `/players/${playerId}`;
+                    }
+                });
+
                 dot.addEventListener('mouseenter', function(e) {
+                    // Increase dot size on hover
+                    const currentRadius = parseFloat(this.getAttribute('r'));
+                    this.dataset.originalRadius = currentRadius;
+                    this.setAttribute('r', currentRadius + 3);
+
                     const team = this.dataset.team;
                     const player = this.dataset.player;
                     const position = this.dataset.position;
                     const utr = this.dataset.utr;
                     const usta = this.dataset.usta;
+                    const ustaRating = parseFloat(this.dataset.ustaRating);
+
+                    // Determine promoted/playing up status
+                    let statusIcon = '';
+                    if (doublesLeagueNtrpRating && ustaRating) {
+                        if (ustaRating > doublesLeagueNtrpRating) {
+                            statusIcon = '<span title="Promoted">🏅</span> ';
+                        } else if (ustaRating < doublesLeagueNtrpRating) {
+                            statusIcon = '<span title="Playing Up">⚔️</span> ';
+                        }
+                    }
 
                     const tooltip = document.createElement('div');
                     tooltip.id = 'league-doubles-lineup-tooltip';
@@ -2210,7 +2353,7 @@
                         : `<div>UTR Doubles: ${utr}</div><div>USTA: ${usta}</div>`;
 
                     tooltip.innerHTML = `
-                        <div style="font-weight: bold;">${player}</div>
+                        <div style="font-weight: bold;">${statusIcon}${player}</div>
                         <div>${team} - #${position}</div>
                         ${ratingLine}
                     `;
@@ -2218,6 +2361,12 @@
                 });
 
                 dot.addEventListener('mouseleave', function() {
+                    // Restore original dot size
+                    const originalRadius = this.dataset.originalRadius;
+                    if (originalRadius) {
+                        this.setAttribute('r', originalRadius);
+                    }
+
                     const tooltip = document.getElementById('league-doubles-lineup-tooltip');
                     if (tooltip) {
                         tooltip.remove();
@@ -2226,6 +2375,43 @@
 
                 dot.addEventListener('mousemove', function(e) {
                     const tooltip = document.getElementById('league-doubles-lineup-tooltip');
+                    if (tooltip) {
+                        tooltip.style.left = e.clientX + 10 + 'px';
+                        tooltip.style.top = e.clientY + 10 + 'px';
+                    }
+                });
+            });
+
+            // Add hover tooltips for doubles average lines
+            const doublesAvgLines = chartContainer.querySelectorAll('.league-doubles-avg-line');
+            doublesAvgLines.forEach(line => {
+                line.addEventListener('mouseenter', function(e) {
+                    const pos = this.dataset.pos;
+                    const avg = this.dataset.avg;
+
+                    const tooltip = document.createElement('div');
+                    tooltip.id = 'league-doubles-avg-line-tooltip';
+                    tooltip.style.position = 'fixed';
+                    tooltip.style.left = e.clientX + 10 + 'px';
+                    tooltip.style.top = e.clientY + 10 + 'px';
+                    tooltip.style.backgroundColor = '#1f2937';
+                    tooltip.style.color = 'white';
+                    tooltip.style.padding = '8px 12px';
+                    tooltip.style.borderRadius = '6px';
+                    tooltip.style.fontSize = '12px';
+                    tooltip.style.zIndex = '1000';
+                    tooltip.style.pointerEvents = 'none';
+                    tooltip.innerHTML = `<div style="font-weight: bold;">Doubles #${pos} League Average</div><div>${avg}</div>`;
+                    document.body.appendChild(tooltip);
+                });
+
+                line.addEventListener('mouseleave', function() {
+                    const tooltip = document.getElementById('league-doubles-avg-line-tooltip');
+                    if (tooltip) tooltip.remove();
+                });
+
+                line.addEventListener('mousemove', function(e) {
+                    const tooltip = document.getElementById('league-doubles-avg-line-tooltip');
                     if (tooltip) {
                         tooltip.style.left = e.clientX + 10 + 'px';
                         tooltip.style.top = e.clientY + 10 + 'px';
