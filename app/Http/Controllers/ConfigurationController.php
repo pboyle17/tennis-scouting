@@ -280,32 +280,14 @@ class ConfigurationController extends Controller
           );
           exec($terminateCommand, $terminateOutput, $terminateReturnCode);
 
-          // Drop and recreate database
-          $dropCommand = sprintf(
-              'psql -h %s -p %s -U %s -d postgres -c "DROP DATABASE IF EXISTS %s;" 2>&1',
-              escapeshellarg($dbHost),
-              escapeshellarg($dbPort),
-              escapeshellarg($dbUser),
-              $dbName
-          );
-          exec($dropCommand, $dropOutput, $dropReturnCode);
-
-          $createCommand = sprintf(
-              'psql -h %s -p %s -U %s -d postgres -c "CREATE DATABASE %s;" 2>&1',
-              escapeshellarg($dbHost),
-              escapeshellarg($dbPort),
-              escapeshellarg($dbUser),
-              $dbName
-          );
-          exec($createCommand, $createOutput, $createReturnCode);
-
           // Restore database using pg_restore with flags to handle existing data
           // --clean: clean (drop) database objects before recreating
           // --if-exists: use IF EXISTS when dropping objects
           // --no-owner: skip restoration of object ownership
           // --no-privileges: skip restoration of access privileges (ACL)
+          // --exclude-table: preserve rackets and string_jobs tables (equipment data)
           $restoreCommand = sprintf(
-              'pg_restore -h %s -p %s -U %s -d %s --clean --if-exists --no-owner --no-privileges -v %s 2>&1',
+              'pg_restore -h %s -p %s -U %s -d %s --clean --if-exists --no-owner --no-privileges --exclude-table=rackets --exclude-table=string_jobs -v %s 2>&1',
               escapeshellarg($dbHost),
               escapeshellarg($dbPort),
               escapeshellarg($dbUser),
