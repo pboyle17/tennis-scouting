@@ -912,10 +912,12 @@ class TeamController extends Controller
             $players = [];
             foreach ($allPlayers as $player) {
                 $players[] = [
+                    'id' => $player->id,
                     'name' => $player->first_name . ' ' . $player->last_name,
                     'utr_singles' => $player->utr_singles_rating,
                     'usta_dynamic' => $player->USTA_dynamic_rating,
                     'utr_singles_reliable' => $player->utr_singles_reliable,
+                    'usta_rating' => $player->USTA_rating,
                 ];
             }
 
@@ -946,10 +948,12 @@ class TeamController extends Controller
             $players = [];
             foreach ($allPlayers as $player) {
                 $players[] = [
+                    'id' => $player->id,
                     'name' => $player->first_name . ' ' . $player->last_name,
                     'utr_doubles' => $player->utr_doubles_rating,
                     'usta_dynamic' => $player->USTA_dynamic_rating,
                     'utr_doubles_reliable' => $player->utr_doubles_reliable,
+                    'usta_rating' => $player->USTA_rating,
                 ];
             }
 
