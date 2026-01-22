@@ -26,7 +26,11 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Teams</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">S1 UTR</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">S2 UTR</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">D1 UTR</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">D2 UTR</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">D3 UTR</th>
                     @env('local')
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
                     @endenv
@@ -40,8 +44,40 @@
                                 {{ $league->name }}
                             </a>
                         </td>
-                        <td class="px-4 py-2 text-sm text-gray-700">
-                            {{ $league->teams->count() }} {{ $league->teams->count() === 1 ? 'team' : 'teams' }}
+                        <td class="px-4 py-2 text-sm text-gray-700 text-center">
+                            @if($league->courtAverages['s1'] && $league->courtAverages['s1']['utr'])
+                                {{ number_format($league->courtAverages['s1']['utr'], 2) }}
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-700 text-center">
+                            @if($league->courtAverages['s2'] && $league->courtAverages['s2']['utr'])
+                                {{ number_format($league->courtAverages['s2']['utr'], 2) }}
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-700 text-center">
+                            @if($league->courtAverages['d1'] && $league->courtAverages['d1']['utr'])
+                                {{ number_format($league->courtAverages['d1']['utr'], 2) }}
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-700 text-center">
+                            @if($league->courtAverages['d2'] && $league->courtAverages['d2']['utr'])
+                                {{ number_format($league->courtAverages['d2']['utr'], 2) }}
+                            @else
+                                -
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 text-sm text-gray-700 text-center">
+                            @if($league->courtAverages['d3'] && $league->courtAverages['d3']['utr'])
+                                {{ number_format($league->courtAverages['d3']['utr'], 2) }}
+                            @else
+                                -
+                            @endif
                         </td>
                         @env('local')
                             <td class="px-4 py-2 text-sm">

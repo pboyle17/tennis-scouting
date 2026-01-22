@@ -17,6 +17,47 @@ class LeagueController extends Controller
     public function index()
     {
       $leagues = League::with('teams')->get();
+
+      // Calculate court averages for all leagues in a single query
+      $courtAverages = \DB::table('leagues')
+          ->join('teams', 'leagues.id', '=', 'teams.league_id')
+          ->join('tennis_matches', function($join) {
+              $join->on('teams.id', '=', 'tennis_matches.home_team_id')
+                   ->orOn('teams.id', '=', 'tennis_matches.away_team_id');
+          })
+          ->join('courts', 'tennis_matches.id', '=', 'courts.tennis_match_id')
+          ->join('court_players', 'courts.id', '=', 'court_players.court_id')
+          ->select(
+              'leagues.id as league_id',
+              'courts.court_type',
+              'courts.court_number',
+              \DB::raw('AVG(court_players.utr_singles_rating) as avg_utr_singles'),
+              \DB::raw('AVG(court_players.utr_doubles_rating) as avg_utr_doubles'),
+              \DB::raw('AVG(court_players.usta_dynamic_rating) as avg_usta_dynamic')
+          )
+          ->groupBy('leagues.id', 'courts.court_type', 'courts.court_number')
+          ->get();
+
+      // Map court averages to leagues
+      $leagueAveragesMap = [];
+      foreach ($courtAverages as $avg) {
+          $key = ($avg->court_type === 'singles' ? 's' : 'd') . $avg->court_number;
+          if (!isset($leagueAveragesMap[$avg->league_id])) {
+              $leagueAveragesMap[$avg->league_id] = ['s1' => null, 's2' => null, 'd1' => null, 'd2' => null, 'd3' => null];
+          }
+          if (in_array($key, ['s1', 's2', 'd1', 'd2', 'd3'])) {
+              $leagueAveragesMap[$avg->league_id][$key] = [
+                  'utr' => $avg->court_type === 'singles' ? $avg->avg_utr_singles : $avg->avg_utr_doubles,
+                  'usta' => $avg->avg_usta_dynamic,
+              ];
+          }
+      }
+
+      // Assign court averages to each league
+      foreach ($leagues as $league) {
+          $league->courtAverages = $leagueAveragesMap[$league->id] ?? ['s1' => null, 's2' => null, 'd1' => null, 'd2' => null, 'd3' => null];
+      }
+
       return view('leagues.index', compact('leagues'));
     }
 
