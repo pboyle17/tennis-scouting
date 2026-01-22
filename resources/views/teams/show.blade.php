@@ -1538,7 +1538,11 @@
                         x += offset;
                     }
 
-                    svg += `<circle cx="${x}" cy="${y}" r="${point.radius}" fill="${point.color}" opacity="${point.opacity}" class="lineup-dot"
+                    // Check if player is promoted (USTA rating > league NTRP)
+                    const isPromoted = leagueNtrpRating && point.player.usta_rating && point.player.usta_rating > leagueNtrpRating;
+                    const strokeStyle = isPromoted ? 'stroke="#000000" stroke-width="2"' : '';
+
+                    svg += `<circle cx="${x}" cy="${y}" r="${point.radius}" fill="${point.color}" opacity="${point.opacity}" ${strokeStyle} class="lineup-dot"
                             data-team="${point.teamData.team_name}"
                             data-player="${point.player.name}"
                             data-player-id="${point.player.id}"
@@ -1916,7 +1920,11 @@
                         x += offset;
                     }
 
-                    svg += `<circle cx="${x}" cy="${y}" r="${point.radius}" fill="${point.color}" opacity="${point.opacity}" class="doubles-lineup-dot"
+                    // Check if player is promoted (USTA rating > league NTRP)
+                    const isPromoted = doublesLeagueNtrpRating && point.player.usta_rating && point.player.usta_rating > doublesLeagueNtrpRating;
+                    const strokeStyle = isPromoted ? 'stroke="#000000" stroke-width="2"' : '';
+
+                    svg += `<circle cx="${x}" cy="${y}" r="${point.radius}" fill="${point.color}" opacity="${point.opacity}" ${strokeStyle} class="doubles-lineup-dot"
                             data-team="${point.teamData.team_name}"
                             data-player="${point.player.name}"
                             data-player-id="${point.player.id}"
