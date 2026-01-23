@@ -280,6 +280,18 @@ class ConfigurationController extends Controller
           );
           exec($terminateCommand, $terminateOutput, $terminateReturnCode);
 
+          // Drop foreign key constraints from excluded tables (rackets, string_jobs) so players table can be restored
+          // Without this, pg_restore cannot drop/recreate the players table because rackets depends on it
+          $dropFkCommand = sprintf(
+              "psql -h %s -p %s -U %s -d %s -c \"ALTER TABLE IF EXISTS rackets DROP CONSTRAINT IF EXISTS rackets_player_id_foreign; ALTER TABLE IF EXISTS string_jobs DROP CONSTRAINT IF EXISTS string_jobs_racket_id_foreign;\" 2>&1",
+              escapeshellarg($dbHost),
+              escapeshellarg($dbPort),
+              escapeshellarg($dbUser),
+              escapeshellarg($dbName)
+          );
+          exec($dropFkCommand, $dropFkOutput, $dropFkReturnCode);
+          \Log::info('Dropped foreign key constraints from excluded tables', ['output' => $dropFkOutput, 'return_code' => $dropFkReturnCode]);
+
           // Generate table of contents from backup, filtering out rackets and string_jobs tables
           // This preserves equipment data during restores
           $tocPath = storage_path('app/backups/toc.txt');
@@ -326,6 +338,28 @@ class ConfigurationController extends Controller
           if (file_exists($filteredTocPath)) {
               unlink($filteredTocPath);
           }
+
+          // Delete orphaned rackets (rackets referencing players that no longer exist after restore)
+          $cleanupOrphansCommand = sprintf(
+              "psql -h %s -p %s -U %s -d %s -c \"DELETE FROM string_jobs WHERE racket_id IN (SELECT r.id FROM rackets r LEFT JOIN players p ON r.player_id = p.id WHERE p.id IS NULL); DELETE FROM rackets WHERE player_id NOT IN (SELECT id FROM players);\" 2>&1",
+              escapeshellarg($dbHost),
+              escapeshellarg($dbPort),
+              escapeshellarg($dbUser),
+              escapeshellarg($dbName)
+          );
+          exec($cleanupOrphansCommand, $cleanupOrphansOutput, $cleanupOrphansReturnCode);
+          \Log::info('Cleaned up orphaned rackets/string_jobs', ['output' => $cleanupOrphansOutput, 'return_code' => $cleanupOrphansReturnCode]);
+
+          // Re-add foreign key constraints to excluded tables
+          $addFkCommand = sprintf(
+              "psql -h %s -p %s -U %s -d %s -c \"ALTER TABLE rackets ADD CONSTRAINT rackets_player_id_foreign FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE CASCADE; ALTER TABLE string_jobs ADD CONSTRAINT string_jobs_racket_id_foreign FOREIGN KEY (racket_id) REFERENCES rackets(id) ON DELETE CASCADE;\" 2>&1",
+              escapeshellarg($dbHost),
+              escapeshellarg($dbPort),
+              escapeshellarg($dbUser),
+              escapeshellarg($dbName)
+          );
+          exec($addFkCommand, $addFkOutput, $addFkReturnCode);
+          \Log::info('Re-added foreign key constraints to excluded tables', ['output' => $addFkOutput, 'return_code' => $addFkReturnCode]);
 
           // Clear PGPASSWORD
           putenv('PGPASSWORD');
