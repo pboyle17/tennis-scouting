@@ -3,8 +3,12 @@
 @section('title', $league->name)
 
 @section('content')
-<div class="container mx-auto p-6">
-    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">{{ $league->name }}</h1>
+<div class="container mx-auto px-4 py-6 md:p-6">
+    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">
+        <a href="{{ route('leagues.show', $league->id) }}" class="hover:text-blue-600 transition-colors cursor-pointer">
+            {{ $league->name }}
+        </a>
+    </h1>
     @include('partials.tabs')
 
     @if(session('success'))
@@ -240,7 +244,231 @@
     @endenv
 
     <!-- Teams Table -->
-    <div class="bg-white rounded-lg shadow mb-6">
+    <!-- Mobile Card View -->
+    <div class="md:hidden space-y-4 mb-6 px-2">
+        <div class="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4 text-xs">
+            <p class="text-gray-700">
+                <span class="font-semibold">Team Comparison:</span> <span class="text-green-600 font-semibold">Green (+)</span> = above league avg, <span class="text-red-600 font-semibold">Red (-)</span> = below league avg.
+            </p>
+        </div>
+        @forelse ($league->teams as $team)
+            @php
+                // Calculate court stats for this team (same logic as desktop)
+                $teamCourtStats = [];
+
+                // Get all matches for this team
+                $teamMatchIds = \App\Models\TennisMatch::where(function($query) use ($team) {
+                    $query->where('home_team_id', $team->id)
+                          ->orWhere('away_team_id', $team->id);
+                })->pluck('id');
+
+                // Get all courts for these matches
+                $teamCourts = \App\Models\Court::whereIn('tennis_match_id', $teamMatchIds)
+                    ->with('courtPlayers')
+                    ->get();
+
+                // Group courts by type and number
+                $courtGroups = $teamCourts->groupBy(function($court) {
+                    return $court->court_type . '_' . $court->court_number;
+                });
+
+                foreach ($courtGroups as $key => $courts) {
+                    list($courtType, $courtNumber) = explode('_', $key);
+
+                    // Get all court players for this group (only for this team)
+                    $allCourtPlayers = $courts->flatMap(function($court) use ($team) {
+                        return $court->courtPlayers->where('team_id', $team->id);
+                    });
+
+                    // Calculate averages based on court type
+                    if ($courtType === 'singles') {
+                        $avgUtr = $allCourtPlayers->where('utr_singles_rating', '>', 0)->avg('utr_singles_rating');
+                    } else {
+                        $avgUtr = $allCourtPlayers->where('utr_doubles_rating', '>', 0)->avg('utr_doubles_rating');
+                    }
+
+                    $avgUsta = $allCourtPlayers->where('usta_dynamic_rating', '>', 0)->avg('usta_dynamic_rating');
+
+                    $teamCourtStats[$key] = [
+                        'avg_utr' => $avgUtr,
+                        'avg_usta' => $avgUsta,
+                    ];
+                }
+            @endphp
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="mb-3">
+                    <a href="{{ route('teams.show', $team->id) }}" class="text-lg font-semibold text-blue-600 hover:underline">
+                        {{ $team->name }}
+                    </a>
+                    @php
+                        $teamPlayersWithoutUtrId = $team->players->whereNull('utr_id')->count();
+                    @endphp
+                    @if($teamPlayersWithoutUtrId > 0)
+                        <form method="POST" action="{{ route('leagues.findMissingUtrIdsForTeam', [$league->id, $team->id]) }}" style="display:inline;" class="ml-2">
+                            @csrf
+                            <button type="submit" class="text-blue-600 hover:text-blue-800 text-xs cursor-pointer" title="Find UTR IDs for {{ $teamPlayersWithoutUtrId }} player(s)">
+                                🔍 Find UTR IDs ({{ $teamPlayersWithoutUtrId }})
+                            </button>
+                        </form>
+                    @endif
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <!-- Singles #1 -->
+                    <div class="bg-gray-50 rounded p-2">
+                        <div class="font-semibold text-gray-600 mb-1">Singles #1</div>
+                        @if(isset($teamCourtStats['singles_1']) && ($teamCourtStats['singles_1']['avg_usta'] || $teamCourtStats['singles_1']['avg_utr']))
+                            @php
+                                $leagueAvgUtr = collect($courtStats)->where('court_type', 'singles')->where('court_number', 1)->first()['avg_utr_singles'] ?? null;
+                                $leagueAvgUsta = collect($courtStats)->where('court_type', 'singles')->where('court_number', 1)->first()['avg_usta_dynamic'] ?? null;
+                                $teamUtr = $teamCourtStats['singles_1']['avg_utr'];
+                                $teamUsta = $teamCourtStats['singles_1']['avg_usta'];
+                                $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                                $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
+                            @endphp
+                            <div class="text-gray-700">
+                                <div>UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                    @if($utrDiff !== null)
+                                        <span class="{{ $utrDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                    @endif
+                                </div>
+                                <div>USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                    @if($ustaDiff !== null)
+                                        <span class="{{ $ustaDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @else
+                            <span class="text-gray-400">-</span>
+                        @endif
+                    </div>
+
+                    <!-- Singles #2 -->
+                    <div class="bg-gray-50 rounded p-2">
+                        <div class="font-semibold text-gray-600 mb-1">Singles #2</div>
+                        @if(isset($teamCourtStats['singles_2']) && ($teamCourtStats['singles_2']['avg_usta'] || $teamCourtStats['singles_2']['avg_utr']))
+                            @php
+                                $leagueAvgUtr = collect($courtStats)->where('court_type', 'singles')->where('court_number', 2)->first()['avg_utr_singles'] ?? null;
+                                $leagueAvgUsta = collect($courtStats)->where('court_type', 'singles')->where('court_number', 2)->first()['avg_usta_dynamic'] ?? null;
+                                $teamUtr = $teamCourtStats['singles_2']['avg_utr'];
+                                $teamUsta = $teamCourtStats['singles_2']['avg_usta'];
+                                $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                                $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
+                            @endphp
+                            <div class="text-gray-700">
+                                <div>UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                    @if($utrDiff !== null)
+                                        <span class="{{ $utrDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                    @endif
+                                </div>
+                                <div>USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                    @if($ustaDiff !== null)
+                                        <span class="{{ $ustaDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @else
+                            <span class="text-gray-400">-</span>
+                        @endif
+                    </div>
+
+                    <!-- Doubles #1 -->
+                    <div class="bg-gray-50 rounded p-2">
+                        <div class="font-semibold text-gray-600 mb-1">Doubles #1</div>
+                        @if(isset($teamCourtStats['doubles_1']) && ($teamCourtStats['doubles_1']['avg_usta'] || $teamCourtStats['doubles_1']['avg_utr']))
+                            @php
+                                $leagueAvgUtr = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 1)->first()['avg_utr_doubles'] ?? null;
+                                $leagueAvgUsta = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 1)->first()['avg_usta_dynamic'] ?? null;
+                                $teamUtr = $teamCourtStats['doubles_1']['avg_utr'];
+                                $teamUsta = $teamCourtStats['doubles_1']['avg_usta'];
+                                $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                                $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
+                            @endphp
+                            <div class="text-gray-700">
+                                <div>UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                    @if($utrDiff !== null)
+                                        <span class="{{ $utrDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                    @endif
+                                </div>
+                                <div>USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                    @if($ustaDiff !== null)
+                                        <span class="{{ $ustaDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @else
+                            <span class="text-gray-400">-</span>
+                        @endif
+                    </div>
+
+                    <!-- Doubles #2 -->
+                    <div class="bg-gray-50 rounded p-2">
+                        <div class="font-semibold text-gray-600 mb-1">Doubles #2</div>
+                        @if(isset($teamCourtStats['doubles_2']) && ($teamCourtStats['doubles_2']['avg_usta'] || $teamCourtStats['doubles_2']['avg_utr']))
+                            @php
+                                $leagueAvgUtr = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 2)->first()['avg_utr_doubles'] ?? null;
+                                $leagueAvgUsta = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 2)->first()['avg_usta_dynamic'] ?? null;
+                                $teamUtr = $teamCourtStats['doubles_2']['avg_utr'];
+                                $teamUsta = $teamCourtStats['doubles_2']['avg_usta'];
+                                $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                                $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
+                            @endphp
+                            <div class="text-gray-700">
+                                <div>UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                    @if($utrDiff !== null)
+                                        <span class="{{ $utrDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                    @endif
+                                </div>
+                                <div>USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                    @if($ustaDiff !== null)
+                                        <span class="{{ $ustaDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @else
+                            <span class="text-gray-400">-</span>
+                        @endif
+                    </div>
+
+                    <!-- Doubles #3 -->
+                    <div class="bg-gray-50 rounded p-2">
+                        <div class="font-semibold text-gray-600 mb-1">Doubles #3</div>
+                        @if(isset($teamCourtStats['doubles_3']) && ($teamCourtStats['doubles_3']['avg_usta'] || $teamCourtStats['doubles_3']['avg_utr']))
+                            @php
+                                $leagueAvgUtr = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 3)->first()['avg_utr_doubles'] ?? null;
+                                $leagueAvgUsta = collect($courtStats)->where('court_type', 'doubles')->where('court_number', 3)->first()['avg_usta_dynamic'] ?? null;
+                                $teamUtr = $teamCourtStats['doubles_3']['avg_utr'];
+                                $teamUsta = $teamCourtStats['doubles_3']['avg_usta'];
+                                $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                                $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
+                            @endphp
+                            <div class="text-gray-700">
+                                <div>UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                    @if($utrDiff !== null)
+                                        <span class="{{ $utrDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                    @endif
+                                </div>
+                                <div>USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                    @if($ustaDiff !== null)
+                                        <span class="{{ $ustaDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                    @endif
+                                </div>
+                            </div>
+                        @else
+                            <span class="text-gray-400">-</span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @empty
+            <div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+                No teams in this league yet. Click "Add Teams" to get started.
+            </div>
+        @endforelse
+    </div>
+
+    <!-- Info box - Desktop only -->
+    <div class="hidden md:block bg-white rounded-lg shadow mb-6">
         <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mt-8 mx-4 mb-4">
             <p class="text-sm text-gray-700">
                 <span class="font-semibold">Team Comparison:</span> Each team's average rating by court position is shown, with differences from the league average in parentheses.
@@ -517,7 +745,7 @@
 
         <!-- Singles Lineup Comparison -->
         @if($leagueLineupData && count($leagueLineupData) > 0)
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+            <div class="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden mb-6">
                 <div class="bg-gray-50 border-b border-gray-200 px-6 py-3 flex justify-between items-center">
                     <h2 class="text-lg font-semibold text-gray-800">Singles Lineup vs League</h2>
                     <div class="flex items-center space-x-4">
@@ -546,7 +774,7 @@
 
         <!-- Doubles Lineup Comparison -->
         @if($leagueDoublesLineupData && count($leagueDoublesLineupData) > 0)
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+            <div class="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden mb-6">
                 <div class="bg-gray-50 border-b border-gray-200 px-3 sm:px-6 py-3">
                     <h2 class="text-base sm:text-lg font-semibold text-gray-800 mb-2 sm:mb-0">Doubles Lineup vs League (Top 8)</h2>
                     <div class="flex flex-wrap items-center gap-2 sm:gap-4">
@@ -689,7 +917,77 @@
             </div>
         </div>
 
-        <div class="bg-white rounded-lg shadow">
+        <!-- Mobile Filter UI -->
+        <div class="md:hidden mb-4 space-y-3 px-2">
+            <!-- Team Filter Dropdown for Mobile -->
+            <div class="flex items-center gap-2 text-sm">
+                <span class="text-gray-600 font-medium">Team:</span>
+                <div class="relative inline-block flex-1">
+                    <button
+                        id="teamFilterButtonMobile"
+                        type="button"
+                        class="w-full border rounded px-3 py-2 bg-white hover:bg-gray-50 flex items-center justify-between cursor-pointer"
+                    >
+                        <span id="teamFilterLabelMobile">All Teams</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Search -->
+            <div class="flex items-center gap-2 text-sm">
+                <span class="text-gray-600 font-medium">Search:</span>
+                <input
+                    id="playerSearchMobile"
+                    type="text"
+                    placeholder="Search by name…"
+                    class="flex-1 border rounded px-3 py-2 text-sm"
+                    value="{{ request('search', '') }}"
+                />
+            </div>
+
+            <!-- Filter Icons -->
+            <div class="flex items-center gap-3 text-sm">
+                <span class="text-gray-600 font-medium">Filters:</span>
+                @if(!$league->is_combo)
+                    <button id="filterPromotedMobile" class="cursor-pointer text-2xl {{ request('promoted') ? '' : 'grayscale opacity-50' }}" title="Filter promoted players">🏅</button>
+                    <button id="filterPlayingUpMobile" class="cursor-pointer text-2xl {{ request('playing_up') ? '' : 'grayscale opacity-50' }}" title="Filter players playing up">⚔️</button>
+                @endif
+                <button id="filterSinglesReliableMobile" class="cursor-pointer text-xl font-bold {{ request('singles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified singles ratings">S✓</button>
+                <button id="filterDoublesReliableMobile" class="cursor-pointer text-xl font-bold {{ request('doubles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified doubles ratings">D✓</button>
+            </div>
+
+            <!-- Sort Controls -->
+            <div class="flex items-center gap-2 text-sm">
+                <span class="text-gray-600 font-medium">Sort:</span>
+                <select id="mobileSortField" class="flex-1 border rounded px-2 py-2 text-sm">
+                    <option value="first_name" {{ $sortField === 'first_name' ? 'selected' : '' }}>Name</option>
+                    <option value="team_name" {{ $sortField === 'team_name' ? 'selected' : '' }}>Team</option>
+                    <option value="utr_singles_rating" {{ $sortField === 'utr_singles_rating' ? 'selected' : '' }}>UTR Singles</option>
+                    <option value="utr_doubles_rating" {{ $sortField === 'utr_doubles_rating' ? 'selected' : '' }}>UTR Doubles</option>
+                    <option value="USTA_dynamic_rating" {{ $sortField === 'USTA_dynamic_rating' ? 'selected' : '' }}>USTA Rating</option>
+                </select>
+                <button id="mobileSortDirection" class="border rounded px-3 py-2 text-sm bg-gray-100" data-direction="{{ $sortDirection }}">
+                    {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                </button>
+            </div>
+
+            <!-- Clear Filters Button -->
+            <div>
+                <button
+                    id="clearFiltersMobile"
+                    type="button"
+                    class="invisible w-full bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-3 rounded cursor-pointer text-sm"
+                >
+                    ✖ Clear All Filters
+                </button>
+            </div>
+        </div>
+
+        <!-- Desktop Table View -->
+        <div class="hidden md:block bg-white rounded-lg shadow">
             <table id="playersTable" class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
@@ -905,6 +1203,98 @@
                 </tbody>
             </table>
         </div>
+
+        <!-- Mobile Card View -->
+        <div id="playerCards" class="md:hidden space-y-4 px-2">
+            @php
+                $rank = 1;
+            @endphp
+            @foreach ($sortDirection === 'asc' ? $players->sortBy($sortField) : $players->sortByDesc($sortField) as $player)
+                @php
+                    $isPromoted = $league->NTRP_rating && $player->USTA_rating && $player->USTA_rating > $league->NTRP_rating;
+                    $isPlayingUp = $league->NTRP_rating && $player->USTA_rating && $player->USTA_rating < $league->NTRP_rating;
+                @endphp
+                <div class="bg-white rounded-lg shadow p-4" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name . ' ' . $player->team_name) }}" data-team-id="{{ $player->team_id }}" data-has-utr="{{ $player->utr_id ? '1' : '0' }}" data-has-tr="{{ $player->tennis_record_link ? '1' : '0' }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}" data-promoted="{{ $isPromoted ? '1' : '0' }}" data-playing-up="{{ $isPlayingUp ? '1' : '0' }}">
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-sm font-semibold text-gray-500">#{{ $rank++ }}</span>
+                                <a href="{{ route('players.show', $player->id) }}" class="text-lg font-semibold text-blue-600 hover:underline">
+                                    {{ $player->first_name }} {{ $player->last_name }}
+                                </a>
+                                @if(!$league->is_combo)
+                                    @if($isPromoted)
+                                        <span class="text-yellow-500" title="Promoted to {{ number_format($player->USTA_rating, 1) }}">🏅</span>
+                                    @endif
+                                    @if($isPlayingUp)
+                                        <span title="Playing up from {{ number_format($player->USTA_rating, 1) }}">⚔️</span>
+                                    @endif
+                                @endif
+                            </div>
+                            <a href="{{ route('teams.show', $player->team_id) }}" class="text-sm text-blue-600 hover:underline">
+                                {{ $player->team_name }}
+                            </a>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            @if($player->utr_id || $player->tennis_record_link)
+                                <button onclick="openPlayerLinksModal({{ $player->id }}, '{{ $player->first_name }} {{ $player->last_name }}', '{{ $player->utr_id }}', '{{ $player->tennis_record_link }}')" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded">
+                                    🔗 Links
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <span class="font-semibold text-gray-600">UTR Singles:</span>
+                            <span class="text-gray-700 ml-1">
+                                @if($player->utr_singles_rating)
+                                    {{ number_format($player->utr_singles_rating, 2) }}
+                                    @if($player->utr_singles_reliable)
+                                        <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                    @endif
+                                @else
+                                    -
+                                @endif
+                            </span>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-gray-600">UTR Doubles:</span>
+                            <span class="text-gray-700 ml-1">
+                                @if($player->utr_doubles_rating)
+                                    {{ number_format($player->utr_doubles_rating, 2) }}
+                                    @if($player->utr_doubles_reliable)
+                                        <span class="text-green-600 font-bold" title="100% Reliable">✓</span>
+                                    @endif
+                                @else
+                                    -
+                                @endif
+                            </span>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-gray-600">USTA Rating:</span>
+                            <span class="text-gray-700 ml-1">
+                                @if($player->USTA_dynamic_rating)
+                                    @php
+                                        $ratingClass = '';
+                                        if (!$league->is_combo && $league->NTRP_rating) {
+                                            if ($player->USTA_dynamic_rating >= $league->NTRP_rating) {
+                                                $ratingClass = 'text-green-600 font-semibold';
+                                            } elseif ($league->NTRP_rating > 3.0 && $player->USTA_dynamic_rating <= $league->NTRP_rating - 0.5) {
+                                                $ratingClass = 'text-amber-600 font-semibold';
+                                            }
+                                        }
+                                    @endphp
+                                    <span class="{{ $ratingClass }}">{{ $player->USTA_dynamic_rating }}</span>
+                                @else
+                                    -
+                                @endif
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
     @endif
 
     <!-- Sync Team Matches Button -->
@@ -932,9 +1322,72 @@
 
     <!-- Matches Table -->
     <div class="mt-8">
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">League Matches</h2>
+        <h2 class="text-2xl font-bold text-gray-800 mb-4 px-2 md:px-0">League Matches</h2>
         @if($matches->count() > 0)
-            <div class="bg-white rounded-lg shadow overflow-hidden">
+            <!-- Mobile Match Cards -->
+            <div class="md:hidden space-y-4 px-2 mb-6">
+                @foreach($matches as $index => $match)
+                    @php
+                        $isUnplayed = ($match->home_score === null || $match->away_score === null) ||
+                                      ($match->home_score === 0 && $match->away_score === 0);
+                    @endphp
+                    <div class="bg-white rounded-lg shadow p-4 {{ $isUnplayed ? 'opacity-75' : '' }}">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <div class="text-xs text-gray-500 font-semibold mb-1">Match #{{ $index + 1 }}</div>
+                                <div class="text-sm {{ $isUnplayed ? 'text-gray-500' : 'text-gray-700' }}">
+                                    @if($match->start_time)
+                                        {{ $match->start_time->format('M d, Y') }}
+                                        <span class="text-xs {{ $isUnplayed ? 'text-gray-400' : 'text-gray-500' }}">{{ $match->start_time->format('g:i A') }}</span>
+                                    @else
+                                        <span class="text-gray-400">TBD</span>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                @if($match->home_score !== null && $match->away_score !== null)
+                                    <a href="{{ route('tennis-matches.show', $match->id) }}" class="font-bold text-lg">
+                                        @if($isUnplayed)
+                                            <span class="text-gray-400">{{ $match->home_score }} - {{ $match->away_score }}</span>
+                                        @else
+                                            <span class="{{ $match->home_score > $match->away_score ? 'text-green-600' : 'text-gray-900' }}">{{ $match->home_score }}</span>
+                                            <span class="text-gray-900"> - </span>
+                                            <span class="{{ $match->away_score > $match->home_score ? 'text-green-600' : 'text-gray-900' }}">{{ $match->away_score }}</span>
+                                        @endif
+                                    </a>
+                                @else
+                                    <span class="text-gray-400 text-sm">No score</span>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-gray-500 font-medium">Home:</span>
+                                <a href="{{ route('teams.show', $match->homeTeam->id) }}" class="{{ $isUnplayed ? 'text-gray-500 hover:text-gray-700' : 'text-blue-600 hover:text-blue-800' }} font-medium text-sm">
+                                    {{ $match->homeTeam->name }}
+                                </a>
+                            </div>
+                            <div class="flex items-center justify-between">
+                                <span class="text-xs text-gray-500 font-medium">Away:</span>
+                                <a href="{{ route('teams.show', $match->awayTeam->id) }}" class="{{ $isUnplayed ? 'text-gray-500 hover:text-gray-700' : 'text-blue-600 hover:text-blue-800' }} font-medium text-sm">
+                                    {{ $match->awayTeam->name }}
+                                </a>
+                            </div>
+                            @if($match->tennis_record_match_link)
+                                <div class="pt-2 border-t border-gray-200">
+                                    <a href="{{ $match->tennis_record_match_link }}" target="_blank" rel="noopener noreferrer" class="text-2xl hover:opacity-70 transition-opacity block text-center" title="View on Tennis Record">
+                                        🎾
+                                    </a>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            <!-- Desktop Table View -->
+            <div class="hidden md:block bg-white rounded-lg shadow overflow-hidden">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -1161,13 +1614,16 @@
     // Player search and filter functionality
     (function () {
         const input = document.getElementById('playerSearch');
+        const inputMobile = document.getElementById('playerSearchMobile');
         const teamCheckboxes = Array.from(document.querySelectorAll('.team-filter-checkbox'));
         const clearFiltersBtn = document.getElementById('clearFilters');
+        const clearFiltersBtnMobile = document.getElementById('clearFiltersMobile');
         const rows = Array.from(document.querySelectorAll('tbody tr[data-name]'));
+        const cards = Array.from(document.querySelectorAll('#playerCards > div[data-name]'));
         let t;
 
         window.applyFilters = function() {
-            const searchTerm = input.value.trim().toLowerCase();
+            const searchTerm = (input ? input.value.trim().toLowerCase() : '') || (inputMobile ? inputMobile.value.trim().toLowerCase() : '');
             const selectedTeams = teamCheckboxes.filter(cb => cb.checked).map(cb => cb.value);
 
             // Get filter states from URL
@@ -1188,6 +1644,7 @@
             const totalPlayersWithUtr = rows.filter(row => row.getAttribute('data-has-utr') === '1').length;
             const totalPlayersWithTR = rows.filter(row => row.getAttribute('data-has-tr') === '1').length;
 
+            // Filter table rows
             rows.forEach(row => {
                 const name = row.getAttribute('data-name') || '';
                 const teamId = row.getAttribute('data-team-id') || '';
@@ -1218,6 +1675,35 @@
                     if (hasUtr) visiblePlayersWithUtr++;
                     if (hasTR) visiblePlayersWithTR++;
                     if (teamId) visibleTeamIds.add(teamId);
+                }
+            });
+
+            // Filter mobile cards (reset rank counter)
+            visibleRank = 1;
+            cards.forEach(card => {
+                const name = card.getAttribute('data-name') || '';
+                const teamId = card.getAttribute('data-team-id') || '';
+                const singlesReliable = card.getAttribute('data-singles-reliable') === '1';
+                const doublesReliable = card.getAttribute('data-doubles-reliable') === '1';
+                const isPromoted = card.getAttribute('data-promoted') === '1';
+                const isPlayingUp = card.getAttribute('data-playing-up') === '1';
+
+                const matchesSearch = !searchTerm || name.includes(searchTerm);
+                const matchesTeam = selectedTeams.length === 0 || selectedTeams.length === teamCheckboxes.length || selectedTeams.includes(teamId);
+                const matchesSinglesVerified = !singlesVerified || singlesReliable;
+                const matchesDoublesVerified = !doublesVerified || doublesReliable;
+                const matchesPromoted = !promoted || isPromoted;
+                const matchesPlayingUp = !playingUp || isPlayingUp;
+
+                const show = matchesSearch && matchesTeam && matchesSinglesVerified && matchesDoublesVerified && matchesPromoted && matchesPlayingUp;
+                card.style.display = show ? '' : 'none';
+
+                // Update rank in mobile cards
+                if (show) {
+                    const rankSpan = card.querySelector('.text-sm.font-semibold.text-gray-500');
+                    if (rankSpan) {
+                        rankSpan.textContent = '#' + visibleRank++;
+                    }
                 }
             });
 
@@ -1260,9 +1746,15 @@
             // Show clear all filters button when there's any active filter
             const hasSearch = searchTerm.length > 0;
             const hasTeamFilter = selectedTeams.length > 0 && selectedTeams.length < teamCheckboxes.length;
-            const hasAnyFilter = hasSearch || hasTeamFilter || singlesVerified || doublesVerified || promoted;
-            clearFiltersBtn.classList.toggle('invisible', !hasAnyFilter);
-            clearFiltersBtn.style.pointerEvents = hasAnyFilter ? 'auto' : 'none';
+            const hasAnyFilter = hasSearch || hasTeamFilter || singlesVerified || doublesVerified || promoted || playingUp;
+            if (clearFiltersBtn) {
+                clearFiltersBtn.classList.toggle('invisible', !hasAnyFilter);
+                clearFiltersBtn.style.pointerEvents = hasAnyFilter ? 'auto' : 'none';
+            }
+            if (clearFiltersBtnMobile) {
+                clearFiltersBtnMobile.classList.toggle('invisible', !hasAnyFilter);
+                clearFiltersBtnMobile.style.pointerEvents = hasAnyFilter ? 'auto' : 'none';
+            }
         }
 
         function debouncedFilter() {
@@ -1286,7 +1778,12 @@
             applyFilters();
         }
 
-        input.addEventListener('input', debouncedFilter);
+        if (input) {
+            input.addEventListener('input', debouncedFilter);
+        }
+        if (inputMobile) {
+            inputMobile.addEventListener('input', debouncedFilter);
+        }
 
         clearFiltersBtn.addEventListener('click', () => {
             input.value = '';
@@ -2467,5 +2964,195 @@
         // Re-render on window resize
         window.addEventListener('resize', renderLeagueDoublesLineupChart);
     @endif
+
+    // Mobile filter functionality
+    (function () {
+        const inputMobile = document.getElementById('playerSearchMobile');
+        const inputDesktop = document.getElementById('playerSearch');
+        const mobileSortField = document.getElementById('mobileSortField');
+        const mobileSortDirection = document.getElementById('mobileSortDirection');
+        const filterPromotedMobile = document.getElementById('filterPromotedMobile');
+        const filterPlayingUpMobile = document.getElementById('filterPlayingUpMobile');
+        const filterSinglesReliableMobile = document.getElementById('filterSinglesReliableMobile');
+        const filterDoublesReliableMobile = document.getElementById('filterDoublesReliableMobile');
+        const teamFilterButtonMobile = document.getElementById('teamFilterButtonMobile');
+        const teamFilterDropdown = document.getElementById('teamFilterDropdown');
+        const clearFiltersMobile = document.getElementById('clearFiltersMobile');
+
+        // Sync mobile and desktop search inputs
+        if (inputMobile && inputDesktop) {
+            inputMobile.addEventListener('input', function() {
+                inputDesktop.value = this.value;
+                if (window.applyFilters) window.applyFilters();
+            });
+        }
+
+        // Mobile team filter dropdown
+        if (teamFilterButtonMobile && teamFilterDropdown) {
+            teamFilterButtonMobile.addEventListener('click', (e) => {
+                e.stopPropagation();
+                teamFilterDropdown.classList.toggle('hidden');
+            });
+        }
+
+        // Mobile sort controls
+        if (mobileSortField) {
+            mobileSortField.addEventListener('change', function() {
+                const url = new URL(window.location);
+                url.searchParams.set('sort', this.value);
+                window.location = url;
+            });
+        }
+
+        if (mobileSortDirection) {
+            mobileSortDirection.addEventListener('click', function() {
+                const currentDirection = this.getAttribute('data-direction');
+                const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+                const url = new URL(window.location);
+                url.searchParams.set('direction', newDirection);
+                window.location = url;
+            });
+        }
+
+        // Mobile filter buttons
+        if (filterPromotedMobile) {
+            filterPromotedMobile.addEventListener('click', function() {
+                const url = new URL(window.location);
+                const currentValue = url.searchParams.get('promoted');
+                if (currentValue === '1') {
+                    url.searchParams.delete('promoted');
+                } else {
+                    url.searchParams.set('promoted', '1');
+                }
+                window.location = url;
+            });
+        }
+
+        if (filterPlayingUpMobile) {
+            filterPlayingUpMobile.addEventListener('click', function() {
+                const url = new URL(window.location);
+                const currentValue = url.searchParams.get('playing_up');
+                if (currentValue === '1') {
+                    url.searchParams.delete('playing_up');
+                } else {
+                    url.searchParams.set('playing_up', '1');
+                }
+                window.location = url;
+            });
+        }
+
+        if (filterSinglesReliableMobile) {
+            filterSinglesReliableMobile.addEventListener('click', function() {
+                const url = new URL(window.location);
+                const currentValue = url.searchParams.get('singles_verified');
+                if (currentValue === '1') {
+                    url.searchParams.delete('singles_verified');
+                } else {
+                    url.searchParams.set('singles_verified', '1');
+                }
+                window.location = url;
+            });
+        }
+
+        if (filterDoublesReliableMobile) {
+            filterDoublesReliableMobile.addEventListener('click', function() {
+                const url = new URL(window.location);
+                const currentValue = url.searchParams.get('doubles_verified');
+                if (currentValue === '1') {
+                    url.searchParams.delete('doubles_verified');
+                } else {
+                    url.searchParams.set('doubles_verified', '1');
+                }
+                window.location = url;
+            });
+        }
+
+        // Mobile clear filters
+        if (clearFiltersMobile) {
+            clearFiltersMobile.addEventListener('click', function() {
+                if (inputMobile) inputMobile.value = '';
+                if (inputDesktop) inputDesktop.value = '';
+                const teamCheckboxes = document.querySelectorAll('.team-filter-checkbox');
+                teamCheckboxes.forEach(cb => cb.checked = false);
+
+                const url = new URL(window.location);
+                url.searchParams.delete('search');
+                url.searchParams.delete('teams');
+                url.searchParams.delete('singles_verified');
+                url.searchParams.delete('doubles_verified');
+                url.searchParams.delete('promoted');
+                url.searchParams.delete('playing_up');
+                window.location = url;
+            });
+        }
+    })();
+
+    // Player Links Modal
+    window.openPlayerLinksModal = function(playerId, playerName, utrId, tennisRecordLink) {
+        const modal = document.getElementById('playerLinksModal');
+        if (!modal) return;
+
+        document.getElementById('playerLinksModalTitle').textContent = playerName;
+        document.getElementById('playerLinksModalContent').innerHTML = `
+            <div class="space-y-3">
+                <a href="/players/${playerId}" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+                    <span class="font-medium text-gray-700">👤 Player Profile</span>
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+                ${utrId ? `
+                <a href="https://app.utrsports.net/profiles/${utrId}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+                    <span class="font-medium text-gray-700">🎯 UTR Profile</span>
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                </a>
+                ` : ''}
+                ${tennisRecordLink ? `
+                <a href="${tennisRecordLink}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+                    <span class="font-medium text-gray-700">🎾 Tennis Record</span>
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                </a>
+                ` : ''}
+            </div>
+        `;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    };
+
+    window.closePlayerLinksModal = function() {
+        const modal = document.getElementById('playerLinksModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    };
+
+    // Close modal when clicking outside
+    document.addEventListener('click', function(e) {
+        const modal = document.getElementById('playerLinksModal');
+        if (modal && e.target === modal) {
+            closePlayerLinksModal();
+        }
+    });
 </script>
+
+<!-- Player Links Modal -->
+<div id="playerLinksModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="playerLinksModalTitle" class="text-lg font-medium text-gray-900"></h3>
+            <button onclick="closePlayerLinksModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="sr-only">Close</span>
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div id="playerLinksModalContent"></div>
+    </div>
+</div>
 @endsection
