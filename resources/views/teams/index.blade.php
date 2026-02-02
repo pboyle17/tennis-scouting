@@ -39,7 +39,41 @@
         </div>
     </div>
 
-    <div class="overflow-x-auto bg-white rounded-lg shadow">
+    <!-- Mobile Card View -->
+    <div class="md:hidden space-y-4">
+        @foreach ($teams as $team)
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="mb-3">
+                    <a href="{{ route('teams.show', $team->id) }}" class="text-lg font-semibold text-blue-600 hover:underline">
+                        {{ $team->name }}
+                    </a>
+                    <span class="text-sm text-gray-500 ml-2">({{ $team->players->count() }} players)</span>
+                </div>
+
+                <div class="flex items-center space-x-4 mb-3">
+                    @if($team->usta_link)
+                        <a href="{{ $team->usta_link }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
+                            <img src="{{ asset('images/usta_logo.png') }}" alt="USTA Link" class="h-10 w-15">
+                        </a>
+                    @endif
+                    @if($team->tennis_record_link)
+                        <a href="{{ $team->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="text-2xl">
+                            🎾
+                        </a>
+                    @endif
+                </div>
+
+                <div class="pt-3 border-t border-gray-200">
+                    <a href="{{ route('teams.edit', $team->id) }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">
+                        Edit
+                    </a>
+                </div>
+            </div>
+        @endforeach
+    </div>
+
+    <!-- Desktop Table View -->
+    <div class="hidden md:block overflow-x-auto bg-white rounded-lg shadow">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
