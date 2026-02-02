@@ -21,7 +21,80 @@
         </div>
     @endenv
 
-    <div class="overflow-x-auto bg-white rounded-lg shadow">
+    <!-- Mobile Card View -->
+    <div class="md:hidden space-y-4">
+        @foreach ($leagues as $league)
+            <div class="bg-white rounded-lg shadow p-4">
+                <div class="mb-3">
+                    <a href="{{ route('leagues.show', $league->id) }}" class="text-lg font-semibold text-blue-600 hover:underline">
+                        {{ $league->name }}
+                    </a>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                        <span class="font-semibold text-gray-600">S1 UTR:</span>
+                        <span class="text-gray-700 ml-1">
+                            @if($league->courtAverages['s1'] && $league->courtAverages['s1']['utr'])
+                                {{ number_format($league->courtAverages['s1']['utr'], 2) }}
+                            @else
+                                -
+                            @endif
+                        </span>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-600">S2 UTR:</span>
+                        <span class="text-gray-700 ml-1">
+                            @if($league->courtAverages['s2'] && $league->courtAverages['s2']['utr'])
+                                {{ number_format($league->courtAverages['s2']['utr'], 2) }}
+                            @else
+                                -
+                            @endif
+                        </span>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-600">D1 UTR:</span>
+                        <span class="text-gray-700 ml-1">
+                            @if($league->courtAverages['d1'] && $league->courtAverages['d1']['utr'])
+                                {{ number_format($league->courtAverages['d1']['utr'], 2) }}
+                            @else
+                                -
+                            @endif
+                        </span>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-600">D2 UTR:</span>
+                        <span class="text-gray-700 ml-1">
+                            @if($league->courtAverages['d2'] && $league->courtAverages['d2']['utr'])
+                                {{ number_format($league->courtAverages['d2']['utr'], 2) }}
+                            @else
+                                -
+                            @endif
+                        </span>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-600">D3 UTR:</span>
+                        <span class="text-gray-700 ml-1">
+                            @if($league->courtAverages['d3'] && $league->courtAverages['d3']['utr'])
+                                {{ number_format($league->courtAverages['d3']['utr'], 2) }}
+                            @else
+                                -
+                            @endif
+                        </span>
+                    </div>
+                </div>
+
+                @env('local')
+                    <div class="mt-3 pt-3 border-t border-gray-200">
+                        <a href="{{ route('leagues.edit', $league->id) }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</a>
+                    </div>
+                @endenv
+            </div>
+        @endforeach
+    </div>
+
+    <!-- Desktop Table View -->
+    <div class="hidden md:block overflow-x-auto bg-white rounded-lg shadow">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>

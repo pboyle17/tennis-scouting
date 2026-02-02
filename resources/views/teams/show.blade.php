@@ -3,10 +3,16 @@
 @section('title', 'Team Players - ' . $team->name)
 
 @section('content')
-<div class="container mx-auto p-6">
-    <div class="flex items-center justify-between mb-6">
-        <h1 class="text-3xl font-bold text-center text-gray-800">{{ $team->name }} - Players</h1>
-        <div class="flex space-x-2">
+<div class="container mx-auto px-4 py-6 md:p-6">
+    <div class="mb-6">
+        <div class="flex items-center justify-between mb-2">
+            <h1 class="text-3xl md:text-3xl font-bold text-gray-800">
+                <a href="{{ route('teams.show', $team->id) }}" class="hover:text-blue-600 transition-colors cursor-pointer">
+                    {{ $team->name }}
+                </a>
+                <span class="hidden md:inline text-gray-600"> - Players</span>
+            </h1>
+            <div class="flex space-x-2">
             <form method="POST" action="{{ route('teams.destroy', $team->id) }}" onsubmit="return confirm('Are you sure you want to delete this team? This will not delete the players, only remove them from this team.');">
                 @csrf
                 @method('DELETE')
@@ -18,6 +24,17 @@
                 ← Back to Teams
             </a>
         </div>
+        </div>
+
+        <!-- League Pill -->
+        @if($team->league)
+            <div>
+                <span class="text-sm font-semibold text-gray-600">League:</span>
+                <a href="{{ route('leagues.show', $team->league->id) }}" class="inline-block bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full ml-2 hover:bg-blue-200 transition">
+                    {{ $team->league->name }}
+                </a>
+            </div>
+        @endif
     </div>
 
     @include('partials.tabs')
@@ -119,19 +136,12 @@
         </div>
     @endif
 
-    @if($team->league)
-        <div class="max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
-            <h3 class="text-lg font-semibold mb-3">Leagues</h3>
-            <a href="{{ route('leagues.show', $team->league->id) }}" class="block p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
-                <div class="font-medium text-gray-800">{{ $team->league->name }}</div>
-            </a>
-        </div>
-    @endif
 
     @if(!empty($courtStats))
         <div class="max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
             <h3 class="text-lg font-semibold mb-4">Court Position Averages</h3>
-            <p class="text-sm text-gray-500 mb-3">Click on any row to see player details</p>
+            <p class="text-sm text-gray-500 mb-3 hidden md:block">Click on any row to see player details</p>
+            <p class="text-sm text-gray-500 mb-3 md:hidden">Tap on a card to see player details</p>
             @if($leagueCourtStats)
                 <div class="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4">
                     <p class="text-sm text-gray-700">
@@ -141,7 +151,108 @@
                     </p>
                 </div>
             @endif
-            <div class="overflow-x-auto">
+
+            <!-- Mobile Card View -->
+            <div class="md:hidden space-y-3">
+                @foreach($courtStats as $index => $stat)
+                    @php
+                        // Get league average for this court position
+                        $leagueAvgUtr = null;
+                        $leagueAvgUsta = null;
+                        if ($leagueCourtStats) {
+                            $leagueStat = collect($leagueCourtStats)
+                                ->where('court_type', $stat['court_type'])
+                                ->where('court_number', $stat['court_number'])
+                                ->first();
+                            if ($leagueStat) {
+                                $leagueAvgUtr = $stat['court_type'] === 'singles' ? $leagueStat['avg_utr_singles'] : $leagueStat['avg_utr_doubles'];
+                                $leagueAvgUsta = $leagueStat['avg_usta_dynamic'];
+                            }
+                        }
+
+                        $teamUtr = $stat['court_type'] === 'singles' ? $stat['avg_utr_singles'] : $stat['avg_utr_doubles'];
+                        $teamUsta = $stat['avg_usta_dynamic'];
+                        $utrDiff = $teamUtr && $leagueAvgUtr ? $teamUtr - $leagueAvgUtr : null;
+                        $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
+                    @endphp
+
+                    <div class="bg-gray-50 rounded-lg border border-gray-200 overflow-hidden court-card-mobile" data-court-index="{{ $index }}">
+                        <div class="p-4 cursor-pointer" onclick="toggleCourtDetailsMobile({{ $index }})">
+                            <div class="flex justify-between items-center mb-3">
+                                <h4 class="font-semibold text-gray-800">
+                                    <span class="inline-block transition-transform duration-200 court-arrow-mobile">▶</span>
+                                    {{ ucfirst($stat['court_type']) }} #{{ $stat['court_number'] }}
+                                </h4>
+                                <span class="text-sm font-semibold {{ ($stat['court_win_percentage'] ?? 0) >= 50 ? 'text-green-600' : 'text-red-600' }}">
+                                    @if($stat['court_win_percentage'] !== null)
+                                        {{ number_format($stat['court_win_percentage'], 1) }}%
+                                    @else
+                                        -
+                                    @endif
+                                </span>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <span class="text-gray-600">Avg UTR:</span>
+                                    <span class="font-medium text-gray-800 ml-1">
+                                        @if($stat['court_type'] === 'singles' && $stat['avg_utr_singles'])
+                                            {{ number_format($stat['avg_utr_singles'], 2) }}
+                                            @if($utrDiff !== null)
+                                                <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }} text-xs">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                            @endif
+                                        @elseif($stat['court_type'] === 'doubles' && $stat['avg_utr_doubles'])
+                                            {{ number_format($stat['avg_utr_doubles'], 2) }}
+                                            @if($utrDiff !== null)
+                                                <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }} text-xs">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
+                                            @endif
+                                        @else
+                                            -
+                                        @endif
+                                    </span>
+                                </div>
+                                <div>
+                                    <span class="text-gray-600">Avg USTA:</span>
+                                    <span class="font-medium text-gray-800 ml-1">
+                                        @if($stat['avg_usta_dynamic'])
+                                            {{ number_format($stat['avg_usta_dynamic'], 2) }}
+                                            @if($ustaDiff !== null)
+                                                <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }} text-xs">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
+                                            @endif
+                                        @else
+                                            -
+                                        @endif
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="court-details-mobile hidden px-4 pb-4 bg-white border-t border-gray-200" data-court-index="{{ $index }}">
+                            @if(!empty($stat['players']))
+                                <h5 class="text-sm font-semibold text-gray-700 mb-3 mt-3">Player Performance</h5>
+                                <div class="space-y-2">
+                                    @foreach($stat['players'] as $playerStat)
+                                        <div class="bg-gray-50 rounded p-2 text-xs">
+                                            <div class="font-semibold text-gray-800 mb-1">{{ $playerStat['player_name'] ?? 'Unknown' }}</div>
+                                            <div class="grid grid-cols-2 gap-2 text-gray-600">
+                                                <div>Record: <span class="font-medium">{{ $playerStat['wins'] ?? 0 }}-{{ $playerStat['losses'] ?? 0 }}</span></div>
+                                                <div>Win %: <span class="font-medium {{ ($playerStat['win_percentage'] ?? 0) >= 50 ? 'text-green-600' : 'text-red-600' }}">{{ isset($playerStat['win_percentage']) ? number_format($playerStat['win_percentage'], 1) : '0.0' }}%</span></div>
+                                                <div>Avg UTR: <span class="font-medium">{{ isset($playerStat['avg_utr']) && $playerStat['avg_utr'] ? number_format($playerStat['avg_utr'], 2) : '-' }}</span></div>
+                                                <div>Avg USTA: <span class="font-medium">{{ isset($playerStat['avg_usta_dynamic']) && $playerStat['avg_usta_dynamic'] ? number_format($playerStat['avg_usta_dynamic'], 2) : '-' }}</span></div>
+                                            </div>
+                                        </div>
+                                    @endforeach
+                                </div>
+                            @else
+                                <p class="text-sm text-gray-500 italic mt-3">No player data available</p>
+                            @endif
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            <!-- Desktop Table View -->
+            <div class="hidden md:block overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -307,12 +418,13 @@
                     </tbody>
                 </table>
             </div>
+            </div>
         </div>
     @endif
 
     <!-- League Lineup Comparison -->
     @if($leagueLineupData && count($leagueLineupData) > 0)
-        <div class="max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
+        <div class="hidden md:block max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold">Singles Lineup vs League</h3>
                 <div class="flex items-center space-x-4">
@@ -338,7 +450,7 @@
     @endif
 
     @if($leagueDoublesLineupData && count($leagueDoublesLineupData) > 0)
-        <div class="max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
+        <div class="hidden md:block max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
             <div class="flex justify-between items-center mb-4">
                 <h3 class="text-lg font-semibold">Doubles Lineup vs League (Top 8)</h3>
                 <div class="flex items-center space-x-4">
@@ -385,7 +497,7 @@
 
                 <form method="POST" action="{{ route('teams.updateUtr', $team->id) }}" style="display:inline;">
                     @csrf
-                    <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded">
+                    <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
                         🔄 Update All UTRs
                     </button>
                 </form>
@@ -421,7 +533,7 @@
     </div>
 
     <!-- Add Player Section -->
-    @if($availablePlayers->count() > 0)
+    @if($availablePlayers->count() > 0 && app()->environment() !== 'production')
         <div class="mb-6">
             <button type="button" id="toggleAddPlayerBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
                 + Add Players to Team
@@ -485,7 +597,7 @@
     @endif
 
     @if($team->players->count() > 0)
-        <div class="mb-4 flex items-center space-x-2">
+        <div class="mb-4 flex items-center space-x-2 px-2 md:px-0">
             <input
                 id="playerTableSearch"
                 type="text"
@@ -501,7 +613,165 @@
             </button>
         </div>
 
-        <div class="bg-white rounded-lg shadow">
+        <!-- Mobile Filters and Sort -->
+        <div class="md:hidden mb-4 space-y-3 px-2">
+            <!-- Filter Buttons -->
+            <div class="flex items-center gap-3 text-sm">
+                <span class="text-gray-600 font-medium">Filters:</span>
+                @if($team->league && !$team->league->is_combo)
+                    <button id="filterPromotedMobile" class="cursor-pointer text-2xl {{ request('promoted') ? '' : 'grayscale opacity-50' }}" title="Filter promoted players">🏅</button>
+                    <button id="filterPlayingUpMobile" class="cursor-pointer text-2xl {{ request('playing_up') ? '' : 'grayscale opacity-50' }}" title="Filter players playing up">⚔️</button>
+                @endif
+                <button id="filterSinglesReliableMobile" class="cursor-pointer text-xl font-bold {{ request('singles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified singles ratings">S✓</button>
+                <button id="filterDoublesReliableMobile" class="cursor-pointer text-xl font-bold {{ request('doubles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified doubles ratings">D✓</button>
+            </div>
+
+            <!-- Sort Controls -->
+            <div class="flex items-center gap-2 text-sm">
+                <span class="text-gray-600 font-medium">Sort:</span>
+                <select id="mobileSortField" class="border rounded px-2 py-1 text-sm">
+                    <option value="first_name" {{ $sortField === 'first_name' ? 'selected' : '' }}>Name</option>
+                    <option value="utr_singles_rating" {{ $sortField === 'utr_singles_rating' ? 'selected' : '' }}>UTR Singles</option>
+                    <option value="utr_doubles_rating" {{ $sortField === 'utr_doubles_rating' ? 'selected' : '' }}>UTR Doubles</option>
+                    <option value="USTA_dynamic_rating" {{ $sortField === 'USTA_dynamic_rating' ? 'selected' : '' }}>USTA Rating</option>
+                </select>
+                <button id="mobileSortDirection" class="border rounded px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200" data-direction="{{ $sortDirection }}">
+                    {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Card View -->
+        <div id="playerCards" class="md:hidden space-y-4 px-2">
+            @foreach ($sortDirection === 'asc' ? $team->players->sortBy($sortField) : $team->players->sortByDesc($sortField) as $player)
+                @php
+                    $isPromoted = $team->league && $team->league->NTRP_rating && $player->USTA_rating && $player->USTA_rating > $team->league->NTRP_rating;
+                    $isPlayingUp = $team->league && $team->league->NTRP_rating && $player->USTA_rating && $player->USTA_rating < $team->league->NTRP_rating;
+
+                    // Calculate singles record
+                    $singlesWins = 0;
+                    $singlesLosses = 0;
+                    foreach ($player->courtPlayers as $courtPlayer) {
+                        if ($courtPlayer->court->court_type === 'singles') {
+                            $court = $courtPlayer->court;
+                            if ($team->league && $court->tennisMatch->league_id !== $team->league->id) continue;
+                            $isHomeTeam = $court->tennisMatch->home_team_id === $team->id;
+                            if ($isHomeTeam && $court->home_score > $court->away_score) $singlesWins++;
+                            elseif ($isHomeTeam && $court->home_score < $court->away_score) $singlesLosses++;
+                            elseif (!$isHomeTeam && $court->away_score > $court->home_score) $singlesWins++;
+                            elseif (!$isHomeTeam && $court->away_score < $court->home_score) $singlesLosses++;
+                        }
+                    }
+
+                    // Calculate doubles record
+                    $doublesWins = 0;
+                    $doublesLosses = 0;
+                    foreach ($player->courtPlayers as $courtPlayer) {
+                        if ($courtPlayer->court->court_type === 'doubles') {
+                            $court = $courtPlayer->court;
+                            if ($team->league && $court->tennisMatch->league_id !== $team->league->id) continue;
+                            $isHomeTeam = $court->tennisMatch->home_team_id === $team->id;
+                            if ($isHomeTeam && $court->home_score > $court->away_score) $doublesWins++;
+                            elseif ($isHomeTeam && $court->home_score < $court->away_score) $doublesLosses++;
+                            elseif (!$isHomeTeam && $court->away_score > $court->home_score) $doublesWins++;
+                            elseif (!$isHomeTeam && $court->away_score < $court->home_score) $doublesLosses++;
+                        }
+                    }
+
+                    $ratingClass = '';
+                    if ($team->league && $team->league->NTRP_rating && $player->USTA_dynamic_rating) {
+                        if ($player->USTA_dynamic_rating >= $team->league->NTRP_rating) {
+                            $ratingClass = 'text-green-600 font-semibold';
+                        } elseif ($team->league->NTRP_rating > 3.0 && $player->USTA_dynamic_rating <= $team->league->NTRP_rating - 0.5) {
+                            $ratingClass = 'text-amber-600 font-semibold';
+                        }
+                    }
+                @endphp
+
+                <div class="bg-white rounded-lg shadow p-4" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}" data-promoted="{{ $isPromoted ? '1' : '0' }}" data-playing-up="{{ $isPlayingUp ? '1' : '0' }}">
+                    <div class="flex justify-between items-start mb-3">
+                        <div>
+                            <a href="{{ route('players.show', $player->id) }}" class="text-lg font-semibold text-blue-600 hover:underline">
+                                {{ $player->first_name }} {{ $player->last_name }}
+                            </a>
+                            @if($team->league && !$team->league->is_combo)
+                                @if($isPromoted)
+                                    <span class="text-yellow-500 ml-1" title="Promoted to {{ number_format($player->USTA_rating, 1) }}">🏅</span>
+                                @endif
+                                @if($isPlayingUp)
+                                    <span class="ml-1" title="Playing up from {{ number_format($player->USTA_rating, 1) }}">⚔️</span>
+                                @endif
+                            @endif
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            @if($player->utr_id || $player->tennis_record_link)
+                                <button onclick="openPlayerLinksModal('{{ $player->id }}', '{{ $player->first_name }} {{ $player->last_name }}', '{{ $player->utr_id }}', '{{ $player->tennis_record_link }}')" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded">
+                                    🔗 Links
+                                </button>
+                            @endif
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <span class="font-semibold text-gray-600">UTR Singles:</span>
+                            <span class="text-gray-700 ml-1">
+                                @if($player->utr_singles_rating)
+                                    {{ number_format($player->utr_singles_rating, 2) }}
+                                    @if($player->utr_singles_reliable)
+                                        <span class="text-green-600 font-bold">✓</span>
+                                    @endif
+                                @else
+                                    -
+                                @endif
+                            </span>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-gray-600">UTR Doubles:</span>
+                            <span class="text-gray-700 ml-1">
+                                @if($player->utr_doubles_rating)
+                                    {{ number_format($player->utr_doubles_rating, 2) }}
+                                    @if($player->utr_doubles_reliable)
+                                        <span class="text-green-600 font-bold">✓</span>
+                                    @endif
+                                @else
+                                    -
+                                @endif
+                            </span>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-gray-600">USTA Rating:</span>
+                            <span class="text-gray-700 ml-1 {{ $ratingClass }}">
+                                {{ $player->USTA_dynamic_rating ?? '-' }}
+                            </span>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-gray-600">Singles:</span>
+                            <span class="text-gray-700 ml-1">
+                                @if($singlesWins > 0 || $singlesLosses > 0)
+                                    {{ $singlesWins }}-{{ $singlesLosses }}
+                                @else
+                                    -
+                                @endif
+                            </span>
+                        </div>
+                        <div class="col-span-2">
+                            <span class="font-semibold text-gray-600">Doubles:</span>
+                            <span class="text-gray-700 ml-1">
+                                @if($doublesWins > 0 || $doublesLosses > 0)
+                                    {{ $doublesWins }}-{{ $doublesLosses }}
+                                @else
+                                    -
+                                @endif
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+
+        <!-- Desktop Table View -->
+        <div class="hidden md:block bg-white rounded-lg shadow">
             <table id="playersTable" class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
@@ -831,7 +1101,7 @@
 
     <!-- Matches Table -->
     <div class="mt-8">
-        <div class="flex justify-between items-center mb-4">
+        <div class="flex justify-between items-center mb-4 px-2 md:px-0">
             <h2 class="text-2xl font-bold text-gray-800">Team Matches</h2>
             <div class="flex space-x-2">
                 @env('local')
@@ -856,7 +1126,81 @@
         </div>
 
         @if($matches->count() > 0)
-            <div class="bg-white rounded-lg shadow">
+            <!-- Mobile Card View -->
+            <div class="md:hidden space-y-4 px-2">
+                @foreach($matches as $index => $match)
+                    @php
+                        $isHomeTeam = $match->home_team_id === $team->id;
+                        $opponent = $isHomeTeam ? $match->awayTeam : $match->homeTeam;
+                        $isUnplayed = ($match->home_score === null || $match->away_score === null) ||
+                                      ($match->home_score === 0 && $match->away_score === 0);
+                        $currentScore = $isHomeTeam ? $match->home_score : $match->away_score;
+                        $opponentScore = $isHomeTeam ? $match->away_score : $match->home_score;
+                    @endphp
+
+                    <div class="bg-white rounded-lg shadow p-4 {{ $isUnplayed ? 'opacity-75' : '' }}">
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <div class="text-xs text-gray-500 font-semibold mb-1">Match #{{ $index + 1 }}</div>
+                                <div class="text-sm {{ $isUnplayed ? 'text-gray-500' : 'text-gray-700' }}">
+                                    @if($match->start_time)
+                                        {{ $match->start_time->format('M d, Y') }}
+                                        <span class="text-xs {{ $isUnplayed ? 'text-gray-400' : 'text-gray-500' }}">{{ $match->start_time->format('g:i A') }}</span>
+                                    @else
+                                        <span class="text-gray-400">TBD</span>
+                                    @endif
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                @if($match->home_score !== null && $match->away_score !== null)
+                                    <a href="{{ route('tennis-matches.show', $match->id) }}" class="font-bold text-lg">
+                                        @if($isUnplayed)
+                                            <span class="text-gray-400">{{ $currentScore }} - {{ $opponentScore }}</span>
+                                        @else
+                                            <span class="{{ $currentScore > $opponentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $currentScore }}</span>
+                                            <span class="text-gray-900"> - </span>
+                                            <span class="{{ $opponentScore > $currentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $opponentScore }}</span>
+                                        @endif
+                                    </a>
+                                @else
+                                    <a href="{{ route('tennis-matches.show', $match->id) }}" class="text-gray-400 italic text-sm">Not played</a>
+                                @endif
+                            </div>
+                        </div>
+
+                        <div class="border-t border-gray-200 pt-3">
+                            <div class="mb-2">
+                                <span class="text-xs text-gray-600">Opponent:</span>
+                                <a href="{{ route('teams.show', $opponent->id) }}" class="ml-1 {{ $isUnplayed ? 'text-gray-500' : 'text-blue-600' }} font-semibold hover:underline">
+                                    {{ $opponent->name }}
+                                </a>
+                            </div>
+                            <div class="flex justify-between items-center text-xs text-gray-600">
+                                <div>
+                                    <span class="text-gray-600">Location:</span>
+                                    <span class="ml-1 text-gray-700">{{ $match->location ?? '-' }}</span>
+                                </div>
+                                <div class="flex items-center space-x-2">
+                                    @if($match->tennis_record_match_link)
+                                        <a href="{{ $match->tennis_record_match_link }}" target="_blank" rel="noopener noreferrer" class="text-2xl">🎾</a>
+                                    @endif
+                                    @env('local')
+                                        <a href="{{ route('tennis-matches.edit', $match->id) }}" class="text-blue-600 text-lg">✏️</a>
+                                        <form method="POST" action="{{ route('tennis-matches.destroy', $match->id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this match?');">
+                                            @csrf
+                                            @method('DELETE')
+                                            <button type="submit" class="text-red-600 text-lg">🗑️</button>
+                                        </form>
+                                    @endenv
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            <!-- Desktop Table View -->
+            <div class="hidden md:block bg-white rounded-lg shadow">
                 <table class="w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -949,6 +1293,7 @@
                     </tbody>
                 </table>
             </div>
+            </div>
         @else
             <div class="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
                 <div class="text-gray-500 text-lg mb-2">No matches scheduled yet</div>
@@ -958,9 +1303,116 @@
     </div>
 </div>
 
+<!-- Player Links Modal -->
+<div id="playerLinksModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="playerLinksModalTitle" class="text-lg font-medium text-gray-900">Player Links</h3>
+            <button onclick="closePlayerLinksModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="sr-only">Close</span>
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <div id="playerLinksContent" class="space-y-3">
+            <!-- Links will be inserted here -->
+        </div>
+
+        <div class="mt-4 flex justify-end">
+            <button onclick="closePlayerLinksModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-4 rounded">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
+    // Player Links Modal Functions
+    function openPlayerLinksModal(playerId, playerName, utrId, tennisRecordLink) {
+        const modal = document.getElementById('playerLinksModal');
+        const title = document.getElementById('playerLinksModalTitle');
+        const content = document.getElementById('playerLinksContent');
+
+        title.textContent = playerName + ' - Links';
+
+        let linksHtml = '';
+
+        // Player Page Link
+        linksHtml += `
+            <a href="{{ url('/players') }}/${playerId}" class="flex items-center space-x-3 p-3 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition">
+                <span class="text-3xl">👤</span>
+                <div>
+                    <div class="font-semibold text-gray-800">Player Profile</div>
+                    <div class="text-xs text-gray-500">View full profile</div>
+                </div>
+            </a>
+        `;
+
+        if (utrId) {
+            linksHtml += `
+                <a href="https://app.utrsports.net/profiles/${utrId}" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                    <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-8 w-8">
+                    <div>
+                        <div class="font-semibold text-gray-800">UTR Profile</div>
+                        <div class="text-xs text-gray-500">View on UTR Sports</div>
+                    </div>
+                </a>
+            `;
+        }
+
+        if (tennisRecordLink) {
+            linksHtml += `
+                <a href="${tennisRecordLink}" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                    <span class="text-3xl">🎾</span>
+                    <div>
+                        <div class="font-semibold text-gray-800">Tennis Record</div>
+                        <div class="text-xs text-gray-500">View match history</div>
+                    </div>
+                </a>
+            `;
+        }
+
+        content.innerHTML = linksHtml;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closePlayerLinksModal() {
+        const modal = document.getElementById('playerLinksModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('playerLinksModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closePlayerLinksModal();
+        }
+    });
+
+    // Mobile Court Details Toggle
+    function toggleCourtDetailsMobile(courtIndex) {
+        const card = document.querySelector(`.court-card-mobile[data-court-index="${courtIndex}"]`);
+        const detailsDiv = document.querySelector(`.court-details-mobile[data-court-index="${courtIndex}"]`);
+        const arrow = card.querySelector('.court-arrow-mobile');
+
+        if (detailsDiv && arrow) {
+            detailsDiv.classList.toggle('hidden');
+
+            // Rotate arrow
+            if (detailsDiv.classList.contains('hidden')) {
+                arrow.style.transform = 'rotate(0deg)';
+            } else {
+                arrow.style.transform = 'rotate(90deg)';
+            }
+        }
+    }
+
     document.addEventListener('DOMContentLoaded', function() {
-        // Court Position Expand/Collapse
+        // Court Position Expand/Collapse (Desktop)
         const courtRows = document.querySelectorAll('.court-row');
         courtRows.forEach(row => {
             row.addEventListener('click', function() {
@@ -1066,19 +1518,29 @@
             const input = document.getElementById('playerTableSearch');
             const clearBtn = document.getElementById('clearPlayerTableSearch');
             const playersTable = document.getElementById('playersTable');
+            const playerCards = document.getElementById('playerCards');
 
-            if (!input || !clearBtn || !playersTable) return;
+            if (!input || !clearBtn) return;
 
-            const rows = Array.from(playersTable.querySelectorAll('tbody tr[data-name]'));
+            const rows = playersTable ? Array.from(playersTable.querySelectorAll('tbody tr[data-name]')) : [];
+            const cards = playerCards ? Array.from(playerCards.querySelectorAll('[data-name]')) : [];
             let t;
 
             function applyFilter(term) {
                 const q = term.trim().toLowerCase();
 
+                // Filter table rows
                 rows.forEach(row => {
                     const name = row.getAttribute('data-name') || '';
                     const show = !q || name.includes(q);
                     row.style.display = show ? '' : 'none';
+                });
+
+                // Filter mobile cards
+                cards.forEach(card => {
+                    const name = card.getAttribute('data-name') || '';
+                    const show = !q || name.includes(q);
+                    card.style.display = show ? '' : 'none';
                 });
 
                 // Show clear button only when there's an active filter
@@ -1173,20 +1635,38 @@
     (function() {
         const filterSingles = document.getElementById('filterSinglesReliable');
         const filterDoubles = document.getElementById('filterDoublesReliable');
+        const filterSinglesMobile = document.getElementById('filterSinglesReliableMobile');
+        const filterDoublesMobile = document.getElementById('filterDoublesReliableMobile');
         let singlesActive = {{ request('singles_verified') ? 'true' : 'false' }};
         let doublesActive = {{ request('doubles_verified') ? 'true' : 'false' }};
 
         function toggleSingles() {
             singlesActive = !singlesActive;
-            filterSingles.classList.toggle('text-green-600', singlesActive);
-            filterSingles.classList.toggle('text-gray-400', !singlesActive);
+            // Update desktop filter
+            if (filterSingles) {
+                filterSingles.classList.toggle('text-green-600', singlesActive);
+                filterSingles.classList.toggle('text-gray-400', !singlesActive);
+            }
+            // Update mobile filter
+            if (filterSinglesMobile) {
+                filterSinglesMobile.classList.toggle('text-green-600', singlesActive);
+                filterSinglesMobile.classList.toggle('text-gray-400', !singlesActive);
+            }
             updateURL();
         }
 
         function toggleDoubles() {
             doublesActive = !doublesActive;
-            filterDoubles.classList.toggle('text-green-600', doublesActive);
-            filterDoubles.classList.toggle('text-gray-400', !doublesActive);
+            // Update desktop filter
+            if (filterDoubles) {
+                filterDoubles.classList.toggle('text-green-600', doublesActive);
+                filterDoubles.classList.toggle('text-gray-400', !doublesActive);
+            }
+            // Update mobile filter
+            if (filterDoublesMobile) {
+                filterDoublesMobile.classList.toggle('text-green-600', doublesActive);
+                filterDoublesMobile.classList.toggle('text-gray-400', !doublesActive);
+            }
             updateURL();
         }
 
@@ -1211,13 +1691,16 @@
 
         window.applyFilters = function() {
             const table = document.getElementById('playersTable');
-            const rows = table.querySelectorAll('tbody tr');
+            const playerCards = document.getElementById('playerCards');
+            const rows = table ? table.querySelectorAll('tbody tr') : [];
+            const cards = playerCards ? playerCards.querySelectorAll('[data-name]') : [];
 
             // Get filter states from URL
             const urlParams = new URLSearchParams(window.location.search);
             const promoted = urlParams.get('promoted') === '1';
             const playingUp = urlParams.get('playing_up') === '1';
 
+            // Filter table rows
             rows.forEach(row => {
                 const singlesReliable = row.dataset.singlesReliable === '1';
                 const doublesReliable = row.dataset.doublesReliable === '1';
@@ -1232,10 +1715,28 @@
 
                 row.style.display = show ? '' : 'none';
             });
+
+            // Filter mobile cards
+            cards.forEach(card => {
+                const singlesReliable = card.dataset.singlesReliable === '1';
+                const doublesReliable = card.dataset.doublesReliable === '1';
+                const isPromoted = card.dataset.promoted === '1';
+                const isPlayingUp = card.dataset.playingUp === '1';
+
+                let show = true;
+                if (singlesActive && !singlesReliable) show = false;
+                if (doublesActive && !doublesReliable) show = false;
+                if (promoted && !isPromoted) show = false;
+                if (playingUp && !isPlayingUp) show = false;
+
+                card.style.display = show ? '' : 'none';
+            });
         }
 
-        filterSingles.addEventListener('click', toggleSingles);
-        filterDoubles.addEventListener('click', toggleDoubles);
+        if (filterSingles) filterSingles.addEventListener('click', toggleSingles);
+        if (filterDoubles) filterDoubles.addEventListener('click', toggleDoubles);
+        if (filterSinglesMobile) filterSinglesMobile.addEventListener('click', toggleSingles);
+        if (filterDoublesMobile) filterDoublesMobile.addEventListener('click', toggleDoubles);
 
         // Apply filters on page load if params exist
         window.applyFilters();
@@ -1244,18 +1745,33 @@
     // Promoted Players Filter
     (function() {
         const filterPromoted = document.getElementById('filterPromoted');
-        if (!filterPromoted) return;
+        const filterPromotedMobile = document.getElementById('filterPromotedMobile');
+        if (!filterPromoted && !filterPromotedMobile) return;
 
         let promotedActive = {{ request('promoted') ? 'true' : 'false' }};
 
         function togglePromoted(e) {
             e.stopPropagation();
             promotedActive = !promotedActive;
-            if (promotedActive) {
-                filterPromoted.classList.remove('grayscale', 'opacity-50');
-            } else {
-                filterPromoted.classList.add('grayscale', 'opacity-50');
+
+            // Update desktop filter
+            if (filterPromoted) {
+                if (promotedActive) {
+                    filterPromoted.classList.remove('grayscale', 'opacity-50');
+                } else {
+                    filterPromoted.classList.add('grayscale', 'opacity-50');
+                }
             }
+
+            // Update mobile filter
+            if (filterPromotedMobile) {
+                if (promotedActive) {
+                    filterPromotedMobile.classList.remove('grayscale', 'opacity-50');
+                } else {
+                    filterPromotedMobile.classList.add('grayscale', 'opacity-50');
+                }
+            }
+
             updateURL();
         }
 
@@ -1276,24 +1792,40 @@
             }
         }
 
-        filterPromoted.addEventListener('click', togglePromoted);
+        if (filterPromoted) filterPromoted.addEventListener('click', togglePromoted);
+        if (filterPromotedMobile) filterPromotedMobile.addEventListener('click', togglePromoted);
     })();
 
     // Playing Up Filter
     (function() {
         const filterPlayingUp = document.getElementById('filterPlayingUp');
-        if (!filterPlayingUp) return;
+        const filterPlayingUpMobile = document.getElementById('filterPlayingUpMobile');
+        if (!filterPlayingUp && !filterPlayingUpMobile) return;
 
         let playingUpActive = {{ request('playing_up') ? 'true' : 'false' }};
 
         function togglePlayingUp(e) {
             e.stopPropagation();
             playingUpActive = !playingUpActive;
-            if (playingUpActive) {
-                filterPlayingUp.classList.remove('grayscale', 'opacity-50');
-            } else {
-                filterPlayingUp.classList.add('grayscale', 'opacity-50');
+
+            // Update desktop filter
+            if (filterPlayingUp) {
+                if (playingUpActive) {
+                    filterPlayingUp.classList.remove('grayscale', 'opacity-50');
+                } else {
+                    filterPlayingUp.classList.add('grayscale', 'opacity-50');
+                }
             }
+
+            // Update mobile filter
+            if (filterPlayingUpMobile) {
+                if (playingUpActive) {
+                    filterPlayingUpMobile.classList.remove('grayscale', 'opacity-50');
+                } else {
+                    filterPlayingUpMobile.classList.add('grayscale', 'opacity-50');
+                }
+            }
+
             updateURL();
         }
 
@@ -1314,7 +1846,39 @@
             }
         }
 
-        filterPlayingUp.addEventListener('click', togglePlayingUp);
+        if (filterPlayingUp) filterPlayingUp.addEventListener('click', togglePlayingUp);
+        if (filterPlayingUpMobile) filterPlayingUpMobile.addEventListener('click', togglePlayingUp);
+    })();
+
+    // Mobile Sort Controls
+    (function() {
+        const mobileSortField = document.getElementById('mobileSortField');
+        const mobileSortDirection = document.getElementById('mobileSortDirection');
+
+        if (mobileSortField && mobileSortDirection) {
+            function updateSort() {
+                const url = new URL(window.location);
+                const sortField = mobileSortField.value;
+                const direction = mobileSortDirection.dataset.direction;
+
+                // Update URL with sort parameters
+                url.searchParams.set('sort', sortField);
+                url.searchParams.set('direction', direction);
+
+                // Navigate to updated URL (preserves filters automatically)
+                window.location.href = url.toString();
+            }
+
+            mobileSortField.addEventListener('change', updateSort);
+
+            mobileSortDirection.addEventListener('click', function() {
+                const currentDirection = this.dataset.direction;
+                const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+                this.dataset.direction = newDirection;
+                this.textContent = newDirection === 'asc' ? '↑' : '↓';
+                updateSort();
+            });
+        }
     })();
 
     // Preserve filters when clicking sort links
