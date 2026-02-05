@@ -3,12 +3,12 @@
 @section('title', 'Match Details')
 
 @section('content')
-<div class="container mx-auto p-6">
+<div class="container mx-auto px-4 py-6 md:p-6">
     <div class="max-w-4xl mx-auto">
         <!-- Header -->
-        <div class="flex justify-between items-center mb-6">
+        <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-3">
             <h1 class="text-3xl font-bold text-gray-800">Match Details</h1>
-            <div class="flex space-x-2">
+            <div class="flex flex-wrap gap-2">
                 @env('local')
                     @if($match->tennis_record_match_link)
                         <form method="POST" action="{{ route('tennis-matches.syncFromTennisRecord', $match->id) }}" style="display:inline;">
@@ -54,25 +54,25 @@
             @endif
 
             <!-- Match Score Display -->
-            <div class="p-8">
+            <div class="p-4 md:p-8">
                 <div class="flex items-center justify-between mb-6">
                     <!-- Home Team -->
                     <div class="flex-1 text-center">
                         <a href="{{ route('teams.show', $match->homeTeam->id) }}" class="text-blue-600 hover:underline">
-                            <h2 class="text-2xl font-bold text-gray-800 mb-2">{{ $match->homeTeam->name }}</h2>
+                            <h2 class="text-lg md:text-2xl font-bold text-gray-800 mb-1">{{ $match->homeTeam->name }}</h2>
                         </a>
-                        <div class="text-sm text-gray-600">Home</div>
+                        <div class="text-xs md:text-sm text-gray-600">Home</div>
                     </div>
 
                     <!-- Score -->
-                    <div class="px-8">
+                    <div class="px-2 md:px-8">
                         @if($match->home_score !== null && $match->away_score !== null)
-                            <div class="flex items-center space-x-4">
-                                <div class="text-5xl font-bold {{ $match->home_score > $match->away_score ? 'text-green-600' : 'text-gray-700' }}">
+                            <div class="flex items-center space-x-2 md:space-x-4">
+                                <div class="text-4xl md:text-5xl font-bold {{ $match->home_score > $match->away_score ? 'text-green-600' : 'text-gray-700' }}">
                                     {{ $match->home_score }}
                                 </div>
-                                <div class="text-3xl text-gray-400">-</div>
-                                <div class="text-5xl font-bold {{ $match->away_score > $match->home_score ? 'text-green-600' : 'text-gray-700' }}">
+                                <div class="text-2xl md:text-3xl text-gray-400">-</div>
+                                <div class="text-4xl md:text-5xl font-bold {{ $match->away_score > $match->home_score ? 'text-green-600' : 'text-gray-700' }}">
                                     {{ $match->away_score }}
                                 </div>
                             </div>
@@ -84,9 +84,9 @@
                     <!-- Away Team -->
                     <div class="flex-1 text-center">
                         <a href="{{ route('teams.show', $match->awayTeam->id) }}" class="text-blue-600 hover:underline">
-                            <h2 class="text-2xl font-bold text-gray-800 mb-2">{{ $match->awayTeam->name }}</h2>
+                            <h2 class="text-lg md:text-2xl font-bold text-gray-800 mb-1">{{ $match->awayTeam->name }}</h2>
                         </a>
-                        <div class="text-sm text-gray-600">Away</div>
+                        <div class="text-xs md:text-sm text-gray-600">Away</div>
                     </div>
                 </div>
 
@@ -126,7 +126,85 @@
 
         <!-- Courts Table -->
         @if($match->courts->count() > 0)
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+            <!-- Mobile Card View -->
+            <div class="md:hidden space-y-4 mb-6">
+                <h2 class="text-lg font-semibold text-gray-800 px-2">Court Results</h2>
+                @foreach($match->courts->sortBy(function($court) {
+                    return ($court->court_type === 'singles' ? '1' : '2') . str_pad($court->court_number, 3, '0', STR_PAD_LEFT);
+                }) as $court)
+                    @php
+                        $homePlayers = $court->courtPlayers->where('team_id', $match->home_team_id);
+                        $awayPlayers = $court->courtPlayers->where('team_id', $match->away_team_id);
+                    @endphp
+                    <div class="bg-white rounded-lg shadow p-4">
+                        <div class="font-semibold text-gray-800 mb-3">{{ ucfirst($court->court_type) }} #{{ $court->court_number }}</div>
+
+                        <div class="flex justify-between items-start">
+                            <!-- Home Players -->
+                            <div class="flex-1 pr-2">
+                                <div class="text-xs text-gray-500 font-medium mb-1">Home</div>
+                                @foreach($homePlayers as $cp)
+                                    @php
+                                        $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
+                                    @endphp
+                                    <div class="text-sm {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                        <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
+                                            {{ $cp->player->first_name }} {{ $cp->player->last_name }}
+                                        </a>
+                                        @if($utrRating)
+                                            <span class="text-xs text-gray-400">({{ number_format($utrRating, 2) }})</span>
+                                        @endif
+                                    </div>
+                                @endforeach
+                            </div>
+
+                            <!-- Score -->
+                            <div class="text-center px-3">
+                                @if($court->courtSets->count() > 0)
+                                    @foreach($court->courtSets->sortBy('set_number') as $set)
+                                        <div class="text-sm font-semibold">
+                                            <span class="{{ $set->home_score > $set->away_score ? 'text-green-600' : 'text-gray-900' }}">{{ $set->home_score }}</span>-<span class="{{ $set->away_score > $set->home_score ? 'text-green-600' : 'text-gray-900' }}">{{ $set->away_score }}</span>
+                                        </div>
+                                    @endforeach
+                                @else
+                                    <span class="text-gray-400 text-sm">-</span>
+                                @endif
+                            </div>
+
+                            <!-- Away Players -->
+                            <div class="flex-1 pl-2 text-right">
+                                <div class="text-xs text-gray-500 font-medium mb-1">Away</div>
+                                @foreach($awayPlayers as $cp)
+                                    @php
+                                        $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
+                                    @endphp
+                                    <div class="text-sm {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                        @if($utrRating)
+                                            <span class="text-xs text-gray-400">({{ number_format($utrRating, 2) }})</span>
+                                        @endif
+                                        <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
+                                            {{ $cp->player->first_name }} {{ $cp->player->last_name }}
+                                        </a>
+                                    </div>
+                                @endforeach
+                            </div>
+                        </div>
+
+                        @env('local')
+                            <div class="mt-3 pt-3 border-t border-gray-200">
+                                <form method="POST" action="{{ route('courts.destroy', $court->id) }}" class="inline" onsubmit="return confirm('Are you sure you want to delete this court?');">
+                                    @csrf
+                                    @method('DELETE')
+                                    <button type="submit" class="text-red-600 hover:text-red-900 text-sm">Delete</button>
+                                </form>
+                            </div>
+                        @endenv
+                    </div>
+                @endforeach
+            </div>
+
+            <!-- Desktop Table View -->
+            <div class="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden mb-6">
                 <div class="bg-gray-50 border-b border-gray-200 px-6 py-3">
                     <h2 class="text-lg font-semibold text-gray-800">Court Results</h2>
                 </div>
@@ -266,8 +344,8 @@
                     <p class="text-sm text-gray-500 mt-1">Click on any row to see player/team details</p>
                 </div>
 
-                <div class="p-6">
-                    <div class="grid grid-cols-2 gap-6">
+                <div class="p-4 md:p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <!-- Home Team Stats -->
                         <div>
                             <h3 class="text-md font-semibold text-gray-800 mb-3">{{ $match->homeTeam->name }}</h3>
@@ -520,7 +598,7 @@
 
         <!-- Singles Lineup Comparison -->
         @if($matchLineupData && count($matchLineupData) > 0)
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+            <div class="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden mb-6">
                 <div class="bg-gray-50 border-b border-gray-200 px-6 py-3 flex justify-between items-center">
                     <h2 class="text-lg font-semibold text-gray-800">Singles Lineup Comparison</h2>
                     <div class="flex items-center space-x-4">
@@ -549,7 +627,7 @@
 
         <!-- Doubles Lineup Comparison -->
         @if($matchDoublesLineupData && count($matchDoublesLineupData) > 0)
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+            <div class="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden mb-6">
                 <div class="bg-gray-50 border-b border-gray-200 px-6 py-4">
                     <div class="flex justify-between items-center">
                         <h2 class="text-lg font-semibold text-gray-800">Doubles Lineup Comparison (Top 8)</h2>
@@ -580,7 +658,153 @@
 
         <!-- Players Table -->
         @if($players->count() > 0)
-            <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
+            <!-- Mobile Sort Controls -->
+            <div class="md:hidden mb-4 space-y-3 px-2">
+                <h2 class="text-lg font-semibold text-gray-800">Match Players</h2>
+                <div class="flex items-center gap-2 text-sm">
+                    <span class="text-gray-600 font-medium">Sort:</span>
+                    <select id="mobileSortField" class="flex-1 border rounded px-2 py-2 text-sm">
+                        <option value="first_name" {{ $sortField === 'first_name' ? 'selected' : '' }}>Name</option>
+                        <option value="utr_singles_rating" {{ $sortField === 'utr_singles_rating' ? 'selected' : '' }}>UTR Singles</option>
+                        <option value="utr_doubles_rating" {{ $sortField === 'utr_doubles_rating' ? 'selected' : '' }}>UTR Doubles</option>
+                        <option value="USTA_dynamic_rating" {{ $sortField === 'USTA_dynamic_rating' ? 'selected' : '' }}>USTA Rating</option>
+                    </select>
+                    <button id="mobileSortDirection" class="border rounded px-3 py-2 text-sm bg-gray-100" data-direction="{{ $sortDirection }}">
+                        {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Mobile Card View -->
+            <div class="md:hidden space-y-4 px-2 mb-6">
+                @php
+                    $rank = 1;
+                @endphp
+                @foreach($players as $player)
+                    @php
+                        $isHomeTeam = $player->team_id === $match->home_team_id;
+                        $teamColor = $isHomeTeam ? 'text-blue-600' : 'text-red-600';
+                        $teamBg = $isHomeTeam ? 'bg-blue-50 border-blue-200' : 'bg-red-50 border-red-200';
+                        $isPromoted = $match->league && $match->league->NTRP_rating && $player->USTA_rating && $player->USTA_rating > $match->league->NTRP_rating;
+                        $isPlayingUp = $match->league && $match->league->NTRP_rating && $player->USTA_rating && $player->USTA_rating < $match->league->NTRP_rating;
+
+                        // Singles record
+                        $singlesWins = 0;
+                        $singlesLosses = 0;
+                        foreach ($player->courtPlayers as $courtPlayer) {
+                            if ($courtPlayer->court->court_type === 'singles') {
+                                $court = $courtPlayer->court;
+                                if ($match->league && $court->tennisMatch->league_id !== $match->league->id) continue;
+                                $isHome = $court->tennisMatch->home_team_id === $player->team_id;
+                                if ($isHome && $court->home_score > $court->away_score) $singlesWins++;
+                                elseif ($isHome && $court->home_score < $court->away_score) $singlesLosses++;
+                                elseif (!$isHome && $court->away_score > $court->home_score) $singlesWins++;
+                                elseif (!$isHome && $court->away_score < $court->home_score) $singlesLosses++;
+                            }
+                        }
+
+                        // Doubles record
+                        $doublesWins = 0;
+                        $doublesLosses = 0;
+                        foreach ($player->courtPlayers as $courtPlayer) {
+                            if ($courtPlayer->court->court_type === 'doubles') {
+                                $court = $courtPlayer->court;
+                                if ($match->league && $court->tennisMatch->league_id !== $match->league->id) continue;
+                                $isHome = $court->tennisMatch->home_team_id === $player->team_id;
+                                if ($isHome && $court->home_score > $court->away_score) $doublesWins++;
+                                elseif ($isHome && $court->home_score < $court->away_score) $doublesLosses++;
+                                elseif (!$isHome && $court->away_score > $court->home_score) $doublesWins++;
+                                elseif (!$isHome && $court->away_score < $court->home_score) $doublesLosses++;
+                            }
+                        }
+                    @endphp
+                    <div class="bg-white rounded-lg shadow p-4 border-l-4 {{ $isHomeTeam ? 'border-blue-500' : 'border-red-500' }}">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-1">
+                                    <span class="text-sm font-semibold text-gray-500">#{{ $rank++ }}</span>
+                                    <a href="{{ route('players.show', $player->id) }}" class="{{ $teamColor }} font-semibold hover:underline">
+                                        {{ $player->first_name }} {{ $player->last_name }}
+                                    </a>
+                                    @if($match->league && !$match->league->is_combo)
+                                        @if($isPromoted)
+                                            <span class="text-yellow-500" title="Promoted to {{ number_format($player->USTA_rating, 1) }}">🏅</span>
+                                        @endif
+                                        @if($isPlayingUp)
+                                            <span title="Playing up from {{ number_format($player->USTA_rating, 1) }}">⚔️</span>
+                                        @endif
+                                    @endif
+                                </div>
+                                <a href="{{ route('teams.show', $player->team_id) }}" class="{{ $teamColor }} text-sm hover:underline">
+                                    {{ $player->team_name }}
+                                </a>
+                                <span class="text-xs text-gray-500 ml-2">{{ $isHomeTeam ? 'Home' : 'Away' }}</span>
+                            </div>
+                            @if($player->utr_id || $player->tennis_record_link)
+                                <button onclick="openPlayerLinksModal({{ $player->id }}, '{{ $player->first_name }} {{ $player->last_name }}', '{{ $player->utr_id }}', '{{ $player->tennis_record_link }}')" class="bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold px-4 py-2 rounded">
+                                    🔗 Links
+                                </button>
+                            @endif
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="font-semibold text-gray-600">UTR Singles:</span>
+                                <span class="text-gray-700 ml-1">
+                                    @if($player->utr_singles_rating)
+                                        {{ number_format($player->utr_singles_rating, 2) }}
+                                        @if($player->utr_singles_reliable)
+                                            <span class="text-green-600 font-bold">✓</span>
+                                        @endif
+                                    @else
+                                        -
+                                    @endif
+                                </span>
+                            </div>
+                            <div>
+                                <span class="font-semibold text-gray-600">UTR Doubles:</span>
+                                <span class="text-gray-700 ml-1">
+                                    @if($player->utr_doubles_rating)
+                                        {{ number_format($player->utr_doubles_rating, 2) }}
+                                        @if($player->utr_doubles_reliable)
+                                            <span class="text-green-600 font-bold">✓</span>
+                                        @endif
+                                    @else
+                                        -
+                                    @endif
+                                </span>
+                            </div>
+                            <div>
+                                <span class="font-semibold text-gray-600">USTA:</span>
+                                <span class="text-gray-700 ml-1">{{ $player->USTA_dynamic_rating ?? '-' }}</span>
+                            </div>
+                            <div>
+                                <span class="font-semibold text-gray-600">S Record:</span>
+                                <span class="text-gray-700 ml-1">
+                                    @if($singlesWins > 0 || $singlesLosses > 0)
+                                        <span class="text-green-600 font-semibold">{{ $singlesWins }}</span>-<span class="text-red-600 font-semibold">{{ $singlesLosses }}</span>
+                                    @else
+                                        -
+                                    @endif
+                                </span>
+                            </div>
+                            <div>
+                                <span class="font-semibold text-gray-600">D Record:</span>
+                                <span class="text-gray-700 ml-1">
+                                    @if($doublesWins > 0 || $doublesLosses > 0)
+                                        <span class="text-green-600 font-semibold">{{ $doublesWins }}</span>-<span class="text-red-600 font-semibold">{{ $doublesLosses }}</span>
+                                    @else
+                                        -
+                                    @endif
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                @endforeach
+            </div>
+
+            <!-- Desktop Table View -->
+            <div class="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden mb-6">
                 <div class="bg-gray-50 border-b border-gray-200 px-6 py-3">
                     <h2 class="text-lg font-semibold text-gray-800">Match Players</h2>
                 </div>
@@ -1404,5 +1628,96 @@
         window.addEventListener('resize', renderMatchDoublesLineupChart);
     @endif
     });
+
+    // Mobile sort controls
+    (function() {
+        const mobileSortField = document.getElementById('mobileSortField');
+        const mobileSortDirection = document.getElementById('mobileSortDirection');
+
+        if (mobileSortField) {
+            mobileSortField.addEventListener('change', function() {
+                const url = new URL(window.location);
+                url.searchParams.set('sort', this.value);
+                window.location = url;
+            });
+        }
+
+        if (mobileSortDirection) {
+            mobileSortDirection.addEventListener('click', function() {
+                const currentDirection = this.getAttribute('data-direction');
+                const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
+                const url = new URL(window.location);
+                url.searchParams.set('direction', newDirection);
+                window.location = url;
+            });
+        }
+    })();
+
+    // Player Links Modal
+    window.openPlayerLinksModal = function(playerId, playerName, utrId, tennisRecordLink) {
+        const modal = document.getElementById('playerLinksModal');
+        if (!modal) return;
+
+        document.getElementById('playerLinksModalTitle').textContent = playerName;
+        document.getElementById('playerLinksModalContent').innerHTML = `
+            <div class="space-y-3">
+                <a href="/players/${playerId}" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+                    <span class="font-medium text-gray-700">👤 Player Profile</span>
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+                ${utrId ? `
+                <a href="https://app.utrsports.net/profiles/${utrId}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+                    <span class="font-medium text-gray-700">🎯 UTR Profile</span>
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                </a>
+                ` : ''}
+                ${tennisRecordLink ? `
+                <a href="${tennisRecordLink}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
+                    <span class="font-medium text-gray-700">🎾 Tennis Record</span>
+                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                </a>
+                ` : ''}
+            </div>
+        `;
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    };
+
+    window.closePlayerLinksModal = function() {
+        const modal = document.getElementById('playerLinksModal');
+        if (modal) {
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+    };
+
+    document.addEventListener('click', function(e) {
+        const modal = document.getElementById('playerLinksModal');
+        if (modal && e.target === modal) {
+            closePlayerLinksModal();
+        }
+    });
 </script>
+
+<!-- Player Links Modal -->
+<div id="playerLinksModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="playerLinksModalTitle" class="text-lg font-medium text-gray-900"></h3>
+            <button onclick="closePlayerLinksModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="sr-only">Close</span>
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div id="playerLinksModalContent"></div>
+    </div>
+</div>
 @endsection
