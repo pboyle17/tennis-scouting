@@ -23,6 +23,21 @@
                         @endforeach
                     </div>
                 @endif
+
+                <!-- Leagues -->
+                @php
+                    $leagues = $player->teams->whereNotNull('league_id')->pluck('league')->unique('id')->filter();
+                @endphp
+                @if($leagues->count() > 0)
+                    <div class="mb-4">
+                        <span class="text-sm font-semibold text-gray-600">Leagues:</span>
+                        @foreach($leagues as $league)
+                            <a href="{{ route('leagues.show', $league->id) }}" class="inline-block bg-green-100 text-green-800 text-sm px-3 py-1 rounded-full mr-2 mb-2 hover:bg-green-200 transition">
+                                {{ $league->name }}
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
             </div>
 
             <!-- Action Buttons -->

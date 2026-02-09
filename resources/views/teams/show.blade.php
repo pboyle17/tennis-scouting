@@ -3,41 +3,63 @@
 @section('title', 'Team Players - ' . $team->name)
 
 @section('content')
-<div class="container mx-auto px-4 py-6 md:p-6">
-    <div class="mb-6">
-        <div class="flex items-center justify-between mb-2">
-            <h1 class="text-3xl md:text-3xl font-bold text-gray-800">
-                <a href="{{ route('teams.show', $team->id) }}" class="hover:text-blue-600 transition-colors cursor-pointer">
-                    {{ $team->name }}
-                </a>
-                <span class="hidden md:inline text-gray-600"> - Players</span>
-            </h1>
-            <div class="flex space-x-2">
-            <form method="POST" action="{{ route('teams.destroy', $team->id) }}" onsubmit="return confirm('Are you sure you want to delete this team? This will not delete the players, only remove them from this team.');">
-                @csrf
-                @method('DELETE')
-                <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded">
-                    🗑️ Delete Team
-                </button>
-            </form>
-            <a href="{{ route('teams.index') }}" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded">
-                ← Back to Teams
-            </a>
-        </div>
+<div class="scroll-smooth" style="scroll-padding-top: 5rem;">
+    <div class="container mx-auto px-4 py-6 md:p-6">
+        <div class="mb-6">
+            <div class="flex items-center justify-between mb-2">
+                <h1 class="text-3xl md:text-3xl font-bold text-gray-800">
+                    <a href="{{ route('teams.show', $team->id) }}" class="hover:text-blue-600 transition-colors cursor-pointer">
+                        {{ $team->name }}
+                    </a>
+                    <span class="hidden md:inline text-gray-600"> - Players</span>
+                </h1>
+                <div class="flex space-x-2">
+                @env('local')
+                    <form method="POST" action="{{ route('teams.destroy', $team->id) }}" onsubmit="return confirm('Are you sure you want to delete this team? This will not delete the players, only remove them from this team.');">
+                        @csrf
+                        @method('DELETE')
+                        <button type="submit" class="bg-red-500 hover:bg-red-600 text-white font-semibold py-2 px-4 rounded">
+                            🗑️ Delete Team
+                        </button>
+                    </form>
+                @endenv
+            </div>
+            </div>
+
+            <!-- League Pill -->
+            @if($team->league)
+                <div>
+                    <span class="text-sm font-semibold text-gray-600">League:</span>
+                    <a href="{{ route('leagues.show', $team->league->id) }}" class="inline-block bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full ml-2 hover:bg-blue-200 transition">
+                        {{ $team->league->name }}
+                    </a>
+                </div>
+            @endif
         </div>
 
-        <!-- League Pill -->
-        @if($team->league)
-            <div>
-                <span class="text-sm font-semibold text-gray-600">League:</span>
-                <a href="{{ route('leagues.show', $team->league->id) }}" class="inline-block bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full ml-2 hover:bg-blue-200 transition">
-                    {{ $team->league->name }}
-                </a>
-            </div>
-        @endif
+        @include('partials.tabs')
     </div>
 
-    @include('partials.tabs')
+    <!-- Section Navigation Tabs -->
+    <div class="sticky top-0 z-50 bg-gray-100 shadow-sm mb-6" style="position: -webkit-sticky; position: sticky;">
+        <div class="container mx-auto px-4 md:px-6">
+            <div class="flex justify-center border-b border-gray-200">
+                <nav class="flex space-x-8">
+                    <a href="#court-averages" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
+                        Court Averages
+                    </a>
+                    <a href="#players" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
+                        Players
+                    </a>
+                    <a href="#matches" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
+                        Matches
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 md:p-6">
 
     @if(session('success'))
         <div class="bg-green-100 text-green-700 p-2 rounded mb-4">
@@ -138,6 +160,7 @@
 
 
     @if(!empty($courtStats))
+        <div id="court-averages" class="relative -top-20 invisible h-0"></div>
         <div class="max-w-4xl mx-auto mb-6 bg-white p-6 rounded-lg shadow">
             <h3 class="text-lg font-semibold mb-4">Court Position Averages</h3>
             <p class="text-sm text-gray-500 mb-3 hidden md:block">Click on any row to see player details</p>
@@ -495,12 +518,14 @@
                     </form>
                 @endif
 
-                <form method="POST" action="{{ route('teams.updateUtr', $team->id) }}" style="display:inline;">
-                    @csrf
-                    <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
-                        🔄 Update All UTRs
-                    </button>
-                </form>
+                @env('local')
+                    <form method="POST" action="{{ route('teams.updateUtr', $team->id) }}" style="display:inline;">
+                        @csrf
+                        <button type="submit" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                            🔄 Update All UTRs
+                        </button>
+                    </form>
+                @endenv
             @endif
 
             @if($team->usta_link)
@@ -596,6 +621,7 @@
         </div>
     @endif
 
+    <div id="players" class="relative -top-20 invisible h-0"></div>
     @if($team->players->count() > 0)
         <div class="mb-4 flex items-center space-x-2 px-2 md:px-0">
             <input
@@ -1101,6 +1127,7 @@
 
     <!-- Matches Table -->
     <div class="mt-8">
+        <div id="matches" class="relative -top-20 invisible h-0"></div>
         <div class="flex justify-between items-center mb-4 px-2 md:px-0">
             <h2 class="text-2xl font-bold text-gray-800">Team Matches</h2>
             <div class="flex space-x-2">
@@ -1138,7 +1165,7 @@
                         $opponentScore = $isHomeTeam ? $match->away_score : $match->home_score;
                     @endphp
 
-                    <div class="bg-white rounded-lg shadow p-4 {{ $isUnplayed ? 'opacity-75' : '' }}">
+                    <div class="bg-white rounded-lg shadow p-4 {{ $isUnplayed ? 'opacity-75' : '' }} cursor-pointer hover:bg-gray-50 transition" onclick="window.location='{{ route('tennis-matches.show', $match->id) }}'">
                         <div class="flex justify-between items-start mb-3">
                             <div>
                                 <div class="text-xs text-gray-500 font-semibold mb-1">Match #{{ $index + 1 }}</div>
@@ -1153,7 +1180,7 @@
                             </div>
                             <div class="text-right">
                                 @if($match->home_score !== null && $match->away_score !== null)
-                                    <a href="{{ route('tennis-matches.show', $match->id) }}" class="font-bold text-lg">
+                                    <div class="font-bold text-lg">
                                         @if($isUnplayed)
                                             <span class="text-gray-400">{{ $currentScore }} - {{ $opponentScore }}</span>
                                         @else
@@ -1161,9 +1188,9 @@
                                             <span class="text-gray-900"> - </span>
                                             <span class="{{ $opponentScore > $currentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $opponentScore }}</span>
                                         @endif
-                                    </a>
+                                    </div>
                                 @else
-                                    <a href="{{ route('tennis-matches.show', $match->id) }}" class="text-gray-400 italic text-sm">Not played</a>
+                                    <span class="text-gray-400 italic text-sm">Not played</span>
                                 @endif
                             </div>
                         </div>
@@ -1171,7 +1198,7 @@
                         <div class="border-t border-gray-200 pt-3">
                             <div class="mb-2">
                                 <span class="text-xs text-gray-600">Opponent:</span>
-                                <a href="{{ route('teams.show', $opponent->id) }}" class="ml-1 {{ $isUnplayed ? 'text-gray-500' : 'text-blue-600' }} font-semibold hover:underline">
+                                <a href="{{ route('teams.show', $opponent->id) }}" onclick="event.stopPropagation()" class="ml-1 {{ $isUnplayed ? 'text-gray-500' : 'text-blue-600' }} font-semibold hover:underline">
                                     {{ $opponent->name }}
                                 </a>
                             </div>
@@ -1182,11 +1209,11 @@
                                 </div>
                                 <div class="flex items-center space-x-2">
                                     @if($match->tennis_record_match_link)
-                                        <a href="{{ $match->tennis_record_match_link }}" target="_blank" rel="noopener noreferrer" class="text-2xl">🎾</a>
+                                        <a href="{{ $match->tennis_record_match_link }}" onclick="event.stopPropagation()" target="_blank" rel="noopener noreferrer" class="text-2xl">🎾</a>
                                     @endif
                                     @env('local')
-                                        <a href="{{ route('tennis-matches.edit', $match->id) }}" class="text-blue-600 text-lg">✏️</a>
-                                        <form method="POST" action="{{ route('tennis-matches.destroy', $match->id) }}" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this match?');">
+                                        <a href="{{ route('tennis-matches.edit', $match->id) }}" onclick="event.stopPropagation()" class="text-blue-600 text-lg">✏️</a>
+                                        <form method="POST" action="{{ route('tennis-matches.destroy', $match->id) }}" style="display:inline;" onclick="event.stopPropagation()" onsubmit="return confirm('Are you sure you want to delete this match?');">
                                             @csrf
                                             @method('DELETE')
                                             <button type="submit" class="text-red-600 text-lg">🗑️</button>
@@ -1300,6 +1327,7 @@
                 <p class="text-gray-400 text-sm">Use the "Sync Team Matches" button to fetch matches from Tennis Record</p>
             </div>
         @endif
+    </div>
     </div>
 </div>
 

@@ -31,9 +31,9 @@ class LeagueController extends Controller
               'leagues.id as league_id',
               'courts.court_type',
               'courts.court_number',
-              \DB::raw('AVG(court_players.utr_singles_rating) as avg_utr_singles'),
-              \DB::raw('AVG(court_players.utr_doubles_rating) as avg_utr_doubles'),
-              \DB::raw('AVG(court_players.usta_dynamic_rating) as avg_usta_dynamic')
+              \DB::raw('AVG(CASE WHEN court_players.utr_singles_rating > 0 THEN court_players.utr_singles_rating END) as avg_utr_singles'),
+              \DB::raw('AVG(CASE WHEN court_players.utr_doubles_rating > 0 THEN court_players.utr_doubles_rating END) as avg_utr_doubles'),
+              \DB::raw('AVG(CASE WHEN court_players.usta_dynamic_rating > 0 THEN court_players.usta_dynamic_rating END) as avg_usta_dynamic')
           )
           ->groupBy('leagues.id', 'courts.court_type', 'courts.court_number')
           ->get();
@@ -626,12 +626,12 @@ class LeagueController extends Controller
             $avgUstaDynamic = null;
 
             if ($type === 'singles') {
-                $avgUtrSingles = $allCourtPlayers->whereNotNull('utr_singles_rating')->avg('utr_singles_rating');
+                $avgUtrSingles = $allCourtPlayers->whereNotNull('utr_singles_rating')->where('utr_singles_rating', '>', 0)->avg('utr_singles_rating');
             } else {
-                $avgUtrDoubles = $allCourtPlayers->whereNotNull('utr_doubles_rating')->avg('utr_doubles_rating');
+                $avgUtrDoubles = $allCourtPlayers->whereNotNull('utr_doubles_rating')->where('utr_doubles_rating', '>', 0)->avg('utr_doubles_rating');
             }
 
-            $avgUstaDynamic = $allCourtPlayers->whereNotNull('usta_dynamic_rating')->avg('usta_dynamic_rating');
+            $avgUstaDynamic = $allCourtPlayers->whereNotNull('usta_dynamic_rating')->where('usta_dynamic_rating', '>', 0)->avg('usta_dynamic_rating');
 
             $stats[] = [
                 'court_type' => $type,
