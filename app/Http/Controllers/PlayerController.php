@@ -56,8 +56,8 @@ class PlayerController extends Controller
      */
     public function show(Player $player)
     {
-        // Load player with teams
-        $player->load('teams');
+        // Load player with teams and their leagues
+        $player->load('teams.league');
 
         // Get all court player records for this player (match results)
         $courtPlayers = \App\Models\CourtPlayer::where('player_id', $player->id)

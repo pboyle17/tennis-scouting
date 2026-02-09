@@ -41,7 +41,98 @@
         </div>
     </div>
 
-    <div class="overflow-x-auto bg-white rounded-lg shadow">
+    <!-- Mobile Card View -->
+    <div class="md:hidden space-y-4 mb-6">
+        @forelse ($rackets as $racket)
+            <div class="bg-white rounded-lg shadow p-4 cursor-pointer hover:bg-gray-50 transition"
+                onclick="window.location='{{ route('rackets.show', $racket) }}'"
+                data-search="{{ strtolower($racket->name . ' ' . $racket->brand . ' ' . $racket->model . ' ' . ($racket->player ? $racket->player->first_name . ' ' . $racket->player->last_name : '')) }}">
+
+                <div class="mb-3">
+                    <a href="{{ route('rackets.show', $racket) }}" class="text-lg font-semibold text-blue-600 hover:underline" onclick="event.stopPropagation()">
+                        {{ $racket->name }}
+                    </a>
+                    <div class="text-sm text-gray-600 mt-1">{{ $racket->brand }} {{ $racket->model }}</div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 text-sm mb-3">
+                    <div>
+                        <span class="font-semibold text-gray-600">Owner:</span>
+                        <div class="text-gray-700">
+                            @if($racket->player)
+                                <a href="{{ route('players.show', $racket->player) }}" class="text-blue-600 hover:underline" onclick="event.stopPropagation()">
+                                    {{ $racket->player->first_name }} {{ $racket->player->last_name }}
+                                </a>
+                            @else
+                                <span class="text-gray-400">Unassigned</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-600">Weight:</span>
+                        <div class="text-gray-700">
+                            @if($racket->weight)
+                                {{ $racket->weight }}g
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-600">SW:</span>
+                        <div class="text-gray-700">
+                            @if($racket->swing_weight)
+                                {{ $racket->swing_weight }}
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
+                        </div>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-600">Time Played:</span>
+                        <div class="text-gray-700">
+                            @if($racket->currentStringJob)
+                                {{ $racket->currentStringJob->time_played }}h
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                <div class="border-t pt-3 text-sm">
+                    <span class="font-semibold text-gray-600">Current Strings:</span>
+                    <div class="text-gray-700 mt-1">
+                        @if($racket->currentStringJob)
+                            <div>
+                                <strong>M:</strong> {{ $racket->currentStringJob->mains_model }}
+                                @if($racket->currentStringJob->mains_gauge)
+                                    ({{ $racket->currentStringJob->mains_gauge }})
+                                @endif
+                                @ {{ $racket->currentStringJob->mains_tension }}lbs
+                            </div>
+                            <div>
+                                <strong>C:</strong> {{ $racket->currentStringJob->crosses_model }}
+                                @if($racket->currentStringJob->crosses_gauge)
+                                    ({{ $racket->currentStringJob->crosses_gauge }})
+                                @endif
+                                @ {{ $racket->currentStringJob->crosses_tension }}lbs
+                            </div>
+                        @else
+                            <span class="text-gray-400 italic">No strings yet</span>
+                        @endif
+                    </div>
+                </div>
+            </div>
+        @empty
+            <div class="bg-white rounded-lg shadow p-6 text-center text-gray-500">
+                No rackets found. <a href="{{ route('rackets.create') }}" class="text-blue-600 hover:underline">Add your first racket</a>
+            </div>
+        @endforelse
+    </div>
+
+    <!-- Desktop Table View -->
+    <div class="hidden md:block overflow-x-auto bg-white rounded-lg shadow">
         <table id="racketsTable" class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
@@ -93,12 +184,12 @@
                         <td class="px-4 py-2 text-sm text-gray-700">
                             @if($racket->currentStringJob)
                                 <div>
-                                    <strong>M:</strong> {{ $racket->currentStringJob->mains_brand }}
+                                    <strong>M:</strong> {{ $racket->currentStringJob->mains_model }}
                                     @if($racket->currentStringJob->mains_gauge)
                                         ({{ $racket->currentStringJob->mains_gauge }})
                                     @endif
                                     @ {{ $racket->currentStringJob->mains_tension }}lbs<br>
-                                    <strong>C:</strong> {{ $racket->currentStringJob->crosses_brand }}
+                                    <strong>C:</strong> {{ $racket->currentStringJob->crosses_model }}
                                     @if($racket->currentStringJob->crosses_gauge)
                                         ({{ $racket->currentStringJob->crosses_gauge }})
                                     @endif
@@ -133,15 +224,24 @@
     const input = document.getElementById('racketSearch');
     const clearBtn = document.getElementById('clearSearch');
     const rows = Array.from(document.querySelectorAll('tbody tr[data-search]'));
+    const cards = Array.from(document.querySelectorAll('.md\\:hidden > div[data-search]'));
     let t;
 
     function applyFilter(term) {
         const q = term.trim().toLowerCase();
 
+        // Filter table rows
         rows.forEach(row => {
             const searchText = row.getAttribute('data-search') || '';
             const show = !q || searchText.includes(q);
             row.style.display = show ? '' : 'none';
+        });
+
+        // Filter mobile cards
+        cards.forEach(card => {
+            const searchText = card.getAttribute('data-search') || '';
+            const show = !q || searchText.includes(q);
+            card.style.display = show ? '' : 'none';
         });
 
         clearBtn.classList.toggle('hidden', q.length === 0);

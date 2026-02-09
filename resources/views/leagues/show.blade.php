@@ -3,13 +3,36 @@
 @section('title', $league->name)
 
 @section('content')
-<div class="container mx-auto px-4 py-6 md:p-6">
-    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">
-        <a href="{{ route('leagues.show', $league->id) }}" class="hover:text-blue-600 transition-colors cursor-pointer">
-            {{ $league->name }}
-        </a>
-    </h1>
-    @include('partials.tabs')
+<div class="scroll-smooth" style="scroll-padding-top: 5rem;">
+    <div class="container mx-auto px-4 py-6 md:p-6">
+        <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">
+            <a href="{{ route('leagues.show', $league->id) }}" class="hover:text-blue-600 transition-colors cursor-pointer">
+                {{ $league->name }}
+            </a>
+        </h1>
+        @include('partials.tabs')
+    </div>
+
+    <!-- Section Navigation Tabs -->
+    <div class="sticky top-0 z-50 bg-gray-100 shadow-sm mb-6" style="position: -webkit-sticky; position: sticky;">
+        <div class="container mx-auto px-4 md:px-6">
+            <div class="flex justify-center border-b border-gray-200">
+                <nav class="flex space-x-8">
+                    <a href="#teams" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
+                        Teams
+                    </a>
+                    <a href="#players" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
+                        Players
+                    </a>
+                    <a href="#matches" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
+                        Matches
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <div class="container mx-auto px-4 md:p-6">
 
     @if(session('success'))
         <div class="bg-green-100 text-green-700 p-4 rounded mb-4 font-semibold">
@@ -244,6 +267,7 @@
     @endenv
 
     <!-- Teams Table -->
+    <div id="teams" class="relative -top-20 invisible h-0"></div>
     <!-- Mobile Card View -->
     <div class="md:hidden space-y-4 mb-6 px-2">
         <div class="bg-blue-50 border-l-4 border-blue-400 p-3 mb-4 text-xs">
@@ -282,12 +306,12 @@
 
                     // Calculate averages based on court type
                     if ($courtType === 'singles') {
-                        $avgUtr = $allCourtPlayers->where('utr_singles_rating', '>', 0)->avg('utr_singles_rating');
+                        $avgUtr = $allCourtPlayers->whereNotNull('utr_singles_rating')->where('utr_singles_rating', '>', 0)->avg('utr_singles_rating');
                     } else {
-                        $avgUtr = $allCourtPlayers->where('utr_doubles_rating', '>', 0)->avg('utr_doubles_rating');
+                        $avgUtr = $allCourtPlayers->whereNotNull('utr_doubles_rating')->where('utr_doubles_rating', '>', 0)->avg('utr_doubles_rating');
                     }
 
-                    $avgUsta = $allCourtPlayers->where('usta_dynamic_rating', '>', 0)->avg('usta_dynamic_rating');
+                    $avgUsta = $allCourtPlayers->whereNotNull('usta_dynamic_rating')->where('usta_dynamic_rating', '>', 0)->avg('usta_dynamic_rating');
 
                     $teamCourtStats[$key] = [
                         'avg_utr' => $avgUtr,
@@ -801,6 +825,7 @@
             </div>
         @endif
 
+        <div id="players" class="relative -top-20 invisible h-0"></div>
         <div class="mb-4 flex justify-between items-center">
             <div>
                 <h2 class="text-2xl font-bold text-gray-800">
@@ -820,7 +845,7 @@
                     </span>
                 </div>
             </div>
-            <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-2 flex-wrap gap-2">
                 @env('local')
                     @php
                         $teamsWithTennisRecord = $league->teams()->whereNotNull('tennis_record_link')->count();
@@ -872,7 +897,7 @@
                         </button>
                     @endif
                 @endenv
-                <div class="relative inline-block">
+                <div class="hidden md:block relative inline-block">
                     <button
                         id="teamFilterButton"
                         type="button"
@@ -904,13 +929,13 @@
                     id="playerSearch"
                     type="text"
                     placeholder="Search by name…"
-                    class="border rounded px-3 py-2 w-64"
+                    class="hidden md:block border rounded px-3 py-2 w-64"
                     value="{{ request('search', '') }}"
                 />
                 <button
                     id="clearFilters"
                     type="button"
-                    class="invisible bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-3 rounded cursor-pointer"
+                    class="hidden md:block invisible bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-3 rounded cursor-pointer"
                 >
                     ✖ Clear All Filters
                 </button>
@@ -1322,6 +1347,7 @@
 
     <!-- Matches Table -->
     <div class="mt-8">
+        <div id="matches" class="relative -top-20 invisible h-0"></div>
         <h2 class="text-2xl font-bold text-gray-800 mb-4 px-2 md:px-0">League Matches</h2>
         @if($matches->count() > 0)
             <!-- Mobile Match Cards -->
@@ -1331,7 +1357,7 @@
                         $isUnplayed = ($match->home_score === null || $match->away_score === null) ||
                                       ($match->home_score === 0 && $match->away_score === 0);
                     @endphp
-                    <div class="bg-white rounded-lg shadow p-4 {{ $isUnplayed ? 'opacity-75' : '' }}">
+                    <div class="bg-white rounded-lg shadow p-4 {{ $isUnplayed ? 'opacity-75' : '' }} cursor-pointer hover:bg-gray-50 transition" onclick="window.location='{{ route('tennis-matches.show', $match->id) }}'">
                         <div class="flex justify-between items-start mb-3">
                             <div>
                                 <div class="text-xs text-gray-500 font-semibold mb-1">Match #{{ $index + 1 }}</div>
@@ -1346,7 +1372,7 @@
                             </div>
                             <div class="text-right">
                                 @if($match->home_score !== null && $match->away_score !== null)
-                                    <a href="{{ route('tennis-matches.show', $match->id) }}" class="font-bold text-lg">
+                                    <div class="font-bold text-lg">
                                         @if($isUnplayed)
                                             <span class="text-gray-400">{{ $match->home_score }} - {{ $match->away_score }}</span>
                                         @else
@@ -1354,7 +1380,7 @@
                                             <span class="text-gray-900"> - </span>
                                             <span class="{{ $match->away_score > $match->home_score ? 'text-green-600' : 'text-gray-900' }}">{{ $match->away_score }}</span>
                                         @endif
-                                    </a>
+                                    </div>
                                 @else
                                     <span class="text-gray-400 text-sm">No score</span>
                                 @endif
@@ -1364,19 +1390,19 @@
                         <div class="space-y-2">
                             <div class="flex items-center justify-between">
                                 <span class="text-xs text-gray-500 font-medium">Home:</span>
-                                <a href="{{ route('teams.show', $match->homeTeam->id) }}" class="{{ $isUnplayed ? 'text-gray-500 hover:text-gray-700' : 'text-blue-600 hover:text-blue-800' }} font-medium text-sm">
+                                <a href="{{ route('teams.show', $match->homeTeam->id) }}" onclick="event.stopPropagation()" class="{{ $isUnplayed ? 'text-gray-500 hover:text-gray-700' : 'text-blue-600 hover:text-blue-800' }} font-medium text-sm">
                                     {{ $match->homeTeam->name }}
                                 </a>
                             </div>
                             <div class="flex items-center justify-between">
                                 <span class="text-xs text-gray-500 font-medium">Away:</span>
-                                <a href="{{ route('teams.show', $match->awayTeam->id) }}" class="{{ $isUnplayed ? 'text-gray-500 hover:text-gray-700' : 'text-blue-600 hover:text-blue-800' }} font-medium text-sm">
+                                <a href="{{ route('teams.show', $match->awayTeam->id) }}" onclick="event.stopPropagation()" class="{{ $isUnplayed ? 'text-gray-500 hover:text-gray-700' : 'text-blue-600 hover:text-blue-800' }} font-medium text-sm">
                                     {{ $match->awayTeam->name }}
                                 </a>
                             </div>
                             @if($match->tennis_record_match_link)
                                 <div class="pt-2 border-t border-gray-200">
-                                    <a href="{{ $match->tennis_record_match_link }}" target="_blank" rel="noopener noreferrer" class="text-2xl hover:opacity-70 transition-opacity block text-center" title="View on Tennis Record">
+                                    <a href="{{ $match->tennis_record_match_link }}" onclick="event.stopPropagation()" target="_blank" rel="noopener noreferrer" class="text-2xl hover:opacity-70 transition-opacity block text-center" title="View on Tennis Record">
                                         🎾
                                     </a>
                                 </div>
@@ -1463,6 +1489,7 @@
                 <p class="text-gray-400 text-sm">Use the "Sync Team Matches" button to fetch matches from Tennis Record</p>
             </div>
         @endif
+    </div>
     </div>
 </div>
 
