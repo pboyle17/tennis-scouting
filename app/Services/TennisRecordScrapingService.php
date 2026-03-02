@@ -34,6 +34,7 @@ class TennisRecordScrapingService
                 'Connection' => 'keep-alive',
                 'Upgrade-Insecure-Requests' => '1'
             ])
+            ->withoutVerifying()
             ->timeout(120) // Increase timeout to 120 seconds (2 minutes)
             ->connectTimeout(30) // Allow 30 seconds to establish connection
             ->get($tennisRecordLink);
@@ -313,6 +314,7 @@ class TennisRecordScrapingService
                 'Connection' => 'keep-alive',
                 'Upgrade-Insecure-Requests' => '1'
             ])
+            ->withoutVerifying()
             ->timeout(120)
             ->connectTimeout(30)
             ->get($tennisRecordLeagueLink);
