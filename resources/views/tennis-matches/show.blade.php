@@ -34,7 +34,6 @@
             </div>
         </div>
 
-        @include('partials.tabs')
 
         @if(session('success'))
             <div class="bg-green-100 text-green-700 p-2 rounded mb-4">

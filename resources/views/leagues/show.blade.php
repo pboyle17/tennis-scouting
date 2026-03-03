@@ -10,11 +10,10 @@
                 {{ $league->name }}
             </a>
         </h1>
-        @include('partials.tabs')
     </div>
 
     <!-- Section Navigation Tabs -->
-    <div class="sticky top-0 z-50 bg-gray-100 shadow-sm mb-6" style="position: -webkit-sticky; position: sticky;">
+    <div class="sticky top-14 z-40 bg-gray-100 shadow-sm mb-6" style="position: -webkit-sticky; position: sticky;">
         <div class="container mx-auto px-4 md:px-6">
             <div class="flex justify-center border-b border-gray-200">
                 <nav class="flex space-x-8">
@@ -22,7 +21,7 @@
                         Teams
                     </a>
                     <a href="#players" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
-                        Players
+                        League Players
                     </a>
                     <a href="#matches" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
                         Matches
@@ -897,34 +896,7 @@
                         </button>
                     @endif
                 @endenv
-                <div class="hidden md:block relative inline-block">
-                    <button
-                        id="teamFilterButton"
-                        type="button"
-                        class="border rounded px-3 py-2 bg-white hover:bg-gray-50 flex items-center space-x-2 cursor-pointer"
-                    >
-                        <span id="teamFilterLabel">All Teams</span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                    <div
-                        id="teamFilterDropdown"
-                        class="hidden absolute z-10 mt-1 w-64 bg-white border rounded shadow-lg max-h-64 overflow-y-auto"
-                    >
-                        <div class="p-2">
-                            @php
-                                $selectedTeams = request('teams') ? explode(',', request('teams')) : [];
-                            @endphp
-                            @foreach($league->teams->sortBy('name') as $team)
-                                <label class="flex items-center space-x-2 p-2 hover:bg-gray-50 cursor-pointer">
-                                    <input type="checkbox" class="team-filter-checkbox rounded" value="{{ $team->id }}" {{ in_array((string)$team->id, $selectedTeams) ? 'checked' : '' }}>
-                                    <span>{{ $team->name }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                    </div>
-                </div>
+
                 <input
                     id="playerSearch"
                     type="text"
@@ -944,22 +916,7 @@
 
         <!-- Mobile Filter UI -->
         <div class="md:hidden mb-4 space-y-3 px-2">
-            <!-- Team Filter Dropdown for Mobile -->
-            <div class="flex items-center gap-2 text-sm">
-                <span class="text-gray-600 font-medium">Team:</span>
-                <div class="relative inline-block flex-1">
-                    <button
-                        id="teamFilterButtonMobile"
-                        type="button"
-                        class="w-full border rounded px-3 py-2 bg-white hover:bg-gray-50 flex items-center justify-between cursor-pointer"
-                    >
-                        <span id="teamFilterLabelMobile">All Teams</span>
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                        </svg>
-                    </button>
-                </div>
-            </div>
+
 
             <!-- Search -->
             <div class="flex items-center gap-2 text-sm">
@@ -1570,79 +1527,11 @@
     // Initialize count
     updateSelectedCount();
 
-    // Team filter dropdown functionality
-    (function () {
-        const button = document.getElementById('teamFilterButton');
-        const dropdown = document.getElementById('teamFilterDropdown');
-        const label = document.getElementById('teamFilterLabel');
-        const teamCheckboxes = Array.from(document.querySelectorAll('.team-filter-checkbox'));
-
-        // Toggle dropdown
-        button.addEventListener('click', (e) => {
-            e.stopPropagation();
-            dropdown.classList.toggle('hidden');
-        });
-
-        // Close dropdown when clicking outside
-        document.addEventListener('click', (e) => {
-            if (!dropdown.contains(e.target) && !button.contains(e.target)) {
-                dropdown.classList.add('hidden');
-            }
-        });
-
-        // Prevent dropdown from closing when clicking inside
-        dropdown.addEventListener('click', (e) => {
-            e.stopPropagation();
-        });
-
-        // Update label and apply filters when checkboxes change
-        function updateLabelAndFilter() {
-            const checkedBoxes = teamCheckboxes.filter(cb => cb.checked);
-
-            if (checkedBoxes.length === 0) {
-                label.textContent = 'All Teams';
-            } else if (checkedBoxes.length === teamCheckboxes.length) {
-                label.textContent = 'All Teams';
-            } else if (checkedBoxes.length === 1) {
-                label.textContent = '1 Team Selected';
-            } else {
-                label.textContent = `${checkedBoxes.length} Teams Selected`;
-            }
-
-            updateTeamURL();
-        }
-
-        function updateTeamURL() {
-            const checkedBoxes = teamCheckboxes.filter(cb => cb.checked);
-            const url = new URL(window.location);
-
-            if (checkedBoxes.length === 0 || checkedBoxes.length === teamCheckboxes.length) {
-                url.searchParams.delete('teams');
-            } else {
-                const teamIds = checkedBoxes.map(cb => cb.value).join(',');
-                url.searchParams.set('teams', teamIds);
-            }
-
-            window.history.pushState({}, '', decodeURIComponent(url.toString()));
-            if (window.applyFilters) {
-                window.applyFilters();
-            }
-        }
-
-        // Individual checkbox changes
-        teamCheckboxes.forEach(cb => {
-            cb.addEventListener('change', updateLabelAndFilter);
-        });
-
-        // Initialize label on page load
-        updateLabelAndFilter();
-    })();
 
     // Player search and filter functionality
     (function () {
         const input = document.getElementById('playerSearch');
         const inputMobile = document.getElementById('playerSearchMobile');
-        const teamCheckboxes = Array.from(document.querySelectorAll('.team-filter-checkbox'));
         const clearFiltersBtn = document.getElementById('clearFilters');
         const clearFiltersBtnMobile = document.getElementById('clearFiltersMobile');
         const rows = Array.from(document.querySelectorAll('tbody tr[data-name]'));
@@ -1651,7 +1540,6 @@
 
         window.applyFilters = function() {
             const searchTerm = (input ? input.value.trim().toLowerCase() : '') || (inputMobile ? inputMobile.value.trim().toLowerCase() : '');
-            const selectedTeams = teamCheckboxes.filter(cb => cb.checked).map(cb => cb.value);
 
             // Get filter states from URL
             const urlParams = new URLSearchParams(window.location.search);
@@ -1667,7 +1555,6 @@
             const visibleTeamIds = new Set();
 
             const totalPlayers = rows.length;
-            const totalTeams = teamCheckboxes.length;
             const totalPlayersWithUtr = rows.filter(row => row.getAttribute('data-has-utr') === '1').length;
             const totalPlayersWithTR = rows.filter(row => row.getAttribute('data-has-tr') === '1').length;
 
@@ -1683,13 +1570,12 @@
                 const isPlayingUp = row.getAttribute('data-playing-up') === '1';
 
                 const matchesSearch = !searchTerm || name.includes(searchTerm);
-                const matchesTeam = selectedTeams.length === 0 || selectedTeams.length === teamCheckboxes.length || selectedTeams.includes(teamId);
                 const matchesSinglesVerified = !singlesVerified || singlesReliable;
                 const matchesDoublesVerified = !doublesVerified || doublesReliable;
                 const matchesPromoted = !promoted || isPromoted;
                 const matchesPlayingUp = !playingUp || isPlayingUp;
 
-                const show = matchesSearch && matchesTeam && matchesSinglesVerified && matchesDoublesVerified && matchesPromoted && matchesPlayingUp;
+                const show = matchesSearch && matchesSinglesVerified && matchesDoublesVerified && matchesPromoted && matchesPlayingUp;
                 row.style.display = show ? '' : 'none';
 
                 // Update rank and counts for visible rows
@@ -1716,13 +1602,12 @@
                 const isPlayingUp = card.getAttribute('data-playing-up') === '1';
 
                 const matchesSearch = !searchTerm || name.includes(searchTerm);
-                const matchesTeam = selectedTeams.length === 0 || selectedTeams.length === teamCheckboxes.length || selectedTeams.includes(teamId);
                 const matchesSinglesVerified = !singlesVerified || singlesReliable;
                 const matchesDoublesVerified = !doublesVerified || doublesReliable;
                 const matchesPromoted = !promoted || isPromoted;
                 const matchesPlayingUp = !playingUp || isPlayingUp;
 
-                const show = matchesSearch && matchesTeam && matchesSinglesVerified && matchesDoublesVerified && matchesPromoted && matchesPlayingUp;
+                const show = matchesSearch && matchesSinglesVerified && matchesDoublesVerified && matchesPromoted && matchesPlayingUp;
                 card.style.display = show ? '' : 'none';
 
                 // Update rank in mobile cards
@@ -1735,7 +1620,7 @@
             });
 
             // Update header text
-            const isFiltered = searchTerm.length > 0 || (selectedTeams.length > 0 && selectedTeams.length < teamCheckboxes.length);
+            const isFiltered = searchTerm.length > 0 || singlesVerified || doublesVerified || promoted || playingUp;
             document.getElementById('filterStatus').textContent = isFiltered ? 'Filtered Players' : 'All Players in League';
             document.getElementById('visiblePlayersCount').textContent = visiblePlayers;
             document.getElementById('playersLabel').textContent = visiblePlayers === 1 ? 'player' : 'players';
@@ -1772,8 +1657,7 @@
 
             // Show clear all filters button when there's any active filter
             const hasSearch = searchTerm.length > 0;
-            const hasTeamFilter = selectedTeams.length > 0 && selectedTeams.length < teamCheckboxes.length;
-            const hasAnyFilter = hasSearch || hasTeamFilter || singlesVerified || doublesVerified || promoted || playingUp;
+            const hasAnyFilter = hasSearch || singlesVerified || doublesVerified || promoted || playingUp;
             if (clearFiltersBtn) {
                 clearFiltersBtn.classList.toggle('invisible', !hasAnyFilter);
                 clearFiltersBtn.style.pointerEvents = hasAnyFilter ? 'auto' : 'none';
@@ -1801,6 +1685,7 @@
                 url.searchParams.delete('search');
             }
 
+            url.hash = 'players';
             window.history.pushState({}, '', decodeURIComponent(url.toString()));
             applyFilters();
         }
@@ -1814,8 +1699,6 @@
 
         clearFiltersBtn.addEventListener('click', () => {
             input.value = '';
-            teamCheckboxes.forEach(cb => cb.checked = false);
-            document.getElementById('teamFilterLabel').textContent = 'All Teams';
 
             // Clear UTR verified filter checkmarks
             const filterSingles = document.getElementById('filterSinglesReliable');
@@ -1839,12 +1722,12 @@
 
             // Clear URL params
             const url = new URL(window.location);
-            url.searchParams.delete('teams');
             url.searchParams.delete('search');
             url.searchParams.delete('singles_verified');
             url.searchParams.delete('doubles_verified');
             url.searchParams.delete('promoted');
             url.searchParams.delete('playing_up');
+            url.hash = 'players';
             window.history.pushState({}, '', decodeURIComponent(url.toString()));
 
             applyFilters();
@@ -2121,6 +2004,7 @@
                 url.searchParams.delete('doubles_verified');
             }
 
+            url.hash = 'players';
             window.history.pushState({}, '', decodeURIComponent(url.toString()));
 
             // Call the global applyFilters which handles all filters together
@@ -2162,6 +2046,7 @@
                 url.searchParams.delete('promoted');
             }
 
+            url.hash = 'players';
             window.history.pushState({}, '', decodeURIComponent(url.toString()));
 
             // Call the global applyFilters which handles all filters together
@@ -2200,6 +2085,7 @@
                 url.searchParams.delete('playing_up');
             }
 
+            url.hash = 'players';
             window.history.pushState({}, '', decodeURIComponent(url.toString()));
 
             // Call the global applyFilters which handles all filters together
@@ -2237,6 +2123,7 @@
                 });
 
                 // Navigate to the updated URL
+                sortUrl.hash = 'players';
                 window.location.href = sortUrl.toString();
             });
         });
@@ -3002,8 +2889,6 @@
         const filterPlayingUpMobile = document.getElementById('filterPlayingUpMobile');
         const filterSinglesReliableMobile = document.getElementById('filterSinglesReliableMobile');
         const filterDoublesReliableMobile = document.getElementById('filterDoublesReliableMobile');
-        const teamFilterButtonMobile = document.getElementById('teamFilterButtonMobile');
-        const teamFilterDropdown = document.getElementById('teamFilterDropdown');
         const clearFiltersMobile = document.getElementById('clearFiltersMobile');
 
         // Sync mobile and desktop search inputs
@@ -3014,19 +2899,12 @@
             });
         }
 
-        // Mobile team filter dropdown
-        if (teamFilterButtonMobile && teamFilterDropdown) {
-            teamFilterButtonMobile.addEventListener('click', (e) => {
-                e.stopPropagation();
-                teamFilterDropdown.classList.toggle('hidden');
-            });
-        }
-
         // Mobile sort controls
         if (mobileSortField) {
             mobileSortField.addEventListener('change', function() {
                 const url = new URL(window.location);
                 url.searchParams.set('sort', this.value);
+                url.hash = 'players';
                 window.location = url;
             });
         }
@@ -3037,6 +2915,7 @@
                 const newDirection = currentDirection === 'asc' ? 'desc' : 'asc';
                 const url = new URL(window.location);
                 url.searchParams.set('direction', newDirection);
+                url.hash = 'players';
                 window.location = url;
             });
         }
@@ -3051,6 +2930,7 @@
                 } else {
                     url.searchParams.set('promoted', '1');
                 }
+                url.hash = 'players';
                 window.location = url;
             });
         }
@@ -3064,6 +2944,7 @@
                 } else {
                     url.searchParams.set('playing_up', '1');
                 }
+                url.hash = 'players';
                 window.location = url;
             });
         }
@@ -3077,6 +2958,7 @@
                 } else {
                     url.searchParams.set('singles_verified', '1');
                 }
+                url.hash = 'players';
                 window.location = url;
             });
         }
@@ -3090,6 +2972,7 @@
                 } else {
                     url.searchParams.set('doubles_verified', '1');
                 }
+                url.hash = 'players';
                 window.location = url;
             });
         }
@@ -3099,16 +2982,14 @@
             clearFiltersMobile.addEventListener('click', function() {
                 if (inputMobile) inputMobile.value = '';
                 if (inputDesktop) inputDesktop.value = '';
-                const teamCheckboxes = document.querySelectorAll('.team-filter-checkbox');
-                teamCheckboxes.forEach(cb => cb.checked = false);
 
                 const url = new URL(window.location);
                 url.searchParams.delete('search');
-                url.searchParams.delete('teams');
                 url.searchParams.delete('singles_verified');
                 url.searchParams.delete('doubles_verified');
                 url.searchParams.delete('promoted');
                 url.searchParams.delete('playing_up');
+                url.hash = 'players';
                 window.location = url;
             });
         }

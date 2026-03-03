@@ -37,11 +37,10 @@
             @endif
         </div>
 
-        @include('partials.tabs')
     </div>
 
     <!-- Section Navigation Tabs -->
-    <div class="sticky top-0 z-50 bg-gray-100 shadow-sm mb-6" style="position: -webkit-sticky; position: sticky;">
+    <div class="sticky top-14 z-40 bg-gray-100 shadow-sm mb-6" style="position: -webkit-sticky; position: sticky;">
         <div class="container mx-auto px-4 md:px-6">
             <div class="flex justify-center border-b border-gray-200">
                 <nav class="flex space-x-8">
@@ -49,7 +48,7 @@
                         Court Averages
                     </a>
                     <a href="#players" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
-                        Players
+                        Team Players
                     </a>
                     <a href="#matches" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
                         Matches
@@ -498,7 +497,7 @@
         </div>
     @endif
 
-    <div class="mb-4 flex justify-between items-center">
+    <div class="mb-4 flex justify-between items-center px-2 md:px-6">
         <div class="text-sm text-gray-600">
             <strong>{{ $team->players->count() }}</strong> players on this team
         </div>
@@ -559,7 +558,7 @@
 
     <!-- Add Player Section -->
     @if($availablePlayers->count() > 0 && app()->environment() !== 'production')
-        <div class="mb-6">
+        <div class="mb-6 px-2 md:px-6">
             <button type="button" id="toggleAddPlayerBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
                 + Add Players to Team
             </button>
@@ -623,7 +622,7 @@
 
     <div id="players" class="relative -top-20 invisible h-0"></div>
     @if($team->players->count() > 0)
-        <div class="mb-4 flex items-center space-x-2 px-2 md:px-0">
+        <div class="mb-4 flex items-center space-x-2 px-2 md:px-6">
             <input
                 id="playerTableSearch"
                 type="text"
@@ -797,7 +796,7 @@
         </div>
 
         <!-- Desktop Table View -->
-        <div class="hidden md:block bg-white rounded-lg shadow">
+        <div class="hidden md:block bg-white rounded-lg shadow md:mx-6">
             <table id="playersTable" class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
@@ -1128,7 +1127,7 @@
     <!-- Matches Table -->
     <div class="mt-8">
         <div id="matches" class="relative -top-20 invisible h-0"></div>
-        <div class="flex justify-between items-center mb-4 px-2 md:px-0">
+        <div class="flex justify-between items-center mb-4 px-2 md:px-6">
             <h2 class="text-2xl font-bold text-gray-800">Team Matches</h2>
             <div class="flex space-x-2">
                 @env('local')
@@ -1166,48 +1165,50 @@
                     @endphp
 
                     <div class="bg-white rounded-lg shadow p-4 {{ $isUnplayed ? 'opacity-75' : '' }} cursor-pointer hover:bg-gray-50 transition" onclick="window.location='{{ route('tennis-matches.show', $match->id) }}'">
-                        <div class="flex justify-between items-start mb-3">
-                            <div>
-                                <div class="text-xs text-gray-500 font-semibold mb-1">Match #{{ $index + 1 }}</div>
-                                <div class="text-sm {{ $isUnplayed ? 'text-gray-500' : 'text-gray-700' }}">
-                                    @if($match->start_time)
-                                        {{ $match->start_time->format('M d, Y') }}
-                                        <span class="text-xs {{ $isUnplayed ? 'text-gray-400' : 'text-gray-500' }}">{{ $match->start_time->format('g:i A') }}</span>
-                                    @else
-                                        <span class="text-gray-400">TBD</span>
-                                    @endif
-                                </div>
-                            </div>
-                            <div class="text-right">
-                                @if($match->home_score !== null && $match->away_score !== null)
-                                    <div class="font-bold text-lg">
-                                        @if($isUnplayed)
-                                            <span class="text-gray-400">{{ $currentScore }} - {{ $opponentScore }}</span>
-                                        @else
-                                            <span class="{{ $currentScore > $opponentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $currentScore }}</span>
-                                            <span class="text-gray-900"> - </span>
-                                            <span class="{{ $opponentScore > $currentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $opponentScore }}</span>
-                                        @endif
-                                    </div>
-                                @else
-                                    <span class="text-gray-400 italic text-sm">Not played</span>
-                                @endif
-                            </div>
+                        {{-- Match number + date --}}
+                        <div class="text-xs text-gray-500 font-semibold mb-1">Match #{{ $index + 1 }}</div>
+                        <div class="text-sm {{ $isUnplayed ? 'text-gray-500' : 'text-gray-700' }} mb-2">
+                            @if($match->start_time)
+                                {{ $match->start_time->format('M d, Y') }}
+                                <span class="text-xs {{ $isUnplayed ? 'text-gray-400' : 'text-gray-500' }}">{{ $match->start_time->format('g:i A') }}</span>
+                            @else
+                                <span class="text-gray-400">TBD</span>
+                            @endif
                         </div>
 
-                        <div class="border-t border-gray-200 pt-3">
-                            <div class="mb-2">
-                                <span class="text-xs text-gray-600">Opponent:</span>
+                        {{-- Score --}}
+                        <div class="mb-3">
+                            @if($match->home_score !== null && $match->away_score !== null)
+                                <div class="font-bold text-lg">
+                                    @if($isUnplayed)
+                                        <span class="text-gray-400">{{ $currentScore }} - {{ $opponentScore }}</span>
+                                    @else
+                                        <span class="{{ $currentScore > $opponentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $currentScore }}</span>
+                                        <span class="text-gray-900"> - </span>
+                                        <span class="{{ $opponentScore > $currentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $opponentScore }}</span>
+                                    @endif
+                                </div>
+                            @else
+                                <span class="text-gray-400 italic text-sm">Not played</span>
+                            @endif
+                        </div>
+
+                        <div class="border-t border-gray-200 pt-3 space-y-1 text-sm">
+                            {{-- Opponent --}}
+                            <div>
+                                <span class="text-xs text-gray-500">Opponent:</span>
                                 <a href="{{ route('teams.show', $opponent->id) }}" onclick="event.stopPropagation()" class="ml-1 {{ $isUnplayed ? 'text-gray-500' : 'text-blue-600' }} font-semibold hover:underline">
                                     {{ $opponent->name }}
                                 </a>
                             </div>
-                            <div class="flex justify-between items-center text-xs text-gray-600">
-                                <div>
-                                    <span class="text-gray-600">Location:</span>
-                                    <span class="ml-1 text-gray-700">{{ $match->location ?? '-' }}</span>
-                                </div>
-                                <div class="flex items-center space-x-2">
+                            {{-- Location --}}
+                            <div class="text-xs text-gray-600">
+                                <span class="text-gray-500">Location:</span>
+                                <span class="ml-1">{{ $match->location ?? '-' }}</span>
+                            </div>
+                            {{-- Actions --}}
+                            @if($match->tennis_record_match_link || app()->environment('local'))
+                                <div class="flex items-center space-x-3 pt-1">
                                     @if($match->tennis_record_match_link)
                                         <a href="{{ $match->tennis_record_match_link }}" onclick="event.stopPropagation()" target="_blank" rel="noopener noreferrer" class="text-2xl">🎾</a>
                                     @endif
@@ -1220,14 +1221,14 @@
                                         </form>
                                     @endenv
                                 </div>
-                            </div>
+                            @endif
                         </div>
                     </div>
                 @endforeach
             </div>
 
             <!-- Desktop Table View -->
-            <div class="hidden md:block bg-white rounded-lg shadow">
+            <div class="hidden md:block bg-white rounded-lg shadow md:mx-6">
                 <table class="w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
@@ -1713,6 +1714,7 @@
                 url.searchParams.delete('doubles_verified');
             }
 
+            url.hash = 'players';
             window.history.pushState({}, '', url);
             window.applyFilters();
         }
@@ -1812,6 +1814,7 @@
                 url.searchParams.delete('promoted');
             }
 
+            url.hash = 'players';
             window.history.pushState({}, '', url);
 
             // Call the global applyFilters which handles all filters together
@@ -1866,6 +1869,7 @@
                 url.searchParams.delete('playing_up');
             }
 
+            url.hash = 'players';
             window.history.pushState({}, '', url);
 
             // Call the global applyFilters which handles all filters together
@@ -1894,6 +1898,7 @@
                 url.searchParams.set('direction', direction);
 
                 // Navigate to updated URL (preserves filters automatically)
+                url.hash = 'players';
                 window.location.href = url.toString();
             }
 
@@ -1933,6 +1938,7 @@
                 });
 
                 // Navigate to the updated URL
+                sortUrl.hash = 'players';
                 window.location.href = sortUrl.toString();
             });
         });
