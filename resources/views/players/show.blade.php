@@ -181,12 +181,15 @@
         @if($courtPlayers->count() > 0)
             @php $matchTeams = $courtPlayers->map(fn($cp) => $cp->team)->unique('id')->values(); @endphp
 
-            {{-- Result filter --}}
-            <div class="mb-2 flex flex-wrap items-center gap-2">
-                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Result:</span>
-                <button data-result="win" class="result-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Win</button>
-                <button data-result="loss" class="result-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Loss</button>
-            </div>
+            {{-- Team filter --}}
+            @if($matchTeams->count() > 1)
+                <div class="mb-2 flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team:</span>
+                    @foreach($matchTeams as $team)
+                        <button data-team="{{ $team->id }}" class="team-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">{{ $team->name }}</button>
+                    @endforeach
+                </div>
+            @endif
 
             {{-- Court type filter --}}
             <div class="mb-2 flex flex-wrap items-center gap-2">
@@ -195,15 +198,35 @@
                 <button data-court="doubles" class="court-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Doubles</button>
             </div>
 
-            {{-- Team filter --}}
-            @if($matchTeams->count() > 1)
-                <div class="mb-4 flex flex-wrap items-center gap-2">
-                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team:</span>
-                    @foreach($matchTeams as $team)
-                        <button data-team="{{ $team->id }}" class="team-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">{{ $team->name }}</button>
-                    @endforeach
+            {{-- Result filter --}}
+            <div class="mb-4 flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Result:</span>
+                <button data-result="win" class="result-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Win</button>
+                <button data-result="loss" class="result-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Loss</button>
+            </div>
+
+            {{-- Match stats --}}
+            <div class="mb-4 flex items-center gap-3 px-4 py-3 bg-gray-50 rounded-lg border border-gray-200 text-sm">
+                <div class="flex items-baseline gap-1">
+                    <span id="stat-wins" class="text-xl font-bold text-green-600">0</span>
+                    <span class="text-gray-500">W</span>
                 </div>
-            @endif
+                <span class="text-gray-300 text-lg">–</span>
+                <div class="flex items-baseline gap-1">
+                    <span id="stat-losses" class="text-xl font-bold text-red-600">0</span>
+                    <span class="text-gray-500">L</span>
+                </div>
+                <span class="text-gray-300 text-lg">·</span>
+                <div class="flex items-baseline gap-1">
+                    <span id="stat-total" class="text-xl font-bold text-gray-700">0</span>
+                    <span class="text-gray-500">matches</span>
+                </div>
+                <span class="text-gray-300 text-lg">·</span>
+                <div class="flex items-baseline gap-1">
+                    <span id="stat-pct" class="text-xl font-bold text-blue-600">0.0</span>
+                    <span class="text-gray-500">%</span>
+                </div>
+            </div>
 
             {{-- Mobile card view --}}
             <div class="md:hidden space-y-4">
@@ -462,23 +485,37 @@
     var activeResults = new Set();
 
     function applyFilters() {
-        document.querySelectorAll('.match-card, .match-row').forEach(function (el) {
+        var wins = 0, losses = 0;
+        document.querySelectorAll('.match-card').forEach(function (el) {
+            var teamMatch = activeTeams.size === 0 || activeTeams.has(el.dataset.teamId);
+            var courtMatch = activeCourts.size === 0 || activeCourts.has(el.dataset.courtType);
+            var resultMatch = activeResults.size === 0 || activeResults.has(el.dataset.result);
+            var visible = teamMatch && courtMatch && resultMatch;
+            el.style.display = visible ? '' : 'none';
+            if (visible) { el.dataset.result === 'win' ? wins++ : losses++; }
+        });
+        document.querySelectorAll('.match-row').forEach(function (el) {
             var teamMatch = activeTeams.size === 0 || activeTeams.has(el.dataset.teamId);
             var courtMatch = activeCourts.size === 0 || activeCourts.has(el.dataset.courtType);
             var resultMatch = activeResults.size === 0 || activeResults.has(el.dataset.result);
             el.style.display = (teamMatch && courtMatch && resultMatch) ? '' : 'none';
         });
+        var total = wins + losses;
+        document.getElementById('stat-wins').textContent = wins;
+        document.getElementById('stat-losses').textContent = losses;
+        document.getElementById('stat-total').textContent = total;
+        document.getElementById('stat-pct').textContent = total > 0 ? (wins / total * 100).toFixed(1) : '0.0';
     }
 
     function toggleFilter(set, value, btn) {
         if (set.has(value)) {
             set.delete(value);
-            btn.classList.remove('bg-blue-600', 'text-white');
-            btn.classList.add('bg-gray-100', 'text-gray-700');
+            btn.classList.remove('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+            btn.classList.add('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
         } else {
             set.add(value);
-            btn.classList.remove('bg-gray-100', 'text-gray-700');
-            btn.classList.add('bg-blue-600', 'text-white');
+            btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
         }
         applyFilters();
     }
@@ -494,6 +531,8 @@
     document.querySelectorAll('.team-filter-btn').forEach(function (btn) {
         btn.addEventListener('click', function () { toggleFilter(activeTeams, this.dataset.team, this); });
     });
+
+    applyFilters();
 })();
 </script>
 @endsection
