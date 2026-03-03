@@ -1026,6 +1026,8 @@
                                 @endif
                             </a>
                         </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Singles</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Doubles</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Player Links</th>
                     </tr>
                 </thead>
@@ -1142,6 +1144,20 @@
                                     </div>
                                 @else
                                     -
+                                @endif
+                            </td>
+                            <td class="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
+                                @if($player->singles_wins + $player->singles_losses > 0)
+                                    <span class="text-green-600 font-medium">{{ $player->singles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->singles_losses }}</span>
+                                @else
+                                    <span class="text-gray-400">-</span>
+                                @endif
+                            </td>
+                            <td class="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
+                                @if($player->doubles_wins + $player->doubles_losses > 0)
+                                    <span class="text-green-600 font-medium">{{ $player->doubles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->doubles_losses }}</span>
+                                @else
+                                    <span class="text-gray-400">-</span>
                                 @endif
                             </td>
                             <td class="px-4 py-2 text-sm text-center">
@@ -1270,6 +1286,26 @@
                                     <span class="{{ $ratingClass }}">{{ $player->USTA_dynamic_rating }}</span>
                                 @else
                                     -
+                                @endif
+                            </span>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-gray-600">Singles:</span>
+                            <span class="ml-1">
+                                @if($player->singles_wins + $player->singles_losses > 0)
+                                    <span class="text-green-600 font-medium">{{ $player->singles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->singles_losses }}</span>
+                                @else
+                                    <span class="text-gray-400">-</span>
+                                @endif
+                            </span>
+                        </div>
+                        <div>
+                            <span class="font-semibold text-gray-600">Doubles:</span>
+                            <span class="ml-1">
+                                @if($player->doubles_wins + $player->doubles_losses > 0)
+                                    <span class="text-green-600 font-medium">{{ $player->doubles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->doubles_losses }}</span>
+                                @else
+                                    <span class="text-gray-400">-</span>
                                 @endif
                             </span>
                         </div>
@@ -3000,33 +3036,43 @@
         const modal = document.getElementById('playerLinksModal');
         if (!modal) return;
 
-        document.getElementById('playerLinksModalTitle').textContent = playerName;
-        document.getElementById('playerLinksModalContent').innerHTML = `
-            <div class="space-y-3">
-                <a href="/players/${playerId}" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
-                    <span class="font-medium text-gray-700">👤 Player Profile</span>
-                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                </a>
-                ${utrId ? `
-                <a href="https://app.utrsports.net/profiles/${utrId}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
-                    <span class="font-medium text-gray-700">🎯 UTR Profile</span>
-                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                    </svg>
-                </a>
-                ` : ''}
-                ${tennisRecordLink ? `
-                <a href="${tennisRecordLink}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
-                    <span class="font-medium text-gray-700">🎾 Tennis Record</span>
-                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                    </svg>
-                </a>
-                ` : ''}
-            </div>
+        document.getElementById('playerLinksModalTitle').textContent = playerName + ' - Links';
+
+        let linksHtml = `
+            <a href="/players/${playerId}" class="flex items-center space-x-3 p-3 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition">
+                <span class="text-3xl">👤</span>
+                <div>
+                    <div class="font-semibold text-gray-800">Player Profile</div>
+                    <div class="text-xs text-gray-500">View full profile</div>
+                </div>
+            </a>
         `;
+
+        if (utrId) {
+            linksHtml += `
+                <a href="https://app.utrsports.net/profiles/${utrId}" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                    <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-8 w-8">
+                    <div>
+                        <div class="font-semibold text-gray-800">UTR Profile</div>
+                        <div class="text-xs text-gray-500">View on UTR Sports</div>
+                    </div>
+                </a>
+            `;
+        }
+
+        if (tennisRecordLink) {
+            linksHtml += `
+                <a href="${tennisRecordLink}" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                    <span class="text-3xl">🎾</span>
+                    <div>
+                        <div class="font-semibold text-gray-800">Tennis Record</div>
+                        <div class="text-xs text-gray-500">View match history</div>
+                    </div>
+                </a>
+            `;
+        }
+
+        document.getElementById('playerLinksModalContent').innerHTML = linksHtml;
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     };
@@ -3052,7 +3098,7 @@
 <div id="playerLinksModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
         <div class="flex justify-between items-center mb-4">
-            <h3 id="playerLinksModalTitle" class="text-lg font-medium text-gray-900"></h3>
+            <h3 id="playerLinksModalTitle" class="text-lg font-medium text-gray-900">Player Links</h3>
             <button onclick="closePlayerLinksModal()" class="text-gray-400 hover:text-gray-600">
                 <span class="sr-only">Close</span>
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -3060,7 +3106,12 @@
                 </svg>
             </button>
         </div>
-        <div id="playerLinksModalContent"></div>
+        <div id="playerLinksModalContent" class="space-y-3"></div>
+        <div class="mt-4 flex justify-end">
+            <button onclick="closePlayerLinksModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-4 rounded">
+                Close
+            </button>
+        </div>
     </div>
 </div>
 @endsection
