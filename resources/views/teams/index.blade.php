@@ -5,7 +5,6 @@
 @section('content')
 <div class="container mx-auto p-6">
     <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Teams List</h1>
-    @include('partials.tabs')
 
     @if(session('success'))
         <div class="bg-green-100 text-green-700 p-2 rounded mb-4">
