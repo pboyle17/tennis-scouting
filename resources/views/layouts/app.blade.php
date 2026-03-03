@@ -20,7 +20,7 @@
     @php
         $currentRoute = request()->route()?->getName() ?? '';
     @endphp
-    <nav class="bg-white shadow-sm fixed top-0 left-0 right-0 z-[9999]">
+    <nav class="bg-white shadow-sm fixed top-0 left-0 right-0 z-[9999] [transform:translateZ(0)]">
         <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
             <a href="{{ route('leagues.index') }}" class="font-bold text-gray-800 text-lg tracking-tight">🎾 CourtScout</a>
 
