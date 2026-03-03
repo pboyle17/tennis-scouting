@@ -20,7 +20,7 @@
     @php
         $currentRoute = request()->route()?->getName() ?? '';
     @endphp
-    <nav class="bg-white shadow-sm fixed top-0 left-0 right-0 z-[9999]">
+    <nav class="bg-white shadow-sm fixed top-0 left-0 right-0 z-[9999] [transform:translateZ(0)]">
         <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
             <a href="{{ route('leagues.index') }}" class="font-bold text-gray-800 text-lg tracking-tight">🎾 CourtScout</a>
 
@@ -34,10 +34,12 @@
                    class="px-3 py-2 rounded text-sm font-medium {{ str_contains($currentRoute, 'players') ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:text-blue-500 hover:bg-gray-50' }}">
                     Players
                 </a>
+                @env('local')
                 <a href="{{ route('rackets.index') }}"
                    class="px-3 py-2 rounded text-sm font-medium {{ str_contains($currentRoute, 'rackets') || str_contains($currentRoute, 'string-jobs') ? 'bg-blue-50 text-blue-600' : 'text-gray-600 hover:text-blue-500 hover:bg-gray-50' }}">
                     Rackets
                 </a>
+                @endenv
                 @env('local')
                 <a href="{{ route('configurations.index') }}"
                    class="px-3 py-2 rounded text-sm font-medium text-gray-600 hover:text-blue-500 hover:bg-gray-50"
@@ -67,10 +69,12 @@
                    class="block px-3 py-2 rounded text-sm font-medium {{ str_contains($currentRoute, 'players') ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50' }}">
                     Players
                 </a>
+                @env('local')
                 <a href="{{ route('rackets.index') }}"
                    class="block px-3 py-2 rounded text-sm font-medium {{ str_contains($currentRoute, 'rackets') || str_contains($currentRoute, 'string-jobs') ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50' }}">
                     Rackets
                 </a>
+                @endenv
                 @env('local')
                 <a href="{{ route('configurations.index') }}"
                    class="block px-3 py-2 rounded text-sm font-medium text-gray-700 hover:bg-gray-50">

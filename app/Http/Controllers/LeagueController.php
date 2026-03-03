@@ -102,17 +102,6 @@ class LeagueController extends Controller
                              ->orderBy('name')
                              ->get();
 
-        // Get all players from all teams in the league
-        $players = collect();
-        foreach ($league->teams as $team) {
-            foreach ($team->players as $player) {
-                // Add team name to player for display
-                $player->team_name = $team->name;
-                $player->team_id = $team->id;
-                $players->push($player);
-            }
-        }
-
         // Get all matches for teams in this league
         $teamIds = $league->teams->pluck('id');
         $matches = \App\Models\TennisMatch::where(function($query) use ($teamIds) {
@@ -122,6 +111,34 @@ class LeagueController extends Controller
             ->orderBy('start_time', 'asc')
             ->with(['homeTeam', 'awayTeam'])
             ->get();
+
+        // Compute singles/doubles W-L records per player for this league
+        $matchIds = $matches->pluck('id');
+        $courtPlayerStats = \App\Models\CourtPlayer::whereHas('court', fn($q) => $q->whereIn('tennis_match_id', $matchIds))
+            ->with('court:id,court_type')
+            ->get(['player_id', 'won', 'court_id']);
+
+        $playerRecords = [];
+        foreach ($courtPlayerStats as $cp) {
+            $pid = $cp->player_id;
+            $type = $cp->court->court_type;
+            $playerRecords[$pid][$type]['wins'] = ($playerRecords[$pid][$type]['wins'] ?? 0) + ($cp->won ? 1 : 0);
+            $playerRecords[$pid][$type]['losses'] = ($playerRecords[$pid][$type]['losses'] ?? 0) + ($cp->won ? 0 : 1);
+        }
+
+        // Get all players from all teams in the league
+        $players = collect();
+        foreach ($league->teams as $team) {
+            foreach ($team->players as $player) {
+                $player->team_name = $team->name;
+                $player->team_id = $team->id;
+                $player->singles_wins = $playerRecords[$player->id]['singles']['wins'] ?? 0;
+                $player->singles_losses = $playerRecords[$player->id]['singles']['losses'] ?? 0;
+                $player->doubles_wins = $playerRecords[$player->id]['doubles']['wins'] ?? 0;
+                $player->doubles_losses = $playerRecords[$player->id]['doubles']['losses'] ?? 0;
+                $players->push($player);
+            }
+        }
 
         // Calculate average ratings by court position
         $courtStats = $this->calculateCourtStats($league);
