@@ -181,10 +181,24 @@
         @if($courtPlayers->count() > 0)
             @php $matchTeams = $courtPlayers->map(fn($cp) => $cp->team)->unique('id')->values(); @endphp
 
+            {{-- Result filter --}}
+            <div class="mb-2 flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Result:</span>
+                <button data-result="win" class="result-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Win</button>
+                <button data-result="loss" class="result-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Loss</button>
+            </div>
+
+            {{-- Court type filter --}}
+            <div class="mb-2 flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Court:</span>
+                <button data-court="singles" class="court-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Singles</button>
+                <button data-court="doubles" class="court-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Doubles</button>
+            </div>
+
             {{-- Team filter --}}
             @if($matchTeams->count() > 1)
-                <div class="mb-4 flex flex-wrap gap-2" id="team-filter">
-                    <button data-team="all" class="team-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-blue-600 text-white">All</button>
+                <div class="mb-4 flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team:</span>
                     @foreach($matchTeams as $team)
                         <button data-team="{{ $team->id }}" class="team-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">{{ $team->name }}</button>
                     @endforeach
@@ -225,7 +239,7 @@
                         $avgOpponentUtr = count($opponentUtrRatings) ? array_sum($opponentUtrRatings) / count($opponentUtrRatings) : null;
                         $avgOpponentUsta = count($opponentUstaRatings) ? array_sum($opponentUstaRatings) / count($opponentUstaRatings) : null;
                     @endphp
-                    <div onclick="window.location.href='{{ route('tennis-matches.show', $match->id) }}'" class="match-card block bg-gray-50 rounded-lg border border-gray-200 p-4 hover:bg-gray-100 transition cursor-pointer" data-team-id="{{ $courtPlayer->team_id }}">
+                    <div onclick="window.location.href='{{ route('tennis-matches.show', $match->id) }}'" class="match-card block bg-gray-50 rounded-lg border border-gray-200 p-4 hover:bg-gray-100 transition cursor-pointer" data-team-id="{{ $courtPlayer->team_id }}" data-court-type="{{ $court->court_type }}" data-result="{{ $courtPlayer->won ? 'win' : 'loss' }}">
                         {{-- Date + Court --}}
                         <div class="flex justify-between items-start mb-2">
                             <div class="text-xs text-gray-500">
@@ -342,7 +356,7 @@
                                     return $cp->team_id !== $courtPlayer->team_id;
                                 });
                             @endphp
-                            <tr class="match-row hover:bg-gray-50" data-team-id="{{ $courtPlayer->team_id }}">
+                            <tr class="match-row hover:bg-gray-50" data-team-id="{{ $courtPlayer->team_id }}" data-court-type="{{ $court->court_type }}" data-result="{{ $courtPlayer->won ? 'win' : 'loss' }}">
                                 <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $match->start_time ? $match->start_time->format('M d, Y') : 'N/A' }}
                                 </td>
@@ -443,24 +457,42 @@
 
 <script>
 (function () {
-    const btns = document.querySelectorAll('.team-filter-btn');
-    if (!btns.length) return;
+    var activeTeams = new Set();
+    var activeCourts = new Set();
+    var activeResults = new Set();
 
-    btns.forEach(function (btn) {
-        btn.addEventListener('click', function () {
-            const teamId = this.dataset.team;
-
-            btns.forEach(function (b) {
-                b.classList.remove('bg-blue-600', 'text-white');
-                b.classList.add('bg-gray-100', 'text-gray-700');
-            });
-            this.classList.remove('bg-gray-100', 'text-gray-700');
-            this.classList.add('bg-blue-600', 'text-white');
-
-            document.querySelectorAll('.match-card, .match-row').forEach(function (el) {
-                el.style.display = (teamId === 'all' || el.dataset.teamId === teamId) ? '' : 'none';
-            });
+    function applyFilters() {
+        document.querySelectorAll('.match-card, .match-row').forEach(function (el) {
+            var teamMatch = activeTeams.size === 0 || activeTeams.has(el.dataset.teamId);
+            var courtMatch = activeCourts.size === 0 || activeCourts.has(el.dataset.courtType);
+            var resultMatch = activeResults.size === 0 || activeResults.has(el.dataset.result);
+            el.style.display = (teamMatch && courtMatch && resultMatch) ? '' : 'none';
         });
+    }
+
+    function toggleFilter(set, value, btn) {
+        if (set.has(value)) {
+            set.delete(value);
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-gray-100', 'text-gray-700');
+        } else {
+            set.add(value);
+            btn.classList.remove('bg-gray-100', 'text-gray-700');
+            btn.classList.add('bg-blue-600', 'text-white');
+        }
+        applyFilters();
+    }
+
+    document.querySelectorAll('.result-filter-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { toggleFilter(activeResults, this.dataset.result, this); });
+    });
+
+    document.querySelectorAll('.court-filter-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { toggleFilter(activeCourts, this.dataset.court, this); });
+    });
+
+    document.querySelectorAll('.team-filter-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { toggleFilter(activeTeams, this.dataset.team, this); });
     });
 })();
 </script>
