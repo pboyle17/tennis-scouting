@@ -10,6 +10,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 use Symfony\Component\DomCrawler\Crawler;
 
 class SyncMatchFromTennisRecordJob implements ShouldQueue
@@ -65,6 +66,9 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                 'away_players_count' => $this->match->awayTeam->players->count(),
             ]);
 
+            // Parse scheduled date/time from the page and fix if it differs from DB
+            $this->syncMatchDatetime($crawler);
+
             // Store original match score to check if anything changed
             $originalHomeScore = $this->match->home_score;
             $originalAwayScore = $this->match->away_score;
@@ -119,6 +123,54 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                 'trace' => $e->getTraceAsString()
             ]);
             throw $e;
+        }
+    }
+
+    protected function syncMatchDatetime(Crawler $crawler): void
+    {
+        // The wrapper496 div contains text like:
+        // "... Scheduled Date: 03/29/2026 Match Site: ..."
+        // or "... Scheduled Date: 03/29/2026 Time: 6:00pm Match Site: ..."
+        $wrapper = $crawler->filter('div.wrapper496')->first();
+        if ($wrapper->count() === 0) {
+            return;
+        }
+
+        $text = $wrapper->text();
+
+        // Extract date
+        if (!preg_match('/Scheduled\s+Date:\s*(\d{1,2}\/\d{1,2}\/\d{4})/i', $text, $dateMatch)) {
+            Log::info("No scheduled date found on match page for match {$this->match->id}");
+            return;
+        }
+
+        // Extract optional time
+        $timeStr = null;
+        if (preg_match('/Time:\s*(\d{1,2}:\d{2}\s*[ap]m)/i', $text, $timeMatch)) {
+            $timeStr = $timeMatch[1];
+        }
+
+        try {
+            $parsed = $timeStr
+                ? Carbon::parse($dateMatch[1] . ' ' . $timeStr)
+                : Carbon::parse($dateMatch[1]);
+        } catch (\Exception $e) {
+            Log::warning("Failed to parse date from match page", [
+                'match_id' => $this->match->id,
+                'date_str' => $dateMatch[1],
+                'time_str' => $timeStr,
+                'error' => $e->getMessage(),
+            ]);
+            return;
+        }
+
+        $current = $this->match->start_time;
+        if (!$current || !$current->eq($parsed)) {
+            Log::info("Fixing start_time for match {$this->match->id}", [
+                'old' => $current ? $current->format('Y-m-d H:i:s') : null,
+                'new' => $parsed->format('Y-m-d H:i:s'),
+            ]);
+            $this->match->update(['start_time' => $parsed]);
         }
     }
 

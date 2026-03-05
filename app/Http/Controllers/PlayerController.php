@@ -67,7 +67,7 @@ class PlayerController extends Controller
                 'court.tennisMatch.league',
                 'court.courtPlayers.player',
                 'court.courtSets',
-                'team'
+                'team.league'
             ])
             ->get()
             ->sortByDesc(function($courtPlayer) {
@@ -291,12 +291,8 @@ class PlayerController extends Controller
                 }
             }
 
-            // Preserve return_url if it exists
             $returnUrl = $request->query('return_url');
-            $redirectUrl = route('players.edit', $player->id);
-            if ($returnUrl) {
-                $redirectUrl .= '?return_url=' . urlencode($returnUrl);
-            }
+            $redirectUrl = $returnUrl ?: route('players.edit', $player->id);
 
             return redirect($redirectUrl)->with([
                 'status' => "Found " . count($hits) . " UTR profile(s) for {$playerName}",
@@ -307,10 +303,7 @@ class PlayerController extends Controller
             Log::error("UTR search failed for player {$player->id}: " . $e->getMessage());
 
             $returnUrl = $request->query('return_url');
-            $redirectUrl = route('players.edit', $player->id);
-            if ($returnUrl) {
-                $redirectUrl .= '?return_url=' . urlencode($returnUrl);
-            }
+            $redirectUrl = $returnUrl ?: route('players.edit', $player->id);
 
             return redirect($redirectUrl)->with('error', 'Failed to search for UTR ID: ' . $e->getMessage());
         }

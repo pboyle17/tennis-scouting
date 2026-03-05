@@ -237,27 +237,13 @@
                                         @foreach($homePlayers as $cp)
                                             @php
                                                 $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
-                                                $ustaRating = $cp->usta_dynamic_rating;
                                             @endphp
-                                            <div class="relative group {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                            <div class="{{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
                                                 <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
                                                     {{ $cp->player->first_name }} {{ $cp->player->last_name }}
                                                 </a>
-                                                @if($utrRating || $ustaRating)
-                                                    <div class="absolute left-0 bottom-full mb-2
-                                                                opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
-                                                                bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                                whitespace-nowrap z-50">
-                                                        @if($utrRating)
-                                                            UTR: {{ number_format($utrRating, 2) }}
-                                                        @endif
-                                                        @if($utrRating && $ustaRating)
-                                                            <br>
-                                                        @endif
-                                                        @if($ustaRating)
-                                                            USTA: {{ number_format($ustaRating, 2) }}
-                                                        @endif
-                                                    </div>
+                                                @if($utrRating)
+                                                    <span class="text-xs text-gray-400 font-normal">({{ number_format($utrRating, 2) }})</span>
                                                 @endif
                                             </div>
                                         @endforeach
@@ -284,27 +270,13 @@
                                         @foreach($awayPlayers as $cp)
                                             @php
                                                 $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
-                                                $ustaRating = $cp->usta_dynamic_rating;
                                             @endphp
-                                            <div class="relative group {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                            <div class="{{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
                                                 <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
                                                     {{ $cp->player->first_name }} {{ $cp->player->last_name }}
                                                 </a>
-                                                @if($utrRating || $ustaRating)
-                                                    <div class="absolute left-0 bottom-full mb-2
-                                                                opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
-                                                                bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                                whitespace-nowrap z-50">
-                                                        @if($utrRating)
-                                                            UTR: {{ number_format($utrRating, 2) }}
-                                                        @endif
-                                                        @if($utrRating && $ustaRating)
-                                                            <br>
-                                                        @endif
-                                                        @if($ustaRating)
-                                                            USTA: {{ number_format($ustaRating, 2) }}
-                                                        @endif
-                                                    </div>
+                                                @if($utrRating)
+                                                    <span class="text-xs text-gray-400 font-normal">({{ number_format($utrRating, 2) }})</span>
                                                 @endif
                                             </div>
                                         @endforeach

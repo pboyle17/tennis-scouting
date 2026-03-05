@@ -14,9 +14,14 @@ class LeagueController extends Controller
     /**
      * Display a listing of the resource.
      */
-    public function index()
+    public function index(Request $request)
     {
-      $leagues = League::with('teams')->get();
+      $showInactive = $request->boolean('show_inactive');
+      $query = League::with('teams')->orderByDesc('active');
+      if (!$showInactive) {
+          $query->where('active', true);
+      }
+      $leagues = $query->get();
 
       // Calculate court averages for all leagues in a single query
       $courtAverages = \DB::table('leagues')
@@ -173,6 +178,7 @@ class LeagueController extends Controller
 
       $data = $request->only(['name', 'usta_link', 'tennis_record_link', 'NTRP_rating']);
       $data['is_combo'] = $request->has('is_combo') ? true : false;
+      $data['active'] = $request->has('active') ? true : false;
 
       $league->update($data);
 

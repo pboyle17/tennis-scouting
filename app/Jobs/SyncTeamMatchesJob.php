@@ -165,13 +165,38 @@ class SyncTeamMatchesJob implements ShouldQueue
             // Process each match
             foreach ($allMatches as $index => $matchData) {
                 try {
-                    // Check if match already exists to detect score conflicts
-                    $existingMatch = TennisMatch::where([
-                        'league_id' => $league->id,
-                        'home_team_id' => $matchData['home_team_id'],
-                        'away_team_id' => $matchData['away_team_id'],
-                        'start_time' => $matchData['start_time']
-                    ])->first();
+                    // Try to find existing match by external_id first (most reliable),
+                    // then fall back to teams + start_time
+                    $existingMatch = null;
+                    if (!empty($matchData['external_id'])) {
+                        $existingMatch = TennisMatch::where([
+                            'league_id' => $league->id,
+                            'external_id' => $matchData['external_id']
+                        ])->first();
+                    }
+                    if (!$existingMatch) {
+                        $existingMatch = TennisMatch::where([
+                            'league_id' => $league->id,
+                            'home_team_id' => $matchData['home_team_id'],
+                            'away_team_id' => $matchData['away_team_id'],
+                            'start_time' => $matchData['start_time']
+                        ])->first();
+                    }
+
+                    // Detect datetime conflict (match found but time differs)
+                    $hasDatetimeConflict = $existingMatch &&
+                        $existingMatch->start_time &&
+                        !$existingMatch->start_time->eq($matchData['start_time']);
+
+                    if ($hasDatetimeConflict) {
+                        Log::info("Datetime conflict detected — fixing start_time", [
+                            'match_id' => $existingMatch->id,
+                            'home_team' => $matchData['home_team_name'],
+                            'away_team' => $matchData['away_team_name'],
+                            'old_start_time' => $existingMatch->start_time->format('Y-m-d H:i:s'),
+                            'new_start_time' => $matchData['start_time']->format('Y-m-d H:i:s'),
+                        ]);
+                    }
 
                     $hasScoreConflict = false;
                     if ($existingMatch &&
@@ -196,12 +221,16 @@ class SyncTeamMatchesJob implements ShouldQueue
                         Log::warning("Score conflict detected", $scoreConflicts[count($scoreConflicts) - 1]);
                     }
 
-                    // Find or create the match (skip score update if there's a conflict)
                     $updateData = [
                         'location' => $matchData['location'],
                         'external_id' => $matchData['external_id'] ?? null,
                         'tennis_record_match_link' => $matchData['tennis_record_match_link'] ?? null
                     ];
+
+                    // Fix datetime if it differs
+                    if ($hasDatetimeConflict) {
+                        $updateData['start_time'] = $matchData['start_time'];
+                    }
 
                     // Only update scores if there's no conflict
                     if (!$hasScoreConflict) {
@@ -209,21 +238,21 @@ class SyncTeamMatchesJob implements ShouldQueue
                         $updateData['away_score'] = $matchData['away_score'] ?? null;
                     }
 
-                    $match = TennisMatch::updateOrCreate(
-                        [
+                    if ($existingMatch) {
+                        $existingMatch->update($updateData);
+                        $match = $existingMatch;
+                        $updatedCount++;
+                    } else {
+                        $match = TennisMatch::create(array_merge([
                             'league_id' => $league->id,
                             'home_team_id' => $matchData['home_team_id'],
                             'away_team_id' => $matchData['away_team_id'],
-                            'start_time' => $matchData['start_time']
-                        ],
-                        $updateData
-                    );
-
-                    if ($match->wasRecentlyCreated) {
+                            'start_time' => $matchData['start_time'],
+                        ], $updateData));
                         $createdCount++;
-                    } else {
-                        $updatedCount++;
                     }
+
+                    $wasCreated = !$existingMatch;
 
                     Log::info("Processed match", [
                         'match_id' => $match->id,
@@ -231,7 +260,8 @@ class SyncTeamMatchesJob implements ShouldQueue
                         'away_team' => $matchData['away_team_name'],
                         'start_time' => $matchData['start_time'],
                         'location' => $matchData['location'],
-                        'was_created' => $match->wasRecentlyCreated
+                        'was_created' => $wasCreated,
+                        'datetime_fixed' => $hasDatetimeConflict,
                     ]);
 
                 } catch (\Exception $e) {

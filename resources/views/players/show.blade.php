@@ -4,6 +4,67 @@
 
 @section('content')
 <div class="container mx-auto p-6">
+
+    @if(session('utr_search_results'))
+        @php
+            $utrResults = session('utr_search_results');
+            $utrHits = $utrResults['players']['hits'] ?? $utrResults['hits'] ?? [];
+        @endphp
+        <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+            <h3 class="text-lg font-semibold mb-4">UTR Search Results for {{ $player->first_name }} {{ $player->last_name }}</h3>
+            @if(count($utrHits) > 0)
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Location</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Singles UTR</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Doubles UTR</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR ID</th>
+                                <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            @foreach($utrHits as $hit)
+                                @php
+                                    $src = $hit['source'] ?? [];
+                                    $utrId = $src['id'] ?? '';
+                                    $singlesUtr = $src['singlesUtr'] ?? 0;
+                                    $doublesUtr = $src['doublesUtr'] ?? 0;
+                                    $singlesRel = $src['ratingProgressSingles'] ?? 0;
+                                    $doublesRel = $src['ratingProgressDoubles'] ?? 0;
+                                @endphp
+                                <tr class="hover:bg-gray-50">
+                                    <td class="px-4 py-2">{{ ($src['firstName'] ?? '') }} {{ ($src['lastName'] ?? '') }}</td>
+                                    <td class="px-4 py-2 text-gray-600">{{ $src['location']['display'] ?? '' }}</td>
+                                    <td class="px-4 py-2">{{ number_format($singlesUtr, 2) }}@if($singlesRel == 100) <span class="text-green-600 font-bold" title="100% Reliable">✓</span>@endif</td>
+                                    <td class="px-4 py-2">{{ number_format($doublesUtr, 2) }}@if($doublesRel == 100) <span class="text-green-600 font-bold" title="100% Reliable">✓</span>@endif</td>
+                                    <td class="px-4 py-2">
+                                        <a href="https://app.utrsports.net/profiles/{{ $utrId }}" target="_blank" class="text-blue-600 hover:underline">{{ $utrId }}</a>
+                                    </td>
+                                    <td class="px-4 py-2">
+                                        <form method="POST" action="{{ route('leagues.setPlayerUtrData', $player->id) }}">
+                                            @csrf
+                                            <input type="hidden" name="utr_id" value="{{ $utrId }}">
+                                            <input type="hidden" name="singles_utr" value="{{ $singlesUtr }}">
+                                            <input type="hidden" name="doubles_utr" value="{{ $doublesUtr }}">
+                                            <input type="hidden" name="singles_reliability" value="{{ $singlesRel }}">
+                                            <input type="hidden" name="doubles_reliability" value="{{ $doublesRel }}">
+                                            <button type="submit" class="bg-green-500 hover:bg-green-600 text-white text-xs px-3 py-1 rounded">Use This</button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @else
+                <p class="text-gray-600">No UTR profiles found for this player.</p>
+            @endif
+        </div>
+    @endif
+
     <!-- Player Header -->
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
         <div class="flex justify-between items-start">
@@ -16,8 +77,10 @@
                 @if($player->teams->count() > 0)
                     <div class="mb-4">
                         <span class="text-sm font-semibold text-gray-600">Teams:</span>
-                        @foreach($player->teams as $team)
-                            <a href="{{ route('teams.show', $team->id) }}" class="inline-block bg-blue-100 text-blue-800 text-sm px-3 py-1 rounded-full mr-2 mb-2 hover:bg-blue-200 transition">
+                        @foreach($player->teams->sortByDesc(fn($t) => $t->league?->active ?? true) as $team)
+                            @php $teamActive = $team->league?->active ?? true; @endphp
+                            <a href="{{ route('teams.show', $team->id) }}"
+                               class="inline-block text-sm px-3 py-1 rounded-full mr-2 mb-2 transition {{ $teamActive ? 'bg-blue-100 text-blue-800 hover:bg-blue-200' : 'bg-gray-200 text-gray-500 hover:bg-gray-300' }}">
                                 {{ $team->name }}
                             </a>
                         @endforeach
@@ -88,6 +151,14 @@
                     <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5 mr-2">
                     <span class="text-sm font-semibold">View UTR Profile</span>
                 </a>
+            @else
+                <form method="POST" action="{{ route('players.searchUtrId', ['player' => $player->id, 'return_url' => url()->current()]) }}">
+                    @csrf
+                    <button type="submit" class="inline-flex items-center bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition">
+                        <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR" class="h-5 w-5 mr-2">
+                        <span class="text-sm font-semibold">Find UTR ID</span>
+                    </button>
+                </form>
             @endif
             @if($player->tennis_record_link)
                 <a href="{{ $player->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition">
@@ -95,6 +166,16 @@
                     <span class="text-sm font-semibold">View Tennis Record</span>
                 </a>
             @endif
+            @env('local')
+                @if($player->utr_id)
+                    <form method="POST" action="{{ route('players.updateUtrSingle', $player->id) }}">
+                        @csrf
+                        <button type="submit" class="inline-flex items-center bg-purple-100 hover:bg-purple-200 text-purple-800 px-4 py-2 rounded transition">
+                            <span class="text-sm font-semibold">Update UTR Rating</span>
+                        </button>
+                    </form>
+                @endif
+            @endenv
         </div>
     </div>
 
@@ -104,14 +185,19 @@
         <h2 class="text-2xl font-bold text-gray-800 mb-4">Match History</h2>
 
         @if($courtPlayers->count() > 0)
-            @php $matchTeams = $courtPlayers->map(fn($cp) => $cp->team)->unique('id')->values(); @endphp
+            @php
+                $matchTeams = $courtPlayers->map(fn($cp) => $cp->team)->unique('id')->values()
+                    ->sortByDesc(fn($t) => $t->league?->active ?? true)->values();
+            @endphp
 
             {{-- Team filter --}}
             @if($matchTeams->count() > 1)
                 <div class="mb-2 flex flex-wrap items-center gap-2">
                     <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team:</span>
                     @foreach($matchTeams as $team)
-                        <button data-team="{{ $team->id }}" class="team-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">{{ $team->name }}</button>
+                        <button data-team="{{ $team->id }}"
+                                data-league-active="{{ ($team->league?->active ?? true) ? '1' : '0' }}"
+                                class="team-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">{{ $team->name }}</button>
                     @endforeach
                 </div>
             @endif
@@ -455,6 +541,12 @@
 
     document.querySelectorAll('.team-filter-btn').forEach(function (btn) {
         btn.addEventListener('click', function () { toggleFilter(activeTeams, this.dataset.team, this); });
+        // Auto-activate pills for active leagues
+        if (btn.dataset.leagueActive === '1') {
+            activeTeams.add(btn.dataset.team);
+            btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+        }
     });
 
     applyFilters();

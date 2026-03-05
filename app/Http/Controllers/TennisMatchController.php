@@ -149,9 +149,9 @@ class TennisMatchController extends Controller
         }
 
         try {
-            \App\Jobs\SyncMatchFromTennisRecordJob::dispatchSync($match);
+            \App\Jobs\SyncMatchFromTennisRecordJob::dispatch($match);
 
-            return redirect()->back()->with('status', '🎾 Match synced successfully from Tennis Record!');
+            return redirect()->back()->with('status', 'Match sync queued from Tennis Record.');
         } catch (\Exception $e) {
             \Illuminate\Support\Facades\Log::error("Failed to dispatch match sync job: {$e->getMessage()}", [
                 'match_id' => $match->id,
