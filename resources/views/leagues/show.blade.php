@@ -5,7 +5,7 @@
 @section('content')
 <div class="scroll-smooth" style="scroll-padding-top: 5rem;">
     <div class="container mx-auto px-4 py-6 md:p-6">
-        <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">
+        <h1 id="league-page-title" class="text-3xl font-bold mb-6 text-center text-gray-800">
             <a href="{{ route('leagues.show', $league->id) }}" class="hover:text-blue-600 transition-colors cursor-pointer">
                 {{ $league->name }}
             </a>
@@ -14,14 +14,18 @@
 
     <!-- Section Navigation Tabs -->
     <div class="sticky top-14 z-40 bg-gray-100 shadow-sm mb-6" style="position: -webkit-sticky; position: sticky;">
-        <div class="container mx-auto px-4 md:px-6">
+        <div class="container mx-auto px-4 md:px-6 relative">
+            <span id="sticky-league-name"
+                  class="absolute left-4 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-500 truncate max-w-[30%] hidden opacity-0 transition-opacity duration-200 pointer-events-none">
+                {{ $league->name }}
+            </span>
             <div class="flex justify-center border-b border-gray-200">
                 <nav class="flex space-x-8">
                     <a href="#teams" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
                         Teams
                     </a>
                     <a href="#players" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
-                        League Players
+                        Players
                     </a>
                     <a href="#matches" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
                         Matches
@@ -30,6 +34,71 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // League name fade-in on scroll
+            var title = document.getElementById('league-page-title');
+            var label = document.getElementById('sticky-league-name');
+            if (title && label) {
+                new IntersectionObserver(function (entries) {
+                    var visible = entries[0].isIntersecting;
+                    if (visible) {
+                        label.classList.add('opacity-0');
+                        setTimeout(function () { label.classList.add('hidden'); }, 200);
+                    } else {
+                        label.classList.remove('hidden');
+                        requestAnimationFrame(function () { label.classList.remove('opacity-0'); });
+                    }
+                }, { threshold: 0 }).observe(title);
+            }
+
+            // Active tab highlighting based on scroll position
+            var sections = ['teams', 'players', 'matches'];
+            var tabLinks = {};
+            sections.forEach(function (id) {
+                tabLinks[id] = document.querySelector('nav a[href="#' + id + '"]');
+            });
+
+            var activeClasses = ['border-blue-500', 'text-blue-600'];
+            var inactiveClasses = ['border-transparent', 'text-gray-600'];
+
+            function setActiveTab(id) {
+                sections.forEach(function (s) {
+                    var el = tabLinks[s];
+                    if (!el) return;
+                    if (s === id) {
+                        el.classList.remove(...inactiveClasses);
+                        el.classList.add(...activeClasses);
+                    } else {
+                        el.classList.remove(...activeClasses);
+                        el.classList.add(...inactiveClasses);
+                    }
+                });
+            }
+
+            // Track which sections have crossed the top
+            var passed = {};
+            sections.forEach(function (id) {
+                var anchor = document.getElementById(id);
+                if (!anchor) return;
+                new IntersectionObserver(function (entries) {
+                    entries.forEach(function (entry) {
+                        passed[id] = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+                        // Find the last section that has been passed
+                        var active = null;
+                        for (var i = sections.length - 1; i >= 0; i--) {
+                            if (passed[sections[i]]) { active = sections[i]; break; }
+                        }
+                        if (active) setActiveTab(active);
+                        else sections.forEach(function (s) {
+                            var el = tabLinks[s];
+                            if (el) { el.classList.remove(...activeClasses); el.classList.add(...inactiveClasses); }
+                        });
+                    });
+                }, { threshold: 0 }).observe(anchor);
+            });
+        });
+    </script>
 
     <div class="container mx-auto px-4 md:p-6">
 
@@ -3114,4 +3183,26 @@
         </div>
     </div>
 </div>
+
+<!-- Back to Top Button -->
+<button id="back-to-top"
+    onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
+    class="fixed bottom-6 right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg opacity-0 pointer-events-none transition-opacity duration-200"
+    aria-label="Back to top">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+    </svg>
+</button>
+<script>
+    (function () {
+        var btn = document.getElementById('back-to-top');
+        window.addEventListener('scroll', function () {
+            if (window.scrollY > 300) {
+                btn.classList.remove('opacity-0', 'pointer-events-none');
+            } else {
+                btn.classList.add('opacity-0', 'pointer-events-none');
+            }
+        }, { passive: true });
+    })();
+</script>
 @endsection

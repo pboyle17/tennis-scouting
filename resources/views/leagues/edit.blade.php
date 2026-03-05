@@ -70,7 +70,7 @@
                 >
             </div>
 
-            <div class="mb-6">
+            <div class="mb-4">
                 <label class="flex items-center">
                     <input
                         type="checkbox"
@@ -83,6 +83,21 @@
                     <span class="text-gray-700 font-semibold">Combo League</span>
                 </label>
                 <p class="text-sm text-gray-600 mt-1">Check if this is a combo league (hides promoted/playing up filters and dynamic rating colors)</p>
+            </div>
+
+            <div class="mb-6">
+                <label class="flex items-center">
+                    <input
+                        type="checkbox"
+                        name="active"
+                        id="active"
+                        value="1"
+                        {{ old('active', $league->active) ? 'checked' : '' }}
+                        class="mr-2"
+                    >
+                    <span class="text-gray-700 font-semibold">Active</span>
+                </label>
+                <p class="text-sm text-gray-600 mt-1">Uncheck to hide this league from the leagues index</p>
             </div>
 
             <div class="flex justify-between">
