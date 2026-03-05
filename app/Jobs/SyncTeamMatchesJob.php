@@ -108,6 +108,7 @@ class SyncTeamMatchesJob implements ShouldQueue
                         'Connection' => 'keep-alive',
                         'Upgrade-Insecure-Requests' => '1'
                     ])
+                    ->withoutVerifying()
                     ->timeout(90)
                     ->connectTimeout(45)
                     ->retry(3, 2000, function ($exception, $request) {

@@ -43,7 +43,7 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
 
         try {
             // Fetch the page
-            $response = Http::timeout(30)->get($this->match->tennis_record_match_link);
+            $response = Http::withoutVerifying()->timeout(30)->get($this->match->tennis_record_match_link);
 
             if (!$response->successful()) {
                 throw new \Exception("Failed to fetch Tennis Record page: {$response->status()}");
