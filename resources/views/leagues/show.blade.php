@@ -45,7 +45,7 @@
                     if (visible) {
                         label.classList.add('opacity-0');
                         setTimeout(function () { label.classList.add('hidden'); }, 200);
-                    } else {
+                    } else if (window.innerWidth >= 768) {
                         label.classList.remove('hidden');
                         requestAnimationFrame(function () { label.classList.remove('opacity-0'); });
                     }
