@@ -181,7 +181,7 @@
 
 
     <!-- Match History -->
-    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+    <div id="match-history" class="bg-white rounded-lg shadow-md p-6 mb-6">
         <h2 class="text-2xl font-bold text-gray-800 mb-4">Match History</h2>
 
         @if($courtPlayers->count() > 0)
@@ -208,6 +208,46 @@
                 <button data-court="singles" class="court-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Singles</button>
                 <button data-court="doubles" class="court-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">Doubles</button>
             </div>
+
+            {{-- Partner filter --}}
+            @php
+                $doublesPartners = $courtPlayers
+                    ->filter(fn($cp) => $cp->court->court_type === 'doubles')
+                    ->map(function($cp) use ($player) {
+                        return $cp->court->courtPlayers->first(fn($other) =>
+                            $other->team_id === $cp->team_id && $other->player_id !== $player->id
+                        );
+                    })
+                    ->filter()
+                    ->unique('player_id')
+                    ->sortBy(fn($cp) => $cp->player->last_name)
+                    ->values();
+            @endphp
+            @if($doublesPartners->count() > 1)
+                <div class="mb-2 flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Partner:</span>
+                    @foreach($doublesPartners as $partner)
+                        <button data-partner="{{ $partner->player_id }}" class="partner-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">
+                            {{ $partner->player->first_name }} {{ $partner->player->last_name }}
+                        </button>
+                    @endforeach
+                </div>
+            @endif
+
+            {{-- Line filter --}}
+            @php
+                $courtLineNums = $courtPlayers->map(fn($cp) => $cp->court->court_number)->unique()->sort()->values();
+            @endphp
+            @if($courtLineNums->count() > 1)
+                <div class="mb-2 flex flex-wrap items-center gap-2">
+                    <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Position:</span>
+                    @foreach($courtLineNums as $lineNum)
+                        <button data-line="{{ $lineNum }}" class="line-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">
+                            #{{ $lineNum }}
+                        </button>
+                    @endforeach
+                </div>
+            @endif
 
             {{-- Result filter --}}
             <div class="mb-4 flex flex-wrap items-center gap-2">
@@ -273,7 +313,7 @@
                         $avgOpponentUtr = count($opponentUtrRatings) ? array_sum($opponentUtrRatings) / count($opponentUtrRatings) : null;
                         $avgOpponentUsta = count($opponentUstaRatings) ? array_sum($opponentUstaRatings) / count($opponentUstaRatings) : null;
                     @endphp
-                    <div onclick="window.location.href='{{ route('tennis-matches.show', $match->id) }}'" class="match-card block bg-gray-50 rounded-lg border border-gray-200 p-4 hover:bg-gray-100 transition cursor-pointer" data-team-id="{{ $courtPlayer->team_id }}" data-court-type="{{ $court->court_type }}" data-result="{{ $courtPlayer->won ? 'win' : 'loss' }}">
+                    <div onclick="window.location.href='{{ route('tennis-matches.show', $match->id) }}'" class="match-card block bg-gray-50 rounded-lg border border-gray-200 p-4 hover:bg-gray-100 transition cursor-pointer" data-team-id="{{ $courtPlayer->team_id }}" data-court-type="{{ $court->court_type }}" data-court-line="{{ $court->court_number }}" data-partner-id="{{ $teammate?->player_id ?? '' }}" data-result="{{ $courtPlayer->won ? 'win' : 'loss' }}">
                         {{-- Date + Court --}}
                         <div class="flex justify-between items-start mb-2">
                             <div class="text-xs text-gray-500">
@@ -298,24 +338,24 @@
                             @php $playerUtr = $courtPlayer->utr_singles_rating; @endphp
                             <div class="text-xs mb-3 flex flex-wrap items-center gap-x-1">
                                 <span class="font-medium text-blue-600">{{ $player->first_name }} {{ $player->last_name }}</span>
-                                @if($playerUtr)<span class="text-gray-400">({{ number_format($playerUtr, 2) }})</span>@endif
+                                @if($playerUtr)<span class="text-gray-400">({{ number_format($playerUtr, 2) }})</span>@else<span class="text-gray-400">( - )</span>@endif
                                 <span class="text-gray-400">vs</span>
                                 @foreach($opponents as $i => $opp)
                                     @if(!$loop->first)<span class="text-gray-400">/</span>@endif
                                     @php $oppUtr = $opp->utr_singles_rating; @endphp
                                     <a href="{{ route('players.show', $opp->player_id) }}" onclick="event.stopPropagation()" class="font-medium text-red-600 hover:underline">{{ $opp->player->first_name }} {{ $opp->player->last_name }}</a>
-                                    @if($oppUtr)<span class="text-gray-400">({{ number_format($oppUtr, 2) }})</span>@endif
+                                    @if($oppUtr)<span class="text-gray-400">({{ number_format($oppUtr, 2) }})</span>@else<span class="text-gray-400">( - )</span>@endif
                                 @endforeach
                             </div>
                         @else
                             @php $playerUtr = $courtPlayer->utr_doubles_rating; @endphp
                             <div class="text-xs mb-1 flex flex-wrap items-center gap-x-1">
                                 <span class="font-medium text-blue-600">{{ $player->first_name }} {{ $player->last_name }}</span>
-                                @if($playerUtr)<span class="text-gray-400">({{ number_format($playerUtr, 2) }})</span>@endif
+                                @if($playerUtr)<span class="text-gray-400">({{ number_format($playerUtr, 2) }})</span>@else<span class="text-gray-400">( - )</span>@endif
                                 @if($teammate)
                                     <span class="text-gray-400">/</span>
                                     <a href="{{ route('players.show', $teammate->player_id) }}" onclick="event.stopPropagation()" class="font-medium text-blue-600 hover:underline">{{ $teammate->player->first_name }} {{ $teammate->player->last_name }}</a>
-                                    @if($teammate->utr_doubles_rating)<span class="text-gray-400">({{ number_format($teammate->utr_doubles_rating, 2) }})</span>@endif
+                                    @if($teammate->utr_doubles_rating)<span class="text-gray-400">({{ number_format($teammate->utr_doubles_rating, 2) }})</span>@else<span class="text-gray-400">( - )</span>@endif
                                 @endif
                             </div>
                             @if($opponents->count())
@@ -325,7 +365,7 @@
                                         @if(!$loop->first)<span class="text-gray-400">/</span>@endif
                                         @php $oppUtr = $opp->utr_doubles_rating; @endphp
                                         <a href="{{ route('players.show', $opp->player_id) }}" onclick="event.stopPropagation()" class="font-medium text-red-600 hover:underline">{{ $opp->player->first_name }} {{ $opp->player->last_name }}</a>
-                                        @if($oppUtr)<span class="text-gray-400">({{ number_format($oppUtr, 2) }})</span>@endif
+                                        @if($oppUtr)<span class="text-gray-400">({{ number_format($oppUtr, 2) }})</span>@else<span class="text-gray-400">( - )</span>@endif
                                     @endforeach
                                 </div>
                             @endif
@@ -390,7 +430,7 @@
                                     return $cp->team_id !== $courtPlayer->team_id;
                                 });
                             @endphp
-                            <tr class="match-row hover:bg-gray-50" data-team-id="{{ $courtPlayer->team_id }}" data-court-type="{{ $court->court_type }}" data-result="{{ $courtPlayer->won ? 'win' : 'loss' }}">
+                            <tr class="match-row hover:bg-gray-50" data-team-id="{{ $courtPlayer->team_id }}" data-court-type="{{ $court->court_type }}" data-court-line="{{ $court->court_number }}" data-partner-id="{{ $teammate?->player_id ?? '' }}" data-result="{{ $courtPlayer->won ? 'win' : 'loss' }}">
                                 <td class="px-4 py-3 text-sm text-gray-700">
                                     {{ $match->start_time ? $match->start_time->format('M d, Y') : 'N/A' }}
                                 </td>
@@ -411,10 +451,10 @@
                                         {{-- Doubles: my side then opponents --}}
                                         <div class="mb-1">
                                             <span class="font-semibold text-blue-600">{{ $player->first_name }} {{ $player->last_name }}</span>
-                                            @if($courtPlayer->utr_doubles_rating)<span class="text-xs text-gray-400">({{ number_format($courtPlayer->utr_doubles_rating, 2) }})</span>@endif
+                                            @if($courtPlayer->utr_doubles_rating)<span class="text-xs text-gray-400">({{ number_format($courtPlayer->utr_doubles_rating, 2) }})</span>@else<span class="text-xs text-gray-400">( - )</span>@endif
                                             @if($teammate)
                                                 / <a href="{{ route('players.show', $teammate->player_id) }}" class="text-blue-600 hover:underline font-semibold">{{ $teammate->player->first_name }} {{ $teammate->player->last_name }}</a>
-                                                @if($teammate->utr_doubles_rating)<span class="text-xs text-gray-400">({{ number_format($teammate->utr_doubles_rating, 2) }})</span>@endif
+                                                @if($teammate->utr_doubles_rating)<span class="text-xs text-gray-400">({{ number_format($teammate->utr_doubles_rating, 2) }})</span>@else<span class="text-xs text-gray-400">( - )</span>@endif
                                             @endif
                                         </div>
                                         <div>
@@ -422,18 +462,18 @@
                                             @foreach($opponents as $opponent)
                                                 @if(!$loop->first) / @endif
                                                 <a href="{{ route('players.show', $opponent->player_id) }}" class="text-red-600 hover:underline">{{ $opponent->player->first_name }} {{ $opponent->player->last_name }}</a>
-                                                @if($opponent->utr_doubles_rating)<span class="text-xs text-gray-400">({{ number_format($opponent->utr_doubles_rating, 2) }})</span>@endif
+                                                @if($opponent->utr_doubles_rating)<span class="text-xs text-gray-400">({{ number_format($opponent->utr_doubles_rating, 2) }})</span>@else<span class="text-xs text-gray-400">( - )</span>@endif
                                             @endforeach
                                         </div>
                                     @elseif($court->court_type === 'singles')
                                         {{-- Singles: player vs opponent --}}
                                         <div>
                                             <span class="font-semibold text-blue-600">{{ $player->first_name }} {{ $player->last_name }}</span>
-                                            @if($courtPlayer->utr_singles_rating)<span class="text-xs text-gray-400">({{ number_format($courtPlayer->utr_singles_rating, 2) }})</span>@endif
+                                            @if($courtPlayer->utr_singles_rating)<span class="text-xs text-gray-400">({{ number_format($courtPlayer->utr_singles_rating, 2) }})</span>@else<span class="text-xs text-gray-400">( - )</span>@endif
                                             <span class="text-xs text-gray-500 mx-1">vs</span>
                                             @foreach($opponents as $opponent)
                                                 <a href="{{ route('players.show', $opponent->player_id) }}" class="text-red-600 hover:underline font-semibold">{{ $opponent->player->first_name }} {{ $opponent->player->last_name }}</a>
-                                                @if($opponent->utr_singles_rating)<span class="text-xs text-gray-400">({{ number_format($opponent->utr_singles_rating, 2) }})</span>@endif
+                                                @if($opponent->utr_singles_rating)<span class="text-xs text-gray-400">({{ number_format($opponent->utr_singles_rating, 2) }})</span>@else<span class="text-xs text-gray-400">( - )</span>@endif
                                             @endforeach
                                         </div>
                                     @else
@@ -493,6 +533,8 @@
 (function () {
     var activeTeams = new Set();
     var activeCourts = new Set();
+    var activeLines = new Set();
+    var activePartners = new Set();
     var activeResults = new Set();
 
     function applyFilters() {
@@ -500,16 +542,20 @@
         document.querySelectorAll('.match-card').forEach(function (el) {
             var teamMatch = activeTeams.size === 0 || activeTeams.has(el.dataset.teamId);
             var courtMatch = activeCourts.size === 0 || activeCourts.has(el.dataset.courtType);
+            var lineMatch = activeLines.size === 0 || activeLines.has(el.dataset.courtLine);
+            var partnerMatch = activePartners.size === 0 || activePartners.has(el.dataset.partnerId);
             var resultMatch = activeResults.size === 0 || activeResults.has(el.dataset.result);
-            var visible = teamMatch && courtMatch && resultMatch;
+            var visible = teamMatch && courtMatch && lineMatch && partnerMatch && resultMatch;
             el.style.display = visible ? '' : 'none';
             if (visible) { el.dataset.result === 'win' ? wins++ : losses++; }
         });
         document.querySelectorAll('.match-row').forEach(function (el) {
             var teamMatch = activeTeams.size === 0 || activeTeams.has(el.dataset.teamId);
             var courtMatch = activeCourts.size === 0 || activeCourts.has(el.dataset.courtType);
+            var lineMatch = activeLines.size === 0 || activeLines.has(el.dataset.courtLine);
+            var partnerMatch = activePartners.size === 0 || activePartners.has(el.dataset.partnerId);
             var resultMatch = activeResults.size === 0 || activeResults.has(el.dataset.result);
-            el.style.display = (teamMatch && courtMatch && resultMatch) ? '' : 'none';
+            el.style.display = (teamMatch && courtMatch && lineMatch && partnerMatch && resultMatch) ? '' : 'none';
         });
         var total = wins + losses;
         document.getElementById('stat-wins').textContent = wins;
@@ -535,21 +581,64 @@
         btn.addEventListener('click', function () { toggleFilter(activeResults, this.dataset.result, this); });
     });
 
+    var urlParams = new URLSearchParams(window.location.search);
+    var paramTeam = urlParams.get('team');
+    var paramCourt = urlParams.get('court');
+    var paramLine = urlParams.get('line');
+    var paramPartner = urlParams.get('partner');
+
     document.querySelectorAll('.court-filter-btn').forEach(function (btn) {
         btn.addEventListener('click', function () { toggleFilter(activeCourts, this.dataset.court, this); });
-    });
-
-    document.querySelectorAll('.team-filter-btn').forEach(function (btn) {
-        btn.addEventListener('click', function () { toggleFilter(activeTeams, this.dataset.team, this); });
-        // Auto-activate pills for active leagues
-        if (btn.dataset.leagueActive === '1') {
-            activeTeams.add(btn.dataset.team);
+        if (paramCourt && btn.dataset.court === paramCourt) {
+            activeCourts.add(paramCourt);
             btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
             btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
         }
     });
 
+    document.querySelectorAll('.line-filter-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { toggleFilter(activeLines, this.dataset.line, this); });
+        if (paramLine && btn.dataset.line === paramLine) {
+            activeLines.add(paramLine);
+            btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+        }
+    });
+
+    document.querySelectorAll('.partner-filter-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { toggleFilter(activePartners, this.dataset.partner, this); });
+        if (paramPartner && btn.dataset.partner === paramPartner) {
+            activePartners.add(paramPartner);
+            btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+            btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+        }
+    });
+
+    document.querySelectorAll('.team-filter-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () { toggleFilter(activeTeams, this.dataset.team, this); });
+        if (paramTeam) {
+            // URL param: activate only the specified team
+            if (btn.dataset.team === paramTeam) {
+                activeTeams.add(paramTeam);
+                btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+                btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+            }
+        } else {
+            // Auto-activate pills for active leagues
+            if (btn.dataset.leagueActive === '1') {
+                activeTeams.add(btn.dataset.team);
+                btn.classList.remove('bg-gray-100', 'text-gray-700', 'hover:bg-gray-200');
+                btn.classList.add('bg-blue-600', 'text-white', 'hover:bg-blue-700');
+            }
+        }
+    });
+
     applyFilters();
+
+    if (paramTeam || paramCourt || paramLine || paramPartner) {
+        var target = document.getElementById('match-history');
+        if (target) { target.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+    }
 })();
 </script>
 @endsection

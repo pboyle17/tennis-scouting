@@ -21,8 +21,9 @@
         $currentRoute = request()->route()?->getName() ?? '';
     @endphp
     <nav class="bg-white shadow-sm fixed top-0 left-0 right-0 z-[9999] [transform:translateZ(0)]">
-        <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-14">
+        <div class="max-w-7xl mx-auto px-4 flex items-center justify-between h-14 relative">
             <a href="{{ route('leagues.index') }}" class="font-bold text-gray-800 text-lg tracking-tight">🎾 CourtScout</a>
+            <span id="nav-context-label" class="absolute left-1/2 -translate-x-1/2 text-sm font-semibold text-gray-500 md:text-base md:font-bold md:text-gray-700 opacity-0 transition-opacity duration-300 pointer-events-none select-none"></span>
 
             {{-- Desktop nav --}}
             <div class="hidden md:flex items-center space-x-1">
