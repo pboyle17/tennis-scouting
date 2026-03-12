@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Team Players - ' . $team->name)
+@section('title', $team->name)
 
 @section('content')
 <div class="scroll-smooth" style="scroll-padding-top: 5rem;">
@@ -11,7 +11,6 @@
                     <a href="{{ route('teams.show', $team->id) }}" class="hover:text-blue-600 transition-colors cursor-pointer">
                         {{ $team->name }}
                     </a>
-                    <span class="hidden md:inline text-gray-600"> - Players</span>
                 </h1>
                 <div class="flex space-x-2">
                 @env('local')
@@ -45,10 +44,10 @@
             <div class="flex justify-center border-b border-gray-200">
                 <nav class="flex space-x-8">
                     <a href="#court-averages" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
-                        Court Averages
+                        Insights
                     </a>
                     <a href="#players" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
-                        Team Players
+                        Players
                     </a>
                     <a href="#matches" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
                         Matches
@@ -255,9 +254,24 @@
                                 <div class="space-y-2">
                                     @foreach($stat['players'] as $playerStat)
                                         <div class="bg-gray-50 rounded p-2 text-xs">
-                                            <div class="font-semibold text-gray-800 mb-1">{{ $playerStat['player_name'] ?? 'Unknown' }}</div>
+                                            <div class="font-semibold text-gray-800 mb-1">
+                                                {{ $playerStat['player_name'] ?? 'Unknown' }}
+                                                @if(!empty($playerStat['current_utr']))
+                                                    <span class="text-gray-400 font-normal">({{ number_format($playerStat['current_utr'], 2) }})</span>
+                                                @elseif(!empty($playerStat['current_utrs']))
+                                                    <span class="text-gray-400 font-normal">({{ implode(' / ', array_map(fn($u) => $u ? number_format($u, 2) : '-', $playerStat['current_utrs'])) }})</span>
+                                                @endif
+                                            </div>
                                             <div class="grid grid-cols-2 gap-2 text-gray-600">
-                                                <div>Record: <span class="font-medium">{{ $playerStat['wins'] ?? 0 }}-{{ $playerStat['losses'] ?? 0 }}</span></div>
+                                                <div>Record:
+                                                    @if(!($playerStat['is_team'] ?? true) && isset($playerStat['player_id']))
+                                                        <a href="{{ route('players.show', $playerStat['player_id']) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $team->id }}#match-history" class="font-medium hover:underline text-blue-600">{{ $playerStat['wins'] ?? 0 }}-{{ $playerStat['losses'] ?? 0 }}</a>
+                                                    @elseif(($playerStat['is_team'] ?? false) && !empty($playerStat['player_ids'][0]))
+                                                        <a href="{{ route('players.show', $playerStat['player_ids'][0]) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $team->id }}&partner={{ $playerStat['player_ids'][1] ?? '' }}#match-history" class="font-medium hover:underline text-blue-600">{{ $playerStat['wins'] ?? 0 }}-{{ $playerStat['losses'] ?? 0 }}</a>
+                                                    @else
+                                                        <span class="font-medium">{{ $playerStat['wins'] ?? 0 }}-{{ $playerStat['losses'] ?? 0 }}</span>
+                                                    @endif
+                                                </div>
                                                 <div>Win %: <span class="font-medium {{ ($playerStat['win_percentage'] ?? 0) >= 50 ? 'text-green-600' : 'text-red-600' }}">{{ isset($playerStat['win_percentage']) ? number_format($playerStat['win_percentage'], 1) : '0.0' }}%</span></div>
                                                 <div>Avg UTR: <span class="font-medium">{{ isset($playerStat['avg_utr']) && $playerStat['avg_utr'] ? number_format($playerStat['avg_utr'], 2) : '-' }}</span></div>
                                                 <div>Avg USTA: <span class="font-medium">{{ isset($playerStat['avg_usta_dynamic']) && $playerStat['avg_usta_dynamic'] ? number_format($playerStat['avg_usta_dynamic'], 2) : '-' }}</span></div>
@@ -372,22 +386,27 @@
                                                                     @php
                                                                         $names = explode(' / ', $player['player_name']);
                                                                         $ids = $player['player_ids'];
+                                                                        $currentUtrs = $player['current_utrs'] ?? [];
                                                                     @endphp
                                                                     @foreach($names as $index => $name)
                                                                         @if($index > 0) / @endif
-                                                                        <a href="{{ route('players.show', $ids[$index]) }}" class="text-blue-600 hover:underline">{{ $name }}</a>
+                                                                        <a href="{{ route('players.show', $ids[$index]) }}" class="text-blue-600 hover:underline">{{ $name }}</a>@if(!empty($currentUtrs[$index]))<span class="text-xs text-gray-400 font-normal ml-0.5">({{ number_format($currentUtrs[$index], 2) }})</span>@endif
                                                                     @endforeach
                                                                 @else
                                                                     {{-- For singles players, single link --}}
-                                                                    <a href="{{ route('players.show', $player['player_id']) }}" class="text-blue-600 hover:underline">
-                                                                        {{ $player['player_name'] }}
-                                                                    </a>
+                                                                    <a href="{{ route('players.show', $player['player_id']) }}" class="text-blue-600 hover:underline">{{ $player['player_name'] }}</a>@if(!empty($player['current_utr']))<span class="text-xs text-gray-400 font-normal ml-0.5">({{ number_format($player['current_utr'], 2) }})</span>@endif
                                                                 @endif
                                                             </td>
                                                             <td class="px-3 py-2 text-center text-gray-700">
-                                                                <span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>
-                                                                -
-                                                                <span class="text-red-600 font-semibold">{{ $player['losses'] }}</span>
+                                                                @if(!$player['is_team'])
+                                                                    <a href="{{ route('players.show', $player['player_id']) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $team->id }}#match-history" class="hover:underline">
+                                                                        <span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span>
+                                                                    </a>
+                                                                @else
+                                                                    <a href="{{ route('players.show', $player['player_ids'][0]) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $team->id }}&partner={{ $player['player_ids'][1] ?? '' }}#match-history" class="hover:underline">
+                                                                        <span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span>
+                                                                    </a>
+                                                                @endif
                                                             </td>
                                                             <td class="px-3 py-2 text-center text-gray-700">
                                                                 @if($player['total'] > 0)
@@ -774,7 +793,7 @@
                             <span class="font-semibold text-gray-600">Singles:</span>
                             <span class="text-gray-700 ml-1">
                                 @if($singlesWins > 0 || $singlesLosses > 0)
-                                    {{ $singlesWins }}-{{ $singlesLosses }}
+                                    <a href="{{ route('players.show', $player->id) }}?court=singles&team={{ $team->id }}#match-history" class="hover:underline text-blue-600">{{ $singlesWins }}-{{ $singlesLosses }}</a>
                                 @else
                                     -
                                 @endif
@@ -784,7 +803,7 @@
                             <span class="font-semibold text-gray-600">Doubles:</span>
                             <span class="text-gray-700 ml-1">
                                 @if($doublesWins > 0 || $doublesLosses > 0)
-                                    {{ $doublesWins }}-{{ $doublesLosses }}
+                                    <a href="{{ route('players.show', $player->id) }}?court=doubles&team={{ $team->id }}#match-history" class="hover:underline text-blue-600">{{ $doublesWins }}-{{ $doublesLosses }}</a>
                                 @else
                                     -
                                 @endif
@@ -985,7 +1004,7 @@
                                     }
                                 @endphp
                                 @if($singlesWins > 0 || $singlesLosses > 0)
-                                    <span class="font-semibold">{{ $singlesWins }}-{{ $singlesLosses }}</span>
+                                    <a href="{{ route('players.show', $player->id) }}?court=singles&team={{ $team->id }}#match-history" class="font-semibold hover:underline text-blue-600">{{ $singlesWins }}-{{ $singlesLosses }}</a>
                                 @else
                                     -
                                 @endif
@@ -1020,7 +1039,7 @@
                                     }
                                 @endphp
                                 @if($doublesWins > 0 || $doublesLosses > 0)
-                                    <span class="font-semibold">{{ $doublesWins }}-{{ $doublesLosses }}</span>
+                                    <a href="{{ route('players.show', $player->id) }}?court=doubles&team={{ $team->id }}#match-history" class="font-semibold hover:underline text-blue-600">{{ $doublesWins }}-{{ $doublesLosses }}</a>
                                 @else
                                     -
                                 @endif
@@ -2721,11 +2740,21 @@
 <script>
     (function () {
         var btn = document.getElementById('back-to-top');
+        var label = document.getElementById('nav-context-label');
+        if (label) {
+            @php
+                $words = explode(' ', $team->name);
+                $shortName = implode(' ', array_slice($words, 0, 2));
+            @endphp
+            label.textContent = '{{ addslashes($shortName) }}';
+        }
         window.addEventListener('scroll', function () {
             if (window.scrollY > 300) {
                 btn.classList.remove('opacity-0', 'pointer-events-none');
+                if (label) label.classList.remove('opacity-0');
             } else {
                 btn.classList.add('opacity-0', 'pointer-events-none');
+                if (label) label.classList.add('opacity-0');
             }
         }, { passive: true });
     })();
