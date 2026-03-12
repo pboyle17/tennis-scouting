@@ -11,7 +11,6 @@
                     <a href="{{ route('teams.show', $team->id) }}" class="hover:text-blue-600 transition-colors cursor-pointer">
                         {{ $team->name }}
                     </a>
-                    <span class="hidden md:inline text-gray-600"> - Players</span>
                 </h1>
                 <div class="flex space-x-2">
                 @env('local')
