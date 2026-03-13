@@ -76,27 +76,36 @@
                 });
             }
 
-            // Track which sections have crossed the top
-            var passed = {};
+            // Set active immediately on click
             sections.forEach(function (id) {
-                var anchor = document.getElementById(id);
-                if (!anchor) return;
-                new IntersectionObserver(function (entries) {
-                    entries.forEach(function (entry) {
-                        passed[id] = !entry.isIntersecting && entry.boundingClientRect.top < 0;
-                        // Find the last section that has been passed
-                        var active = null;
-                        for (var i = sections.length - 1; i >= 0; i--) {
-                            if (passed[sections[i]]) { active = sections[i]; break; }
-                        }
-                        if (active) setActiveTab(active);
-                        else sections.forEach(function (s) {
-                            var el = tabLinks[s];
-                            if (el) { el.classList.remove(...activeClasses); el.classList.add(...inactiveClasses); }
-                        });
-                    });
-                }, { threshold: 0 }).observe(anchor);
+                if (tabLinks[id]) tabLinks[id].addEventListener('click', function () { setActiveTab(id); });
             });
+
+            // Track active tab based on scroll position relative to sticky headers
+            var stickyTabBar = document.querySelector('.sticky.top-14');
+            function updateActiveTab() {
+                // If at the bottom of the page, activate the last section
+                if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight - 10) {
+                    setActiveTab(sections[sections.length - 1]);
+                    return;
+                }
+                var offset = stickyTabBar ? stickyTabBar.getBoundingClientRect().bottom + 4 : 110;
+                var active = null;
+                for (var i = sections.length - 1; i >= 0; i--) {
+                    var anchor = document.getElementById(sections[i]);
+                    if (anchor && anchor.getBoundingClientRect().top <= offset) {
+                        active = sections[i];
+                        break;
+                    }
+                }
+                if (active) setActiveTab(active);
+                else sections.forEach(function (s) {
+                    var el = tabLinks[s];
+                    if (el) { el.classList.remove(...activeClasses); el.classList.add(...inactiveClasses); }
+                });
+            }
+            window.addEventListener('scroll', updateActiveTab, { passive: true });
+            updateActiveTab();
         });
     </script>
 
@@ -1217,14 +1226,14 @@
                             </td>
                             <td class="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
                                 @if($player->singles_wins + $player->singles_losses > 0)
-                                    <span class="text-green-600 font-medium">{{ $player->singles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->singles_losses }}</span>
+                                    <a href="{{ route('players.show', $player->id) }}?court=singles&team={{ $player->team_id }}#match-history" class="hover:underline cursor-pointer"><span class="text-green-600 font-medium">{{ $player->singles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->singles_losses }}</span></a>
                                 @else
                                     <span class="text-gray-400">-</span>
                                 @endif
                             </td>
                             <td class="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
                                 @if($player->doubles_wins + $player->doubles_losses > 0)
-                                    <span class="text-green-600 font-medium">{{ $player->doubles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->doubles_losses }}</span>
+                                    <a href="{{ route('players.show', $player->id) }}?court=doubles&team={{ $player->team_id }}#match-history" class="hover:underline cursor-pointer"><span class="text-green-600 font-medium">{{ $player->doubles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->doubles_losses }}</span></a>
                                 @else
                                     <span class="text-gray-400">-</span>
                                 @endif
@@ -1362,7 +1371,7 @@
                             <span class="font-semibold text-gray-600">Singles:</span>
                             <span class="ml-1">
                                 @if($player->singles_wins + $player->singles_losses > 0)
-                                    <span class="text-green-600 font-medium">{{ $player->singles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->singles_losses }}</span>
+                                    <a href="{{ route('players.show', $player->id) }}?court=singles&team={{ $player->team_id }}#match-history" class="hover:underline cursor-pointer"><span class="text-green-600 font-medium">{{ $player->singles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->singles_losses }}</span></a>
                                 @else
                                     <span class="text-gray-400">-</span>
                                 @endif
@@ -1372,7 +1381,7 @@
                             <span class="font-semibold text-gray-600">Doubles:</span>
                             <span class="ml-1">
                                 @if($player->doubles_wins + $player->doubles_losses > 0)
-                                    <span class="text-green-600 font-medium">{{ $player->doubles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->doubles_losses }}</span>
+                                    <a href="{{ route('players.show', $player->id) }}?court=doubles&team={{ $player->team_id }}#match-history" class="hover:underline cursor-pointer"><span class="text-green-600 font-medium">{{ $player->doubles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->doubles_losses }}</span></a>
                                 @else
                                     <span class="text-gray-400">-</span>
                                 @endif

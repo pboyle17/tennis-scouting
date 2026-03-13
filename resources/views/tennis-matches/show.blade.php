@@ -331,6 +331,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        @php $previewTeamId = $match->home_team_id; @endphp
                                         @foreach($homeCourtStats as $index => $stat)
                                             <tr class="hover:bg-gray-50 cursor-pointer border-t border-gray-200 home-court-row" data-court-index="{{ $index }}">
                                                 <td class="px-3 py-2 text-sm text-gray-700">
@@ -381,39 +382,26 @@
                                                                             <td class="px-2 py-1 text-gray-700">
                                                                                 <div class="relative group cursor-pointer inline-block">
                                                                                     @if($player['is_team'])
-                                                                                        {{-- For doubles teams, create links for each player --}}
                                                                                         @php
                                                                                             $names = explode(' / ', $player['player_name']);
                                                                                             $ids = $player['player_ids'];
+                                                                                            $currentUtrs = $player['current_utrs'] ?? [];
                                                                                         @endphp
-                                                                                        @foreach($names as $index => $name)
-                                                                                            @if($index > 0) / @endif
-                                                                                            <a href="{{ route('players.show', $ids[$index]) }}" class="text-blue-600 hover:underline">{{ $name }}</a>
+                                                                                        @foreach($names as $idx => $name)
+                                                                                            @if($idx > 0) / @endif
+                                                                                            <a href="{{ route('players.show', $ids[$idx]) }}" class="text-blue-600 hover:underline">{{ $name }}</a>@if(!empty($currentUtrs[$idx]))<span class="text-gray-400 font-normal ml-0.5">({{ number_format($currentUtrs[$idx], 2) }})</span>@else<span class="text-gray-400 font-normal ml-0.5">( - )</span>@endif
                                                                                         @endforeach
                                                                                     @else
-                                                                                        {{-- For singles players, single link --}}
-                                                                                        <a href="{{ route('players.show', $player['player_id']) }}" class="text-blue-600 hover:underline">{{ $player['player_name'] }}</a>
-                                                                                    @endif
-                                                                                    @if($player['avg_utr'] || $player['avg_usta'])
-                                                                                        <div class="absolute left-0 bottom-full mb-2
-                                                                                                    opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
-                                                                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                                                                    whitespace-nowrap z-50">
-                                                                                            @if($player['avg_utr'])
-                                                                                                UTR: {{ number_format($player['avg_utr'], 2) }}
-                                                                                            @endif
-                                                                                            @if($player['avg_utr'] && $player['avg_usta'])
-                                                                                                <br>
-                                                                                            @endif
-                                                                                            @if($player['avg_usta'])
-                                                                                                USTA: {{ number_format($player['avg_usta'], 2) }}
-                                                                                            @endif
-                                                                                        </div>
+                                                                                        <a href="{{ route('players.show', $player['player_id']) }}" class="text-blue-600 hover:underline">{{ $player['player_name'] }}</a>@if(!empty($player['current_utr']))<span class="text-gray-400 font-normal ml-0.5">({{ number_format($player['current_utr'], 2) }})</span>@else<span class="text-gray-400 font-normal ml-0.5">( - )</span>@endif
                                                                                     @endif
                                                                                 </div>
                                                                             </td>
                                                                             <td class="px-2 py-1 text-center text-gray-700">
-                                                                                <span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span>
+                                                                                @if($player['is_team'])
+                                                                                    <a href="{{ route('players.show', $player['player_ids'][0]) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $previewTeamId }}&partner={{ $player['player_ids'][1] ?? '' }}#match-history" class="hover:underline"><span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span></a>
+                                                                                @else
+                                                                                    <a href="{{ route('players.show', $player['player_id']) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $previewTeamId }}#match-history" class="hover:underline"><span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span></a>
+                                                                                @endif
                                                                             </td>
                                                                             <td class="px-2 py-1 text-center">
                                                                                 @if($player['total'] > 0)
@@ -454,6 +442,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        @php $previewTeamId = $match->away_team_id; @endphp
                                         @foreach($awayCourtStats as $index => $stat)
                                             <tr class="hover:bg-gray-50 cursor-pointer border-t border-gray-200 away-court-row" data-court-index="{{ $index }}">
                                                 <td class="px-3 py-2 text-sm text-gray-700">
@@ -504,39 +493,26 @@
                                                                             <td class="px-2 py-1 text-gray-700">
                                                                                 <div class="relative group cursor-pointer inline-block">
                                                                                     @if($player['is_team'])
-                                                                                        {{-- For doubles teams, create links for each player --}}
                                                                                         @php
                                                                                             $names = explode(' / ', $player['player_name']);
                                                                                             $ids = $player['player_ids'];
+                                                                                            $currentUtrs = $player['current_utrs'] ?? [];
                                                                                         @endphp
-                                                                                        @foreach($names as $index => $name)
-                                                                                            @if($index > 0) / @endif
-                                                                                            <a href="{{ route('players.show', $ids[$index]) }}" class="text-blue-600 hover:underline">{{ $name }}</a>
+                                                                                        @foreach($names as $idx => $name)
+                                                                                            @if($idx > 0) / @endif
+                                                                                            <a href="{{ route('players.show', $ids[$idx]) }}" class="text-blue-600 hover:underline">{{ $name }}</a>@if(!empty($currentUtrs[$idx]))<span class="text-gray-400 font-normal ml-0.5">({{ number_format($currentUtrs[$idx], 2) }})</span>@else<span class="text-gray-400 font-normal ml-0.5">( - )</span>@endif
                                                                                         @endforeach
                                                                                     @else
-                                                                                        {{-- For singles players, single link --}}
-                                                                                        <a href="{{ route('players.show', $player['player_id']) }}" class="text-blue-600 hover:underline">{{ $player['player_name'] }}</a>
-                                                                                    @endif
-                                                                                    @if($player['avg_utr'] || $player['avg_usta'])
-                                                                                        <div class="absolute left-0 bottom-full mb-2
-                                                                                                    opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none
-                                                                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
-                                                                                                    whitespace-nowrap z-50">
-                                                                                            @if($player['avg_utr'])
-                                                                                                UTR: {{ number_format($player['avg_utr'], 2) }}
-                                                                                            @endif
-                                                                                            @if($player['avg_utr'] && $player['avg_usta'])
-                                                                                                <br>
-                                                                                            @endif
-                                                                                            @if($player['avg_usta'])
-                                                                                                USTA: {{ number_format($player['avg_usta'], 2) }}
-                                                                                            @endif
-                                                                                        </div>
+                                                                                        <a href="{{ route('players.show', $player['player_id']) }}" class="text-blue-600 hover:underline">{{ $player['player_name'] }}</a>@if(!empty($player['current_utr']))<span class="text-gray-400 font-normal ml-0.5">({{ number_format($player['current_utr'], 2) }})</span>@else<span class="text-gray-400 font-normal ml-0.5">( - )</span>@endif
                                                                                     @endif
                                                                                 </div>
                                                                             </td>
                                                                             <td class="px-2 py-1 text-center text-gray-700">
-                                                                                <span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span>
+                                                                                @if($player['is_team'])
+                                                                                    <a href="{{ route('players.show', $player['player_ids'][0]) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $previewTeamId }}&partner={{ $player['player_ids'][1] ?? '' }}#match-history" class="hover:underline"><span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span></a>
+                                                                                @else
+                                                                                    <a href="{{ route('players.show', $player['player_id']) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $previewTeamId }}#match-history" class="hover:underline"><span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span></a>
+                                                                                @endif
                                                                             </td>
                                                                             <td class="px-2 py-1 text-center">
                                                                                 @if($player['total'] > 0)
