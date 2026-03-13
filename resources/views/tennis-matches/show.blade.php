@@ -331,6 +331,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        @php $previewTeamId = $match->home_team_id; @endphp
                                         @foreach($homeCourtStats as $index => $stat)
                                             <tr class="hover:bg-gray-50 cursor-pointer border-t border-gray-200 home-court-row" data-court-index="{{ $index }}">
                                                 <td class="px-3 py-2 text-sm text-gray-700">
@@ -396,7 +397,11 @@
                                                                                 </div>
                                                                             </td>
                                                                             <td class="px-2 py-1 text-center text-gray-700">
-                                                                                <span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span>
+                                                                                @if($player['is_team'])
+                                                                                    <a href="{{ route('players.show', $player['player_ids'][0]) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $previewTeamId }}&partner={{ $player['player_ids'][1] ?? '' }}#match-history" class="hover:underline"><span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span></a>
+                                                                                @else
+                                                                                    <a href="{{ route('players.show', $player['player_id']) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $previewTeamId }}#match-history" class="hover:underline"><span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span></a>
+                                                                                @endif
                                                                             </td>
                                                                             <td class="px-2 py-1 text-center">
                                                                                 @if($player['total'] > 0)
@@ -437,6 +442,7 @@
                                         </tr>
                                     </thead>
                                     <tbody>
+                                        @php $previewTeamId = $match->away_team_id; @endphp
                                         @foreach($awayCourtStats as $index => $stat)
                                             <tr class="hover:bg-gray-50 cursor-pointer border-t border-gray-200 away-court-row" data-court-index="{{ $index }}">
                                                 <td class="px-3 py-2 text-sm text-gray-700">
@@ -502,7 +508,11 @@
                                                                                 </div>
                                                                             </td>
                                                                             <td class="px-2 py-1 text-center text-gray-700">
-                                                                                <span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span>
+                                                                                @if($player['is_team'])
+                                                                                    <a href="{{ route('players.show', $player['player_ids'][0]) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $previewTeamId }}&partner={{ $player['player_ids'][1] ?? '' }}#match-history" class="hover:underline"><span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span></a>
+                                                                                @else
+                                                                                    <a href="{{ route('players.show', $player['player_id']) }}?court={{ $stat['court_type'] }}&line={{ $stat['court_number'] }}&team={{ $previewTeamId }}#match-history" class="hover:underline"><span class="text-green-600 font-semibold">{{ $player['wins'] }}</span>-<span class="text-red-600 font-semibold">{{ $player['losses'] }}</span></a>
+                                                                                @endif
                                                                             </td>
                                                                             <td class="px-2 py-1 text-center">
                                                                                 @if($player['total'] > 0)
