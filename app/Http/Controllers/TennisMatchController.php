@@ -199,12 +199,12 @@ class TennisMatchController extends Controller
             $avgUstaDynamic = null;
 
             if ($type === 'singles') {
-                $avgUtrSingles = $allCourtPlayers->whereNotNull('utr_singles_rating')->avg('utr_singles_rating');
+                $avgUtrSingles = $allCourtPlayers->whereNotNull('utr_singles_rating')->where('utr_singles_rating', '>', 0)->avg('utr_singles_rating');
             } else {
-                $avgUtrDoubles = $allCourtPlayers->whereNotNull('utr_doubles_rating')->avg('utr_doubles_rating');
+                $avgUtrDoubles = $allCourtPlayers->whereNotNull('utr_doubles_rating')->where('utr_doubles_rating', '>', 0)->avg('utr_doubles_rating');
             }
 
-            $avgUstaDynamic = $allCourtPlayers->whereNotNull('usta_dynamic_rating')->avg('usta_dynamic_rating');
+            $avgUstaDynamic = $allCourtPlayers->whereNotNull('usta_dynamic_rating')->where('usta_dynamic_rating', '>', 0)->avg('usta_dynamic_rating');
 
             // Calculate player-level stats
             $playerStats = [];
@@ -221,8 +221,8 @@ class TennisMatchController extends Controller
                     $losses = $playerCourtAppearances->where('won', false)->count();
                     $total = $wins + $losses;
 
-                    $playerAvgUtr = $playerCourtAppearances->whereNotNull('utr_singles_rating')->avg('utr_singles_rating');
-                    $playerAvgUsta = $playerCourtAppearances->whereNotNull('usta_dynamic_rating')->avg('usta_dynamic_rating');
+                    $playerAvgUtr = $playerCourtAppearances->whereNotNull('utr_singles_rating')->where('utr_singles_rating', '>', 0)->avg('utr_singles_rating');
+                    $playerAvgUsta = $playerCourtAppearances->whereNotNull('usta_dynamic_rating')->where('usta_dynamic_rating', '>', 0)->avg('usta_dynamic_rating');
 
                     // Calculate average opponent ratings
                     $opponentUtrRatings = [];
