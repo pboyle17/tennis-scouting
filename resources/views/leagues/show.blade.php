@@ -1226,14 +1226,14 @@
                             </td>
                             <td class="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
                                 @if($player->singles_wins + $player->singles_losses > 0)
-                                    <span class="text-green-600 font-medium">{{ $player->singles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->singles_losses }}</span>
+                                    <a href="{{ route('players.show', $player->id) }}?court=singles&team={{ $player->team_id }}#match-history" class="hover:underline cursor-pointer"><span class="text-green-600 font-medium">{{ $player->singles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->singles_losses }}</span></a>
                                 @else
                                     <span class="text-gray-400">-</span>
                                 @endif
                             </td>
                             <td class="px-4 py-2 text-sm text-gray-700 whitespace-nowrap">
                                 @if($player->doubles_wins + $player->doubles_losses > 0)
-                                    <span class="text-green-600 font-medium">{{ $player->doubles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->doubles_losses }}</span>
+                                    <a href="{{ route('players.show', $player->id) }}?court=doubles&team={{ $player->team_id }}#match-history" class="hover:underline cursor-pointer"><span class="text-green-600 font-medium">{{ $player->doubles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->doubles_losses }}</span></a>
                                 @else
                                     <span class="text-gray-400">-</span>
                                 @endif
@@ -1371,7 +1371,7 @@
                             <span class="font-semibold text-gray-600">Singles:</span>
                             <span class="ml-1">
                                 @if($player->singles_wins + $player->singles_losses > 0)
-                                    <span class="text-green-600 font-medium">{{ $player->singles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->singles_losses }}</span>
+                                    <a href="{{ route('players.show', $player->id) }}?court=singles&team={{ $player->team_id }}#match-history" class="hover:underline cursor-pointer"><span class="text-green-600 font-medium">{{ $player->singles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->singles_losses }}</span></a>
                                 @else
                                     <span class="text-gray-400">-</span>
                                 @endif
@@ -1381,7 +1381,7 @@
                             <span class="font-semibold text-gray-600">Doubles:</span>
                             <span class="ml-1">
                                 @if($player->doubles_wins + $player->doubles_losses > 0)
-                                    <span class="text-green-600 font-medium">{{ $player->doubles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->doubles_losses }}</span>
+                                    <a href="{{ route('players.show', $player->id) }}?court=doubles&team={{ $player->team_id }}#match-history" class="hover:underline cursor-pointer"><span class="text-green-600 font-medium">{{ $player->doubles_wins }}</span><span class="text-gray-400">-</span><span class="text-red-600 font-medium">{{ $player->doubles_losses }}</span></a>
                                 @else
                                     <span class="text-gray-400">-</span>
                                 @endif
