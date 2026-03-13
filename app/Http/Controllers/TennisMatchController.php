@@ -257,6 +257,7 @@ class TennisMatchController extends Controller
                         'avg_usta' => $playerAvgUsta,
                         'avg_opponent_utr' => $avgOpponentUtr,
                         'avg_opponent_usta' => $avgOpponentUsta,
+                        'current_utr' => $player->utr_singles_rating,
                         'is_team' => false,
                     ];
                 }
@@ -343,6 +344,7 @@ class TennisMatchController extends Controller
                         'avg_usta' => $avgTeamUsta,
                         'avg_opponent_utr' => $avgOpponentUtr,
                         'avg_opponent_usta' => $avgOpponentUsta,
+                        'current_utrs' => $players->map(fn($p) => $p->utr_doubles_rating)->values()->toArray(),
                         'is_team' => true,
                     ];
                 }
