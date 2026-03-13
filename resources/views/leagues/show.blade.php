@@ -76,27 +76,26 @@
                 });
             }
 
-            // Track which sections have crossed the top
-            var passed = {};
-            sections.forEach(function (id) {
-                var anchor = document.getElementById(id);
-                if (!anchor) return;
-                new IntersectionObserver(function (entries) {
-                    entries.forEach(function (entry) {
-                        passed[id] = !entry.isIntersecting && entry.boundingClientRect.top < 0;
-                        // Find the last section that has been passed
-                        var active = null;
-                        for (var i = sections.length - 1; i >= 0; i--) {
-                            if (passed[sections[i]]) { active = sections[i]; break; }
-                        }
-                        if (active) setActiveTab(active);
-                        else sections.forEach(function (s) {
-                            var el = tabLinks[s];
-                            if (el) { el.classList.remove(...activeClasses); el.classList.add(...inactiveClasses); }
-                        });
-                    });
-                }, { threshold: 0 }).observe(anchor);
-            });
+            // Track active tab based on scroll position relative to sticky headers
+            var stickyTabBar = document.querySelector('.sticky.top-14');
+            function updateActiveTab() {
+                var offset = stickyTabBar ? stickyTabBar.getBoundingClientRect().bottom + 4 : 110;
+                var active = null;
+                for (var i = sections.length - 1; i >= 0; i--) {
+                    var anchor = document.getElementById(sections[i]);
+                    if (anchor && anchor.getBoundingClientRect().top <= offset) {
+                        active = sections[i];
+                        break;
+                    }
+                }
+                if (active) setActiveTab(active);
+                else sections.forEach(function (s) {
+                    var el = tabLinks[s];
+                    if (el) { el.classList.remove(...activeClasses); el.classList.add(...inactiveClasses); }
+                });
+            }
+            window.addEventListener('scroll', updateActiveTab, { passive: true });
+            updateActiveTab();
         });
     </script>
 
