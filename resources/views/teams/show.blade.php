@@ -56,6 +56,62 @@
             </div>
         </div>
     </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var sections = ['court-averages', 'players', 'matches'];
+            var tabLinks = {};
+            sections.forEach(function (id) {
+                tabLinks[id] = document.querySelector('nav a[href="#' + id + '"]');
+            });
+
+            var activeClasses = ['border-blue-500', 'text-blue-600'];
+            var inactiveClasses = ['border-transparent', 'text-gray-600'];
+
+            function setActiveTab(id) {
+                sections.forEach(function (s) {
+                    var el = tabLinks[s];
+                    if (!el) return;
+                    if (s === id) {
+                        el.classList.remove(...inactiveClasses);
+                        el.classList.add(...activeClasses);
+                    } else {
+                        el.classList.remove(...activeClasses);
+                        el.classList.add(...inactiveClasses);
+                    }
+                });
+            }
+
+            // Set active immediately on click
+            sections.forEach(function (id) {
+                if (tabLinks[id]) tabLinks[id].addEventListener('click', function () { setActiveTab(id); });
+            });
+
+            var stickyTabBar = document.querySelector('.sticky.top-14');
+            function updateActiveTab() {
+                // If at the bottom of the page, activate the last section
+                if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight - 10) {
+                    setActiveTab(sections[sections.length - 1]);
+                    return;
+                }
+                var offset = stickyTabBar ? stickyTabBar.getBoundingClientRect().bottom + 4 : 110;
+                var active = null;
+                for (var i = sections.length - 1; i >= 0; i--) {
+                    var anchor = document.getElementById(sections[i]);
+                    if (anchor && anchor.getBoundingClientRect().top <= offset) {
+                        active = sections[i];
+                        break;
+                    }
+                }
+                if (active) setActiveTab(active);
+                else sections.forEach(function (s) {
+                    var el = tabLinks[s];
+                    if (el) { el.classList.remove(...activeClasses); el.classList.add(...inactiveClasses); }
+                });
+            }
+            window.addEventListener('scroll', updateActiveTab, { passive: true });
+            updateActiveTab();
+        });
+    </script>
 
     <div class="container mx-auto px-4 md:p-6">
 

@@ -76,9 +76,19 @@
                 });
             }
 
+            // Set active immediately on click
+            sections.forEach(function (id) {
+                if (tabLinks[id]) tabLinks[id].addEventListener('click', function () { setActiveTab(id); });
+            });
+
             // Track active tab based on scroll position relative to sticky headers
             var stickyTabBar = document.querySelector('.sticky.top-14');
             function updateActiveTab() {
+                // If at the bottom of the page, activate the last section
+                if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight - 10) {
+                    setActiveTab(sections[sections.length - 1]);
+                    return;
+                }
                 var offset = stickyTabBar ? stickyTabBar.getBoundingClientRect().bottom + 4 : 110;
                 var active = null;
                 for (var i = sections.length - 1; i >= 0; i--) {
