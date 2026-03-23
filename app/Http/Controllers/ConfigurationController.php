@@ -113,9 +113,9 @@ class ConfigurationController extends Controller
           // Set PGPASSWORD environment variable
           putenv("PGPASSWORD={$dbPassword}");
 
-          // Create database dump using pg_dump
+          // Create database dump using pg_dump, excluding personal equipment tables
           $command = sprintf(
-              'pg_dump -h %s -p %s -U %s -d %s -F c -f %s 2>&1',
+              'pg_dump -h %s -p %s -U %s -d %s -F c --exclude-table=rackets --exclude-table=string_jobs -f %s 2>&1',
               escapeshellarg($dbHost),
               escapeshellarg($dbPort),
               escapeshellarg($dbUser),
