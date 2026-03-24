@@ -292,22 +292,18 @@ class LeagueController extends Controller
             return back()->with('error', 'No players with UTR IDs found in the selected teams. Please add UTR IDs to players first.');
         }
 
-        // Batch UTR IDs into groups of 20
-        $batches = array_chunk($utrIds, 20);
+        // Dispatch a single job to process all players sequentially (throttled to 10/min)
+        $jobKey = 'utr_update_' . uniqid();
+        \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, $jobKey);
 
-        // Dispatch a job for each batch
-        foreach ($batches as $batch) {
-            $jobKey = 'utr_update_' . uniqid();
-            \App\Jobs\UpdateUtrRatingsJob::dispatch($batch, $jobKey);
-        }
+        $league->utr_last_updated_at = now();
+        $league->save();
 
         $playerCount = count($utrIds);
-        $batchCount = count($batches);
         $teamText = $teamCount === 1 ? '1 team' : "{$teamCount} teams";
         $playerText = $playerCount === 1 ? '1 player' : "{$playerCount} players";
-        $batchText = $batchCount === 1 ? '1 batch' : "{$batchCount} batches";
 
-        $message = "🔄 UTR update started! Updating ratings for {$playerText} across {$teamText} in \"{$league->name}\" ({$batchText}). This may take a few minutes.";
+        $message = "UTR update started! Updating ratings for {$playerText} across {$teamText} in \"{$league->name}\". This may take a few minutes.";
 
         return back()->with('status', $message);
     }
@@ -510,6 +506,9 @@ class LeagueController extends Controller
         foreach ($teamsToSync as $team) {
             SyncTeamFromTennisRecordJob::dispatch($team);
         }
+
+        $league->teams_last_synced_at = now();
+        $league->save();
 
         return back()->with('success', "Syncing {$teamsToSync->count()} team(s) from Tennis Record. This may take a few minutes.");
     }
