@@ -49,6 +49,26 @@
 
                 <div class="grid grid-cols-2 gap-3 text-sm">
                     <div>
+                        <span class="font-semibold text-gray-600">UTR Updated:</span>
+                        <span class="text-gray-700 ml-1">
+                            @if($league->utr_last_updated_at)
+                                <span title="{{ $league->utr_last_updated_at->format('Y-m-d H:i') }}">{{ $league->utr_last_updated_at->diffForHumans() }}</span>
+                            @else
+                                -
+                            @endif
+                        </span>
+                    </div>
+                    <div>
+                        <span class="font-semibold text-gray-600">Teams Synced:</span>
+                        <span class="text-gray-700 ml-1">
+                            @if($league->teams_last_synced_at)
+                                <span title="{{ $league->teams_last_synced_at->format('Y-m-d H:i') }}">{{ $league->teams_last_synced_at->diffForHumans() }}</span>
+                            @else
+                                -
+                            @endif
+                        </span>
+                    </div>
+                    <div>
                         <span class="font-semibold text-gray-600">S1 UTR:</span>
                         <span class="text-gray-700 ml-1">
                             @if($league->courtAverages['s1'] && $league->courtAverages['s1']['utr'])
@@ -101,8 +121,16 @@
                 </div>
 
                 @env('local')
-                    <div class="mt-3 pt-3 border-t border-gray-200">
+                    <div class="mt-3 pt-3 border-t border-gray-200 flex gap-3 flex-wrap items-center">
                         <a href="{{ route('leagues.edit', $league->id) }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</a>
+                        <form method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;">
+                            @csrf
+                            <button type="submit" class="text-purple-600 hover:text-purple-800 text-sm font-medium cursor-pointer">Update UTRs</button>
+                        </form>
+                        <form method="POST" action="{{ route('leagues.syncAllTeams', $league->id) }}" style="display:inline;">
+                            @csrf
+                            <button type="submit" class="text-green-600 hover:text-green-800 text-sm font-medium cursor-pointer">Sync Teams</button>
+                        </form>
                     </div>
                 @endenv
             </div>
@@ -120,6 +148,8 @@
                     <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">D1 UTR</th>
                     <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">D2 UTR</th>
                     <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">D3 UTR</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">UTR Updated</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Teams Synced</th>
                     @env('local')
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
                     @endenv
@@ -171,9 +201,33 @@
                                 -
                             @endif
                         </td>
+                        <td class="px-4 py-2 text-sm text-center">
+                            @if($league->utr_last_updated_at)
+                                <span class="text-gray-600" title="{{ $league->utr_last_updated_at->format('Y-m-d H:i') }}">{{ $league->utr_last_updated_at->diffForHumans() }}</span>
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
+                        </td>
+                        <td class="px-4 py-2 text-sm text-center">
+                            @if($league->teams_last_synced_at)
+                                <span class="text-gray-600" title="{{ $league->teams_last_synced_at->format('Y-m-d H:i') }}">{{ $league->teams_last_synced_at->diffForHumans() }}</span>
+                            @else
+                                <span class="text-gray-400">-</span>
+                            @endif
+                        </td>
                         @env('local')
                             <td class="px-4 py-2 text-sm">
-                                <a href="{{ route('leagues.edit', $league->id) }}" class="text-blue-600 hover:text-blue-800 mr-3">Edit</a>
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <a href="{{ route('leagues.edit', $league->id) }}" class="text-blue-600 hover:text-blue-800">Edit</a>
+                                    <form method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;">
+                                        @csrf
+                                        <button type="submit" class="text-purple-600 hover:text-purple-800 cursor-pointer">Update UTRs</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('leagues.syncAllTeams', $league->id) }}" style="display:inline;">
+                                        @csrf
+                                        <button type="submit" class="text-green-600 hover:text-green-800 cursor-pointer">Sync Teams</button>
+                                    </form>
+                                </div>
                             </td>
                         @endenv
                     </tr>
