@@ -114,8 +114,103 @@ class LeagueController extends Controller
                       ->orWhereIn('away_team_id', $teamIds);
             })
             ->orderBy('start_time', 'asc')
-            ->with(['homeTeam', 'awayTeam'])
+            ->with(['homeTeam', 'awayTeam', 'courts.courtSets', 'courts.courtPlayers'])
             ->get();
+
+        // Compute team standings
+        $teamStandings = [];
+        foreach ($league->teams as $team) {
+            $teamStandings[$team->id] = [
+                'team' => $team,
+                'wins' => 0, 'losses' => 0,
+                'indiv_wins' => 0, 'indiv_losses' => 0,
+                'sets_won' => 0, 'sets_lost' => 0,
+                'games_won' => 0, 'games_lost' => 0,
+                'games_won_pct' => 0, 'games_lost_pct' => 0,
+                'defaults' => 0,
+            ];
+        }
+
+        foreach ($matches as $match) {
+            if ($match->home_score === null || $match->away_score === null) continue;
+
+            $hid = $match->home_team_id;
+            $aid = $match->away_team_id;
+
+            if (isset($teamStandings[$hid]) && isset($teamStandings[$aid])) {
+                if ($match->home_score > $match->away_score) {
+                    $teamStandings[$hid]['wins']++;
+                    $teamStandings[$aid]['losses']++;
+                } elseif ($match->away_score > $match->home_score) {
+                    $teamStandings[$aid]['wins']++;
+                    $teamStandings[$hid]['losses']++;
+                }
+            }
+
+            foreach ($match->courts as $court) {
+                if ($court->home_score === null || $court->away_score === null) continue;
+
+                if (isset($teamStandings[$hid]) && isset($teamStandings[$aid])) {
+                    if ($court->home_score > $court->away_score) {
+                        $teamStandings[$hid]['indiv_wins']++;
+                        $teamStandings[$aid]['indiv_losses']++;
+                    } else {
+                        $teamStandings[$aid]['indiv_wins']++;
+                        $teamStandings[$hid]['indiv_losses']++;
+                    }
+                }
+
+                if ($court->is_default) {
+                    if (isset($teamStandings[$hid]) && $court->courtPlayers->where('team_id', $hid)->isEmpty()) {
+                        $teamStandings[$hid]['defaults']++;
+                    }
+                    if (isset($teamStandings[$aid]) && $court->courtPlayers->where('team_id', $aid)->isEmpty()) {
+                        $teamStandings[$aid]['defaults']++;
+                    }
+                }
+
+                foreach ($court->courtSets as $set) {
+                    $isHome = isset($teamStandings[$hid]);
+                    $isAway = isset($teamStandings[$aid]);
+
+                    if (!$court->is_default) {
+                        if ($set->home_score > $set->away_score) {
+                            if ($isHome) $teamStandings[$hid]['sets_won']++;
+                            if ($isAway) $teamStandings[$aid]['sets_lost']++;
+                        } elseif ($set->away_score > $set->home_score) {
+                            if ($isAway) $teamStandings[$aid]['sets_won']++;
+                            if ($isHome) $teamStandings[$hid]['sets_lost']++;
+                        }
+                    }
+
+                    if ($isHome) {
+                        $teamStandings[$hid]['games_won'] += $set->home_score;
+                        $teamStandings[$hid]['games_lost'] += $set->away_score;
+                        if (!$court->is_default) {
+                            $teamStandings[$hid]['games_won_pct'] += $set->home_score;
+                            $teamStandings[$hid]['games_lost_pct'] += $set->away_score;
+                        }
+                    }
+                    if ($isAway) {
+                        $teamStandings[$aid]['games_won'] += $set->away_score;
+                        $teamStandings[$aid]['games_lost'] += $set->home_score;
+                        if (!$court->is_default) {
+                            $teamStandings[$aid]['games_won_pct'] += $set->away_score;
+                            $teamStandings[$aid]['games_lost_pct'] += $set->home_score;
+                        }
+                    }
+                }
+            }
+        }
+
+        usort($teamStandings, function ($a, $b) {
+            if ($b['wins'] !== $a['wins']) return $b['wins'] - $a['wins'];
+            $aTotal = $a['games_won'] + $a['games_lost'];
+            $bTotal = $b['games_won'] + $b['games_lost'];
+            $aPct = $aTotal > 0 ? $a['games_won'] / $aTotal : 0;
+            $bPct = $bTotal > 0 ? $b['games_won'] / $bTotal : 0;
+            return $bPct <=> $aPct;
+        });
 
         // Compute singles/doubles W-L records per player for this league
         $matchIds = $matches->pluck('id');
@@ -152,7 +247,7 @@ class LeagueController extends Controller
         $leagueLineupData = $this->calculateLeagueLineupData($league);
         $leagueDoublesLineupData = $this->calculateLeagueDoublesLineupData($league);
 
-        return view('leagues.show', compact('league', 'availableTeams', 'players', 'sortField', 'sortDirection', 'matches', 'courtStats', 'leagueLineupData', 'leagueDoublesLineupData'));
+        return view('leagues.show', compact('league', 'availableTeams', 'players', 'sortField', 'sortDirection', 'matches', 'courtStats', 'leagueLineupData', 'leagueDoublesLineupData', 'teamStandings'));
     }
 
     /**

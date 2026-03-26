@@ -14,6 +14,11 @@ class Court extends Model
         'court_number',
         'home_score',
         'away_score',
+        'is_default',
+    ];
+
+    protected $casts = [
+        'is_default' => 'boolean',
     ];
 
     public function tennisMatch(): BelongsTo

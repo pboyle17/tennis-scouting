@@ -388,6 +388,7 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                 'court_number' => $courtNumber,
                 'home_score' => $homeScore,
                 'away_score' => $awayScore,
+                'is_default' => $homeDefaulted || $awayDefaulted,
             ]);
 
             Log::info("Singles #{$courtNumber} - Created court record", ['court_id' => $court->id]);
@@ -641,6 +642,7 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
                 'court_number' => $courtNumber,
                 'home_score' => $homeScore,
                 'away_score' => $awayScore,
+                'is_default' => $homeDefaulted || $awayDefaulted,
             ]);
 
             Log::info("Doubles #{$courtNumber} - Created court record", ['court_id' => $court->id]);

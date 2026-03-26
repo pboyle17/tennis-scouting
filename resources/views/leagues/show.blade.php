@@ -21,8 +21,11 @@
             </span>
             <div class="flex justify-center border-b border-gray-200">
                 <nav class="flex space-x-8">
+                    <a href="#standings" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
+                        Standings
+                    </a>
                     <a href="#teams" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
-                        Teams
+                        Insights
                     </a>
                     <a href="#players" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
                         Players
@@ -53,7 +56,7 @@
             }
 
             // Active tab highlighting based on scroll position
-            var sections = ['teams', 'players', 'matches'];
+            var sections = ['standings', 'teams', 'players', 'matches'];
             var tabLinks = {};
             sections.forEach(function (id) {
                 tabLinks[id] = document.querySelector('nav a[href="#' + id + '"]');
@@ -342,6 +345,60 @@
             </div>
         </div>
     @endenv
+
+    <!-- Team Standings -->
+    <div id="standings" class="relative -top-20 invisible h-0"></div>
+    <div class="mb-10">
+        <h2 class="text-xl font-bold text-gray-800 mb-4">Team Standings</h2>
+        @if(count($teamStandings) > 0)
+            <p class="text-xs text-gray-500 mb-3">* Calculation of game-winning percentage does not include defaulted matches.</p>
+            <div class="overflow-x-auto rounded-lg border border-gray-200">
+                <table class="min-w-full text-sm">
+                    <thead class="bg-gray-100 text-gray-600 uppercase text-xs font-semibold">
+                        <tr>
+                            <th class="px-4 py-3 text-left">Team</th>
+                            <th class="px-4 py-3 text-center">Wins</th>
+                            <th class="px-4 py-3 text-center">Losses</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center">Indiv. Wins</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center">Indiv. Losses</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center">Sets Won</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center">Sets Lost</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center">Games Won</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center">Games Lost</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center">Defaults</th>
+                            <th class="px-4 py-3 text-center">Games Won %</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach($teamStandings as $standing)
+                            @php
+                                $gamesTotal = $standing['games_won'] + $standing['games_lost'];
+                                $gamesPctTotal = $standing['games_won_pct'] + $standing['games_lost_pct'];
+                                $gamesPct = $gamesPctTotal > 0 ? ($standing['games_won_pct'] / $gamesPctTotal) * 100 : null;
+                            @endphp
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 font-medium"><a href="{{ route('teams.show', $standing['team']->id) }}" class="text-blue-600 hover:underline">{{ $standing['team']->name }}</a></td>
+                                <td class="px-4 py-3 text-center text-gray-700">{{ $standing['wins'] }}</td>
+                                <td class="px-4 py-3 text-center text-gray-700">{{ $standing['losses'] }}</td>
+                                <td class="hidden md:table-cell px-4 py-3 text-center text-gray-700">{{ $standing['indiv_wins'] }}</td>
+                                <td class="hidden md:table-cell px-4 py-3 text-center text-gray-700">{{ $standing['indiv_losses'] }}</td>
+                                <td class="hidden md:table-cell px-4 py-3 text-center text-gray-700">{{ $standing['sets_won'] }}</td>
+                                <td class="hidden md:table-cell px-4 py-3 text-center text-gray-700">{{ $standing['sets_lost'] }}</td>
+                                <td class="hidden md:table-cell px-4 py-3 text-center text-gray-700">{{ $standing['games_won'] }}</td>
+                                <td class="hidden md:table-cell px-4 py-3 text-center text-gray-700">{{ $standing['games_lost'] }}</td>
+                                <td class="hidden md:table-cell px-4 py-3 text-center text-gray-700">{{ $standing['defaults'] }}</td>
+                                <td class="px-4 py-3 text-center text-gray-700">
+                                    {{ $gamesPct !== null ? number_format($gamesPct, 2) . '%' : '-' }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+        @else
+            <p class="text-gray-500 text-sm">No match data available yet.</p>
+        @endif
+    </div>
 
     <!-- Teams Table -->
     <div id="teams" class="relative -top-20 invisible h-0"></div>
