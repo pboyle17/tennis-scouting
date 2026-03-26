@@ -340,12 +340,16 @@
                                 <span class="font-medium text-blue-600">{{ $player->first_name }} {{ $player->last_name }}</span>
                                 @if($playerUtr)<span class="text-gray-400">({{ number_format($playerUtr, 2) }})</span>@else<span class="text-gray-400">( - )</span>@endif
                                 <span class="text-gray-400">vs</span>
-                                @foreach($opponents as $i => $opp)
-                                    @if(!$loop->first)<span class="text-gray-400">/</span>@endif
-                                    @php $oppUtr = $opp->utr_singles_rating; @endphp
-                                    <a href="{{ route('players.show', $opp->player_id) }}" onclick="event.stopPropagation()" class="font-medium text-red-600 hover:underline">{{ $opp->player->first_name }} {{ $opp->player->last_name }}</a>
-                                    @if($oppUtr)<span class="text-gray-400">({{ number_format($oppUtr, 2) }})</span>@else<span class="text-gray-400">( - )</span>@endif
-                                @endforeach
+                                @if($opponents->isEmpty() && $court->is_default)
+                                    <span class="text-orange-500 italic">Defaulted</span>
+                                @else
+                                    @foreach($opponents as $i => $opp)
+                                        @if(!$loop->first)<span class="text-gray-400">/</span>@endif
+                                        @php $oppUtr = $opp->utr_singles_rating; @endphp
+                                        <a href="{{ route('players.show', $opp->player_id) }}" onclick="event.stopPropagation()" class="font-medium text-red-600 hover:underline">{{ $opp->player->first_name }} {{ $opp->player->last_name }}</a>
+                                        @if($oppUtr)<span class="text-gray-400">({{ number_format($oppUtr, 2) }})</span>@else<span class="text-gray-400">( - )</span>@endif
+                                    @endforeach
+                                @endif
                             </div>
                         @else
                             @php $playerUtr = $courtPlayer->utr_doubles_rating; @endphp
@@ -358,17 +362,19 @@
                                     @if($teammate->utr_doubles_rating)<span class="text-gray-400">({{ number_format($teammate->utr_doubles_rating, 2) }})</span>@else<span class="text-gray-400">( - )</span>@endif
                                 @endif
                             </div>
-                            @if($opponents->count())
-                                <div class="text-xs mb-3 flex flex-wrap items-center gap-x-1">
-                                    <span class="text-gray-500">vs</span>
+                            <div class="text-xs mb-3 flex flex-wrap items-center gap-x-1">
+                                <span class="text-gray-500">vs</span>
+                                @if($opponents->isEmpty() && $court->is_default)
+                                    <span class="text-orange-500 italic">Defaulted</span>
+                                @else
                                     @foreach($opponents as $i => $opp)
                                         @if(!$loop->first)<span class="text-gray-400">/</span>@endif
                                         @php $oppUtr = $opp->utr_doubles_rating; @endphp
                                         <a href="{{ route('players.show', $opp->player_id) }}" onclick="event.stopPropagation()" class="font-medium text-red-600 hover:underline">{{ $opp->player->first_name }} {{ $opp->player->last_name }}</a>
                                         @if($oppUtr)<span class="text-gray-400">({{ number_format($oppUtr, 2) }})</span>@else<span class="text-gray-400">( - )</span>@endif
                                     @endforeach
-                                </div>
-                            @endif
+                                @endif
+                            </div>
                         @endif
 
                         {{-- Score + Result --}}
@@ -459,11 +465,15 @@
                                         </div>
                                         <div>
                                             <span class="text-xs text-gray-500">vs</span>
-                                            @foreach($opponents as $opponent)
-                                                @if(!$loop->first) / @endif
-                                                <a href="{{ route('players.show', $opponent->player_id) }}" class="text-red-600 hover:underline">{{ $opponent->player->first_name }} {{ $opponent->player->last_name }}</a>
-                                                @if($opponent->utr_doubles_rating)<span class="text-xs text-gray-400">({{ number_format($opponent->utr_doubles_rating, 2) }})</span>@else<span class="text-xs text-gray-400">( - )</span>@endif
-                                            @endforeach
+                                            @if($opponents->isEmpty() && $court->is_default)
+                                                <span class="text-xs text-orange-500 italic">Defaulted</span>
+                                            @else
+                                                @foreach($opponents as $opponent)
+                                                    @if(!$loop->first) / @endif
+                                                    <a href="{{ route('players.show', $opponent->player_id) }}" class="text-red-600 hover:underline">{{ $opponent->player->first_name }} {{ $opponent->player->last_name }}</a>
+                                                    @if($opponent->utr_doubles_rating)<span class="text-xs text-gray-400">({{ number_format($opponent->utr_doubles_rating, 2) }})</span>@else<span class="text-xs text-gray-400">( - )</span>@endif
+                                                @endforeach
+                                            @endif
                                         </div>
                                     @elseif($court->court_type === 'singles')
                                         {{-- Singles: player vs opponent --}}
@@ -471,10 +481,14 @@
                                             <span class="font-semibold text-blue-600">{{ $player->first_name }} {{ $player->last_name }}</span>
                                             @if($courtPlayer->utr_singles_rating)<span class="text-xs text-gray-400">({{ number_format($courtPlayer->utr_singles_rating, 2) }})</span>@else<span class="text-xs text-gray-400">( - )</span>@endif
                                             <span class="text-xs text-gray-500 mx-1">vs</span>
-                                            @foreach($opponents as $opponent)
-                                                <a href="{{ route('players.show', $opponent->player_id) }}" class="text-red-600 hover:underline font-semibold">{{ $opponent->player->first_name }} {{ $opponent->player->last_name }}</a>
-                                                @if($opponent->utr_singles_rating)<span class="text-xs text-gray-400">({{ number_format($opponent->utr_singles_rating, 2) }})</span>@else<span class="text-xs text-gray-400">( - )</span>@endif
-                                            @endforeach
+                                            @if($opponents->isEmpty() && $court->is_default)
+                                                <span class="text-xs text-orange-500 italic">Defaulted</span>
+                                            @else
+                                                @foreach($opponents as $opponent)
+                                                    <a href="{{ route('players.show', $opponent->player_id) }}" class="text-red-600 hover:underline font-semibold">{{ $opponent->player->first_name }} {{ $opponent->player->last_name }}</a>
+                                                    @if($opponent->utr_singles_rating)<span class="text-xs text-gray-400">({{ number_format($opponent->utr_singles_rating, 2) }})</span>@else<span class="text-xs text-gray-400">( - )</span>@endif
+                                                @endforeach
+                                            @endif
                                         </div>
                                     @else
                                         <span class="text-gray-400">-</span>

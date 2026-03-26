@@ -142,19 +142,23 @@
                             <!-- Home Players -->
                             <div class="flex-1 pr-2">
                                 <div class="text-xs text-gray-500 font-medium mb-1">Home</div>
-                                @foreach($homePlayers as $cp)
-                                    @php
-                                        $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
-                                    @endphp
-                                    <div class="text-sm {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
-                                        <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
-                                            {{ $cp->player->first_name }} {{ $cp->player->last_name }}
-                                        </a>
-                                        @if($utrRating)
-                                            <span class="text-xs text-gray-400">({{ number_format($utrRating, 2) }})</span>
-                                        @endif
-                                    </div>
-                                @endforeach
+                                @if($homePlayers->isEmpty() && $court->is_default)
+                                    <span class="text-xs text-orange-500 italic">Defaulted</span>
+                                @else
+                                    @foreach($homePlayers as $cp)
+                                        @php
+                                            $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
+                                        @endphp
+                                        <div class="text-sm {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                            <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
+                                                {{ $cp->player->first_name }} {{ $cp->player->last_name }}
+                                            </a>
+                                            @if($utrRating)
+                                                <span class="text-xs text-gray-400">({{ number_format($utrRating, 2) }})</span>
+                                            @endif
+                                        </div>
+                                    @endforeach
+                                @endif
                             </div>
 
                             <!-- Score -->
@@ -173,19 +177,23 @@
                             <!-- Away Players -->
                             <div class="flex-1 pl-2 text-right">
                                 <div class="text-xs text-gray-500 font-medium mb-1">Away</div>
-                                @foreach($awayPlayers as $cp)
-                                    @php
-                                        $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
-                                    @endphp
-                                    <div class="text-sm {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
-                                        @if($utrRating)
-                                            <span class="text-xs text-gray-400">({{ number_format($utrRating, 2) }})</span>
-                                        @endif
-                                        <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
-                                            {{ $cp->player->first_name }} {{ $cp->player->last_name }}
-                                        </a>
-                                    </div>
-                                @endforeach
+                                @if($awayPlayers->isEmpty() && $court->is_default)
+                                    <span class="text-xs text-orange-500 italic">Defaulted</span>
+                                @else
+                                    @foreach($awayPlayers as $cp)
+                                        @php
+                                            $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
+                                        @endphp
+                                        <div class="text-sm {{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                            @if($utrRating)
+                                                <span class="text-xs text-gray-400">({{ number_format($utrRating, 2) }})</span>
+                                            @endif
+                                            <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
+                                                {{ $cp->player->first_name }} {{ $cp->player->last_name }}
+                                            </a>
+                                        </div>
+                                    @endforeach
+                                @endif
                             </div>
                         </div>
 
@@ -234,19 +242,23 @@
                                         @php
                                             $homePlayers = $court->courtPlayers->where('team_id', $match->home_team_id);
                                         @endphp
-                                        @foreach($homePlayers as $cp)
-                                            @php
-                                                $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
-                                            @endphp
-                                            <div class="{{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
-                                                <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
-                                                    {{ $cp->player->first_name }} {{ $cp->player->last_name }}
-                                                </a>
-                                                @if($utrRating)
-                                                    <span class="text-xs text-gray-400 font-normal">({{ number_format($utrRating, 2) }})</span>
-                                                @endif
-                                            </div>
-                                        @endforeach
+                                        @if($homePlayers->isEmpty() && $court->is_default)
+                                            <span class="text-xs text-orange-500 italic">Defaulted</span>
+                                        @else
+                                            @foreach($homePlayers as $cp)
+                                                @php
+                                                    $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
+                                                @endphp
+                                                <div class="{{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                                    <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
+                                                        {{ $cp->player->first_name }} {{ $cp->player->last_name }}
+                                                    </a>
+                                                    @if($utrRating)
+                                                        <span class="text-xs text-gray-400 font-normal">({{ number_format($utrRating, 2) }})</span>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        @endif
                                     </td>
                                     <td class="px-6 py-4 text-center">
                                         @if($court->courtSets->count() > 0)
@@ -267,19 +279,23 @@
                                         @php
                                             $awayPlayers = $court->courtPlayers->where('team_id', $match->away_team_id);
                                         @endphp
-                                        @foreach($awayPlayers as $cp)
-                                            @php
-                                                $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
-                                            @endphp
-                                            <div class="{{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
-                                                <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
-                                                    {{ $cp->player->first_name }} {{ $cp->player->last_name }}
-                                                </a>
-                                                @if($utrRating)
-                                                    <span class="text-xs text-gray-400 font-normal">({{ number_format($utrRating, 2) }})</span>
-                                                @endif
-                                            </div>
-                                        @endforeach
+                                        @if($awayPlayers->isEmpty() && $court->is_default)
+                                            <span class="text-xs text-orange-500 italic">Defaulted</span>
+                                        @else
+                                            @foreach($awayPlayers as $cp)
+                                                @php
+                                                    $utrRating = $court->court_type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating;
+                                                @endphp
+                                                <div class="{{ $cp->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                                    <a href="{{ route('players.show', $cp->player->id) }}" class="hover:underline">
+                                                        {{ $cp->player->first_name }} {{ $cp->player->last_name }}
+                                                    </a>
+                                                    @if($utrRating)
+                                                        <span class="text-xs text-gray-400 font-normal">({{ number_format($utrRating, 2) }})</span>
+                                                    @endif
+                                                </div>
+                                            @endforeach
+                                        @endif
                                     </td>
                                     @env('local')
                                         <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
