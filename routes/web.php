@@ -63,6 +63,7 @@ Route::post('/leagues/{league}/sync-tr-profiles', [LeagueController::class, 'syn
 Route::get('/leagues/tr-sync-progress', [LeagueController::class, 'getTrSyncProgress'])->name('leagues.trSyncProgress');
 Route::post('/leagues/{league}/sync-team-matches', [LeagueController::class, 'syncTeamMatches'])->name('leagues.syncTeamMatches');
 Route::post('/leagues/{league}/sync-match-details', [LeagueController::class, 'syncMatchDetails'])->name('leagues.syncMatchDetails');
+Route::post('/leagues/{league}/update-league', [LeagueController::class, 'updateLeague'])->name('leagues.updateLeague');
 
 Route::get('/tennis-matches/{match}', [\App\Http\Controllers\TennisMatchController::class, 'show'])->name('tennis-matches.show');
 Route::get('/tennis-matches/{match}/edit', [\App\Http\Controllers\TennisMatchController::class, 'edit'])->name('tennis-matches.edit');

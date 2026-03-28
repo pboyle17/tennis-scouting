@@ -705,6 +705,47 @@ class LeagueController extends Controller
     }
 
     /**
+     * Run all league update actions: UTRs, team sync, and match details
+     */
+    public function updateLeague(League $league)
+    {
+        // 1. Update UTRs
+        $utrIds = [];
+        foreach ($league->teams as $team) {
+            $teamUtrIds = $team->players()->whereNotNull('utr_id')->pluck('utr_id')->toArray();
+            $utrIds = array_merge($utrIds, $teamUtrIds);
+        }
+        $utrIds = array_unique($utrIds);
+        if (!empty($utrIds)) {
+            \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, 'utr_update_' . uniqid());
+            $league->utr_last_updated_at = now();
+        }
+
+        // 2. Sync all teams from Tennis Record
+        $teamsToSync = $league->teams()->whereNotNull('tennis_record_link')->get();
+        foreach ($teamsToSync as $team) {
+            SyncTeamFromTennisRecordJob::dispatch($team);
+        }
+        if ($teamsToSync->isNotEmpty()) {
+            $league->teams_last_synced_at = now();
+        }
+
+        $league->save();
+
+        // 3. Sync match details
+        $teamIds = $league->teams->pluck('id');
+        $matches = \App\Models\TennisMatch::where(function ($query) use ($teamIds) {
+            $query->whereIn('home_team_id', $teamIds)->orWhereIn('away_team_id', $teamIds);
+        })->whereNotNull('tennis_record_match_link')->get();
+
+        foreach ($matches as $match) {
+            \App\Jobs\SyncMatchFromTennisRecordJob::dispatch($match);
+        }
+
+        return back()->with('success', "League update started: {$league->name}. Updating UTRs, syncing {$teamsToSync->count()} team(s), and {$matches->count()} match(es).");
+    }
+
+    /**
      * Calculate average ratings by court position for the league
      */
     protected function calculateCourtStats(League $league)
