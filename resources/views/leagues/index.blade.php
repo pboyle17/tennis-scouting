@@ -123,13 +123,9 @@
                 @env('local')
                     <div class="mt-3 pt-3 border-t border-gray-200 flex gap-3 flex-wrap items-center">
                         <a href="{{ route('leagues.edit', $league->id) }}" class="text-blue-600 hover:text-blue-800 text-sm font-medium">Edit</a>
-                        <form method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;">
+                        <form method="POST" action="{{ route('leagues.updateLeague', $league->id) }}" style="display:inline;">
                             @csrf
-                            <button type="submit" class="text-purple-600 hover:text-purple-800 text-sm font-medium cursor-pointer">Update UTRs</button>
-                        </form>
-                        <form method="POST" action="{{ route('leagues.syncAllTeams', $league->id) }}" style="display:inline;">
-                            @csrf
-                            <button type="submit" class="text-green-600 hover:text-green-800 text-sm font-medium cursor-pointer">Sync Teams</button>
+                            <button type="submit" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium cursor-pointer">Update League</button>
                         </form>
                     </div>
                 @endenv
@@ -219,13 +215,9 @@
                             <td class="px-4 py-2 text-sm">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <a href="{{ route('leagues.edit', $league->id) }}" class="text-blue-600 hover:text-blue-800">Edit</a>
-                                    <form method="POST" action="{{ route('leagues.updateUtr', $league->id) }}" style="display:inline;">
+                                    <form method="POST" action="{{ route('leagues.updateLeague', $league->id) }}" style="display:inline;">
                                         @csrf
-                                        <button type="submit" class="text-purple-600 hover:text-purple-800 cursor-pointer">Update UTRs</button>
-                                    </form>
-                                    <form method="POST" action="{{ route('leagues.syncAllTeams', $league->id) }}" style="display:inline;">
-                                        @csrf
-                                        <button type="submit" class="text-green-600 hover:text-green-800 cursor-pointer">Sync Teams</button>
+                                        <button type="submit" class="text-indigo-600 hover:text-indigo-800 cursor-pointer">Update League</button>
                                     </form>
                                 </div>
                             </td>
