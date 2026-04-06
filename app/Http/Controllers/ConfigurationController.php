@@ -306,8 +306,8 @@ class ConfigurationController extends Controller
 
           // Filter out rackets and string_jobs tables
           $filteredToc = array_filter($tocOutput, function($line) {
-              // Exclude lines that reference rackets or string_jobs tables
-              return !preg_match('/\brackets\b/', $line) && !preg_match('/\bstring_jobs\b/', $line);
+              // Exclude lines that reference rackets or string_jobs tables (including sequences)
+              return !preg_match('/rackets/', $line) && !preg_match('/string_jobs/', $line);
           });
           file_put_contents($filteredTocPath, implode("\n", $filteredToc));
 
@@ -349,6 +349,17 @@ class ConfigurationController extends Controller
           );
           exec($cleanupOrphansCommand, $cleanupOrphansOutput, $cleanupOrphansReturnCode);
           \Log::info('Cleaned up orphaned rackets/string_jobs', ['output' => $cleanupOrphansOutput, 'return_code' => $cleanupOrphansReturnCode]);
+
+          // Reset sequences for preserved tables so inserts don't conflict with existing IDs
+          $resetSeqCommand = sprintf(
+              "psql -h %s -p %s -U %s -d %s -c \"SELECT setval('rackets_id_seq', COALESCE((SELECT MAX(id) FROM rackets), 0) + 1, false); SELECT setval('string_jobs_id_seq', COALESCE((SELECT MAX(id) FROM string_jobs), 0) + 1, false);\" 2>&1",
+              escapeshellarg($dbHost),
+              escapeshellarg($dbPort),
+              escapeshellarg($dbUser),
+              escapeshellarg($dbName)
+          );
+          exec($resetSeqCommand, $resetSeqOutput, $resetSeqReturnCode);
+          \Log::info('Reset sequences for preserved tables', ['output' => $resetSeqOutput, 'return_code' => $resetSeqReturnCode]);
 
           // Re-add foreign key constraints to excluded tables
           $addFkCommand = sprintf(

@@ -704,6 +704,24 @@ class LeagueController extends Controller
         return back()->with('status', "🎾 Dispatched {$jobCount} match detail sync jobs. This may take a few minutes.");
     }
 
+    public function toggleDailyUpdate(League $league)
+    {
+        $league->daily_update = !$league->daily_update;
+        $league->save();
+
+        $status = $league->daily_update ? 'enabled' : 'disabled';
+        return back()->with('success', "Daily update {$status} for {$league->name}.");
+    }
+
+    public function updateDailyTime(Request $request, League $league)
+    {
+        $request->validate(['daily_update_time' => 'required|date_format:H:i']);
+        $league->daily_update_time = $request->daily_update_time;
+        $league->save();
+
+        return back()->with('success', "Daily update time set to {$request->daily_update_time} for {$league->name}.");
+    }
+
     /**
      * Run all league update actions: UTRs, team sync, and match details
      */
