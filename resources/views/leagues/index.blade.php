@@ -127,6 +127,18 @@
                             @csrf
                             <button type="submit" class="text-indigo-600 hover:text-indigo-800 text-sm font-medium cursor-pointer">Update League</button>
                         </form>
+                        <form method="POST" action="{{ route('leagues.toggleDailyUpdate', $league->id) }}" style="display:inline;">
+                            @csrf
+                            <button type="submit" class="text-sm font-medium cursor-pointer {{ $league->daily_update ? 'text-green-600 hover:text-red-600' : 'text-gray-400 hover:text-green-600' }}" title="{{ $league->daily_update ? 'Daily update ON — click to disable' : 'Daily update OFF — click to enable' }}">
+                                ⏰ {{ $league->daily_update ? 'Daily: On' : 'Daily: Off' }}
+                            </button>
+                        </form>
+                        <form method="POST" action="{{ route('leagues.updateDailyTime', $league->id) }}" style="display:inline;">
+                            @csrf
+                            <input type="time" name="daily_update_time" value="{{ $league->daily_update_time ?? '05:00' }}"
+                                class="text-xs border border-gray-300 rounded px-1 py-0.5 text-gray-700"
+                                onchange="this.form.submit()">
+                        </form>
                     </div>
                 @endenv
             </div>
@@ -218,6 +230,18 @@
                                     <form method="POST" action="{{ route('leagues.updateLeague', $league->id) }}" style="display:inline;">
                                         @csrf
                                         <button type="submit" class="text-indigo-600 hover:text-indigo-800 cursor-pointer">Update League</button>
+                                    </form>
+                                    <form method="POST" action="{{ route('leagues.toggleDailyUpdate', $league->id) }}" style="display:inline;">
+                                        @csrf
+                                        <button type="submit" class="cursor-pointer {{ $league->daily_update ? 'text-green-600 hover:text-red-600' : 'text-gray-400 hover:text-green-600' }}" title="{{ $league->daily_update ? 'Daily update ON — click to disable' : 'Daily update OFF — click to enable' }}">
+                                            ⏰ {{ $league->daily_update ? 'Daily: On' : 'Daily: Off' }}
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ route('leagues.updateDailyTime', $league->id) }}" style="display:inline;">
+                                        @csrf
+                                        <input type="time" name="daily_update_time" value="{{ $league->daily_update_time ?? '05:00' }}"
+                                            class="text-xs border border-gray-300 rounded px-1 py-0.5 text-gray-700"
+                                            onchange="this.form.submit()">
                                     </form>
                                 </div>
                             </td>

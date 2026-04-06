@@ -88,8 +88,8 @@ class UpdateUtrRatingsJob implements ShouldQueue
               $failed++;
           }
 
-          // Throttle to 10 requests per minute
-          sleep(6);
+          // Throttle to 20 requests per minute
+          sleep(3);
 
           $processed++;
 
