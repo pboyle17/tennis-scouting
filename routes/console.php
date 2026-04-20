@@ -60,7 +60,7 @@ Schedule::call(function () {
             })
             ->count();
 
-        if ($pendingCount === 0) {
+        if ($pendingCount === 0 && !app()->isProduction()) {
             \App\Jobs\BackupDatabaseJob::dispatch();
             Log::info('All scheduled league updates complete — database backup dispatched.');
         }
