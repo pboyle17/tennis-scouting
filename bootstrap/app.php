@@ -13,6 +13,9 @@ return Application::configure(basePath: dirname(__DIR__))
     )
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->trustProxies(at: '*');
+        $middleware->validateCsrfTokens(except: [
+            'internal/restore-from-s3',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
