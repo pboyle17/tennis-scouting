@@ -2129,14 +2129,23 @@
 
             // Store league average lines to draw later (after axis labels, before dots)
             const avgLineColors = { 1: '#dc2626', 2: '#2563eb' }; // Red for #1, Blue for #2
+            @if($team->league)
+            const singlesCourtResultsUrls = {
+                1: "{{ route("leagues.courtResults", [$team->league->id, "singles", 1]) }}?{{ http_build_query(['teams' => [$team->id]]) }}",
+                2: "{{ route("leagues.courtResults", [$team->league->id, "singles", 2]) }}?{{ http_build_query(['teams' => [$team->id]]) }}"
+            };
+            @else
+            const singlesCourtResultsUrls = {};
+            @endif
             let avgLinesSvg = '';
             Object.entries(leagueAverages).forEach(([pos, avgRating]) => {
                 const y = yScale(avgRating);
                 const color = avgLineColors[pos];
+                const url = singlesCourtResultsUrls[pos] || '';
                 // Visible dashed line
                 avgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="${color}" stroke-width="2" stroke-dasharray="6,4" opacity="0.7"/>`;
-                // Invisible thick hitbox for hover
-                avgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="avg-line" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" style="cursor: pointer;"/>`;
+                // Invisible thick hitbox for hover/click
+                avgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="avg-line" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" data-url="${url}" style="cursor: pointer;"/>`;
             });
             svg += avgLinesSvg;
 
@@ -2356,6 +2365,11 @@
                         tooltip.style.top = e.clientY + 10 + 'px';
                     }
                 });
+
+                line.addEventListener('click', function() {
+                    const url = this.dataset.url;
+                    if (url) window.location.href = url;
+                });
             });
         }
 
@@ -2509,14 +2523,24 @@
 
             // Store league average lines to draw later (after axis labels, before dots)
             const doublesAvgLineColors = { 1: '#dc2626', 2: '#2563eb', 3: '#059669' }; // Red for #1, Blue for #2, Green for #3
+            @if($team->league)
+            const doublesCourtResultsUrls = {
+                1: "{{ route("leagues.courtResults", [$team->league->id, "doubles", 1]) }}?{{ http_build_query(['teams' => [$team->id]]) }}",
+                2: "{{ route("leagues.courtResults", [$team->league->id, "doubles", 2]) }}?{{ http_build_query(['teams' => [$team->id]]) }}",
+                3: "{{ route("leagues.courtResults", [$team->league->id, "doubles", 3]) }}?{{ http_build_query(['teams' => [$team->id]]) }}"
+            };
+            @else
+            const doublesCourtResultsUrls = {};
+            @endif
             let doublesAvgLinesSvg = '';
             Object.entries(doublesLeagueAverages).forEach(([pos, avgRating]) => {
                 const y = yScale(avgRating);
                 const color = doublesAvgLineColors[pos];
+                const url = doublesCourtResultsUrls[pos] || '';
                 // Visible dashed line
                 doublesAvgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="${color}" stroke-width="2" stroke-dasharray="6,4" opacity="0.7"/>`;
-                // Invisible thick hitbox for hover
-                doublesAvgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="doubles-avg-line" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" style="cursor: pointer;"/>`;
+                // Invisible thick hitbox for hover/click
+                doublesAvgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="doubles-avg-line" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" data-url="${url}" style="cursor: pointer;"/>`;
             });
             svg += doublesAvgLinesSvg;
 
@@ -2739,6 +2763,11 @@
                         tooltip.style.left = e.clientX + 10 + 'px';
                         tooltip.style.top = e.clientY + 10 + 'px';
                     }
+                });
+
+                line.addEventListener('click', function() {
+                    const url = this.dataset.url;
+                    if (url) window.location.href = url;
                 });
             });
         }
