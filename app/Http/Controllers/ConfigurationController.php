@@ -88,6 +88,25 @@ class ConfigurationController extends Controller
   /**
    * Backup database and upload to S3
    */
+  public function restoreFromS3Internal(Request $request)
+  {
+      $token = env('INTERNAL_RESTORE_TOKEN');
+      if (!$token || $request->header('X-Internal-Token') !== $token) {
+          abort(403);
+      }
+
+      $s3Key = $request->input('s3_key');
+      if (!$s3Key || !str_starts_with($s3Key, 'backups/')) {
+          abort(422, 'Invalid s3_key.');
+      }
+
+      \App\Jobs\RestoreFromS3BackupJob::dispatch($s3Key);
+
+      \Log::info('Internal restore triggered via Lambda', ['s3_key' => $s3Key]);
+
+      return response()->json(['queued' => true, 's3_key' => $s3Key]);
+  }
+
   public function backupDatabase()
   {
       try {

@@ -13,6 +13,8 @@ Route::get('/', function () {
     return redirect()->route('leagues.index');
 });
 
+Route::post('/internal/restore-from-s3', [ConfigurationController::class, 'restoreFromS3Internal'])->name('internal.restoreFromS3');
+
 Route::get('/players', [PlayerController::class, 'index'])->name('players.index');
 Route::get('/players/create', [PlayerController::class, 'create'])->name('players.create');
 Route::get('/players/{player}', [PlayerController::class, 'show'])->name('players.show');
