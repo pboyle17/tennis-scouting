@@ -907,4 +907,89 @@ class LeagueController extends Controller
 
         return $lineupData;
     }
+
+    public function courtResults(League $league, string $type, int $number, Request $request)
+    {
+        $teamIds = $league->teams()->pluck('id');
+        $selectedTeamIds = array_filter(array_map('intval', (array) $request->get('teams', [])));
+
+        $courts = \App\Models\Court::whereHas('tennisMatch', function ($q) use ($teamIds, $selectedTeamIds) {
+                if (count($selectedTeamIds) > 0) {
+                    $q->where(function ($q2) use ($selectedTeamIds) {
+                        $q2->whereIn('home_team_id', $selectedTeamIds)->orWhereIn('away_team_id', $selectedTeamIds);
+                    });
+                } else {
+                    $q->whereIn('home_team_id', $teamIds)->orWhereIn('away_team_id', $teamIds);
+                }
+            })
+            ->where('court_type', $type)
+            ->where('court_number', $number)
+            ->with([
+                'tennisMatch.homeTeam',
+                'tennisMatch.awayTeam',
+                'courtPlayers.player',
+                'courtPlayers.team',
+                'courtSets',
+            ])
+            ->get()
+            ->filter(fn($c) => $c->home_score !== null && $c->away_score !== null)
+            ->sortBy(fn($c) => $c->tennisMatch->start_time)
+            ->values();
+
+        // Build available positions for nav
+        $allPositions = \App\Models\Court::whereHas('tennisMatch', function ($q) use ($teamIds) {
+                $q->whereIn('home_team_id', $teamIds)->orWhereIn('away_team_id', $teamIds);
+            })
+            ->whereNotNull('home_score')
+            ->selectRaw('court_type, court_number')
+            ->distinct()
+            ->get()
+            ->map(fn($c) => $c->court_type . '_' . $c->court_number)
+            ->unique()
+            ->toArray();
+
+        $orderedPositions = ['singles_1', 'singles_2', 'doubles_1', 'doubles_2', 'doubles_3'];
+        $availablePositions = array_values(array_intersect($orderedPositions, $allPositions));
+
+        // Build per-player records
+        $playerRecords = [];
+        foreach ($courts as $court) {
+            $homeWon = $court->home_score > $court->away_score;
+            foreach ($court->courtPlayers as $cp) {
+                if (count($selectedTeamIds) > 0 && !in_array((int) $cp->team_id, $selectedTeamIds)) {
+                    continue;
+                }
+                $pid = $cp->player_id;
+                if (!isset($playerRecords[$pid])) {
+                    $playerRecords[$pid] = [
+                        'player' => $cp->player,
+                        'team'   => $cp->team,
+                        'wins'   => 0,
+                        'losses' => 0,
+                    ];
+                }
+                $isHome = $cp->team_id === $court->tennisMatch->home_team_id;
+                $won = ($isHome && $homeWon) || (!$isHome && !$homeWon);
+                if ($won) {
+                    $playerRecords[$pid]['wins']++;
+                } else {
+                    $playerRecords[$pid]['losses']++;
+                }
+            }
+        }
+
+        usort($playerRecords, function ($a, $b) {
+            $aTotal = $a['wins'] + $a['losses'];
+            $bTotal = $b['wins'] + $b['losses'];
+            $aPct = $aTotal ? $a['wins'] / $aTotal : 0;
+            $bPct = $bTotal ? $b['wins'] / $bTotal : 0;
+            if ($bPct !== $aPct) return $bPct <=> $aPct;
+            return $bTotal <=> $aTotal;
+        });
+
+        $currentPosition = $type . '_' . $number;
+        $teams = $league->teams()->orderBy('name')->get();
+
+        return view('leagues.court-results', compact('league', 'courts', 'type', 'number', 'availablePositions', 'currentPosition', 'teams', 'selectedTeamIds', 'playerRecords'));
+    }
 }

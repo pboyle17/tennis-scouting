@@ -66,6 +66,7 @@ Route::post('/leagues/{league}/sync-match-details', [LeagueController::class, 's
 Route::post('/leagues/{league}/update-league', [LeagueController::class, 'updateLeague'])->name('leagues.updateLeague');
 Route::post('/leagues/{league}/toggle-daily-update', [LeagueController::class, 'toggleDailyUpdate'])->name('leagues.toggleDailyUpdate');
 Route::post('/leagues/{league}/update-daily-time', [LeagueController::class, 'updateDailyTime'])->name('leagues.updateDailyTime');
+Route::get('/leagues/{league}/court-results/{type}/{number}', [LeagueController::class, 'courtResults'])->name('leagues.courtResults');
 
 Route::get('/tennis-matches/{match}', [\App\Http\Controllers\TennisMatchController::class, 'show'])->name('tennis-matches.show');
 Route::get('/tennis-matches/{match}/edit', [\App\Http\Controllers\TennisMatchController::class, 'edit'])->name('tennis-matches.edit');

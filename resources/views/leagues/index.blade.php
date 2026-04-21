@@ -72,7 +72,7 @@
                         <span class="font-semibold text-gray-600">S1 UTR:</span>
                         <span class="text-gray-700 ml-1">
                             @if($league->courtAverages['s1'] && $league->courtAverages['s1']['utr'])
-                                {{ number_format($league->courtAverages['s1']['utr'], 2) }}
+                                <a href="{{ route('leagues.courtResults', [$league->id, 'singles', 1]) }}" class="hover:underline text-blue-600">{{ number_format($league->courtAverages['s1']['utr'], 2) }}</a>
                             @else
                                 -
                             @endif
@@ -82,7 +82,7 @@
                         <span class="font-semibold text-gray-600">S2 UTR:</span>
                         <span class="text-gray-700 ml-1">
                             @if($league->courtAverages['s2'] && $league->courtAverages['s2']['utr'])
-                                {{ number_format($league->courtAverages['s2']['utr'], 2) }}
+                                <a href="{{ route('leagues.courtResults', [$league->id, 'singles', 2]) }}" class="hover:underline text-blue-600">{{ number_format($league->courtAverages['s2']['utr'], 2) }}</a>
                             @else
                                 -
                             @endif
@@ -92,7 +92,7 @@
                         <span class="font-semibold text-gray-600">D1 UTR:</span>
                         <span class="text-gray-700 ml-1">
                             @if($league->courtAverages['d1'] && $league->courtAverages['d1']['utr'])
-                                {{ number_format($league->courtAverages['d1']['utr'], 2) }}
+                                <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 1]) }}" class="hover:underline text-blue-600">{{ number_format($league->courtAverages['d1']['utr'], 2) }}</a>
                             @else
                                 -
                             @endif
@@ -102,7 +102,7 @@
                         <span class="font-semibold text-gray-600">D2 UTR:</span>
                         <span class="text-gray-700 ml-1">
                             @if($league->courtAverages['d2'] && $league->courtAverages['d2']['utr'])
-                                {{ number_format($league->courtAverages['d2']['utr'], 2) }}
+                                <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 2]) }}" class="hover:underline text-blue-600">{{ number_format($league->courtAverages['d2']['utr'], 2) }}</a>
                             @else
                                 -
                             @endif
@@ -112,7 +112,7 @@
                         <span class="font-semibold text-gray-600">D3 UTR:</span>
                         <span class="text-gray-700 ml-1">
                             @if($league->courtAverages['d3'] && $league->courtAverages['d3']['utr'])
-                                {{ number_format($league->courtAverages['d3']['utr'], 2) }}
+                                <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 3]) }}" class="hover:underline text-blue-600">{{ number_format($league->courtAverages['d3']['utr'], 2) }}</a>
                             @else
                                 -
                             @endif
@@ -176,35 +176,35 @@
                         </td>
                         <td class="px-4 py-2 text-sm text-gray-700 text-center">
                             @if($league->courtAverages['s1'] && $league->courtAverages['s1']['utr'])
-                                {{ number_format($league->courtAverages['s1']['utr'], 2) }}
+                                <a href="{{ route('leagues.courtResults', [$league->id, 'singles', 1]) }}" class="hover:underline text-blue-600">{{ number_format($league->courtAverages['s1']['utr'], 2) }}</a>
                             @else
                                 -
                             @endif
                         </td>
                         <td class="px-4 py-2 text-sm text-gray-700 text-center">
                             @if($league->courtAverages['s2'] && $league->courtAverages['s2']['utr'])
-                                {{ number_format($league->courtAverages['s2']['utr'], 2) }}
+                                <a href="{{ route('leagues.courtResults', [$league->id, 'singles', 2]) }}" class="hover:underline text-blue-600">{{ number_format($league->courtAverages['s2']['utr'], 2) }}</a>
                             @else
                                 -
                             @endif
                         </td>
                         <td class="px-4 py-2 text-sm text-gray-700 text-center">
                             @if($league->courtAverages['d1'] && $league->courtAverages['d1']['utr'])
-                                {{ number_format($league->courtAverages['d1']['utr'], 2) }}
+                                <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 1]) }}" class="hover:underline text-blue-600">{{ number_format($league->courtAverages['d1']['utr'], 2) }}</a>
                             @else
                                 -
                             @endif
                         </td>
                         <td class="px-4 py-2 text-sm text-gray-700 text-center">
                             @if($league->courtAverages['d2'] && $league->courtAverages['d2']['utr'])
-                                {{ number_format($league->courtAverages['d2']['utr'], 2) }}
+                                <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 2]) }}" class="hover:underline text-blue-600">{{ number_format($league->courtAverages['d2']['utr'], 2) }}</a>
                             @else
                                 -
                             @endif
                         </td>
                         <td class="px-4 py-2 text-sm text-gray-700 text-center">
                             @if($league->courtAverages['d3'] && $league->courtAverages['d3']['utr'])
-                                {{ number_format($league->courtAverages['d3']['utr'], 2) }}
+                                <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 3]) }}" class="hover:underline text-blue-600">{{ number_format($league->courtAverages['d3']['utr'], 2) }}</a>
                             @else
                                 -
                             @endif

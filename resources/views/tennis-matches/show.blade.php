@@ -3,8 +3,9 @@
 @section('title', 'Match Details')
 
 @section('content')
-<div class="container mx-auto px-4 py-6 md:p-6">
-    <div class="max-w-4xl mx-auto">
+<div class="scroll-smooth">
+    <div class="container mx-auto px-4 py-6 md:p-6">
+        <div class="max-w-4xl mx-auto">
         <!-- Header -->
         <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-6 gap-3">
             <h1 class="text-3xl font-bold text-gray-800">Match Details</h1>
@@ -40,6 +41,92 @@
                 {{ session('success') }}
             </div>
         @endif
+        </div>
+    </div>
+
+    <!-- Section Navigation Tabs -->
+    <div class="sticky top-14 z-40 bg-gray-100 shadow-sm mb-6" style="position: -webkit-sticky; position: sticky;">
+        <div class="container mx-auto px-4 md:px-6">
+            <div class="flex justify-center border-b border-gray-200">
+                <nav class="flex space-x-8">
+                    <a href="#results" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
+                        Results
+                    </a>
+                    <a href="#insights" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
+                        Insights
+                    </a>
+                    <a href="#players" class="py-3 px-1 border-b-2 border-transparent hover:border-blue-500 text-gray-600 hover:text-blue-600 font-medium transition">
+                        Players
+                    </a>
+                </nav>
+            </div>
+        </div>
+    </div>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var sections = ['results', 'insights', 'players'];
+            var tabLinks = {};
+            sections.forEach(function (id) {
+                tabLinks[id] = document.querySelector('nav a[href="#' + id + '"]');
+            });
+
+            var activeClasses = ['border-blue-500', 'text-blue-600'];
+            var inactiveClasses = ['border-transparent', 'text-gray-600'];
+
+            function setActiveTab(id) {
+                sections.forEach(function (s) {
+                    var el = tabLinks[s];
+                    if (!el) return;
+                    if (s === id) {
+                        el.classList.remove(...inactiveClasses);
+                        el.classList.add(...activeClasses);
+                    } else {
+                        el.classList.remove(...activeClasses);
+                        el.classList.add(...inactiveClasses);
+                    }
+                });
+            }
+
+            sections.forEach(function (id) {
+                if (tabLinks[id]) tabLinks[id].addEventListener('click', function () { setActiveTab(id); });
+            });
+
+            var stickyTabBar = document.querySelector('.sticky.top-14');
+            function updateActiveTab() {
+                if ((window.innerHeight + window.scrollY) >= document.body.scrollHeight - 10) {
+                    setActiveTab(sections[sections.length - 1]);
+                    return;
+                }
+                var offset = stickyTabBar ? stickyTabBar.getBoundingClientRect().bottom + 4 : 110;
+                var active = null;
+                for (var i = sections.length - 1; i >= 0; i--) {
+                    var anchor = document.getElementById(sections[i]);
+                    if (anchor && anchor.getBoundingClientRect().top <= offset) {
+                        active = sections[i];
+                        break;
+                    }
+                }
+                if (active) setActiveTab(active);
+                else sections.forEach(function (s) {
+                    var el = tabLinks[s];
+                    if (el) { el.classList.remove(...activeClasses); el.classList.add(...inactiveClasses); }
+                });
+            }
+            window.addEventListener('scroll', updateActiveTab, { passive: true });
+            updateActiveTab();
+
+            function updateScrollPadding() {
+                if (stickyTabBar) {
+                    document.documentElement.style.scrollPaddingTop = (stickyTabBar.getBoundingClientRect().bottom + 8) + 'px';
+                }
+            }
+            updateScrollPadding();
+            window.addEventListener('resize', updateScrollPadding, { passive: true });
+        });
+    </script>
+
+    <div class="container mx-auto px-4 md:p-6">
+        <div class="max-w-4xl mx-auto">
 
         <!-- Match Information Card -->
         <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
@@ -124,6 +211,7 @@
         </div>
 
         <!-- Courts Table -->
+        <div id="results"></div>
         @if($match->courts->count() > 0)
             <!-- Mobile Card View -->
             <div class="md:hidden space-y-4 mb-6">
@@ -324,6 +412,7 @@
         @endif
 
         <!-- Match Preview -->
+        <div id="insights"></div>
         @if((!empty($homeCourtStats) || !empty($awayCourtStats)))
             <div class="bg-white rounded-lg shadow-lg overflow-hidden mb-6">
                 <div class="bg-gray-50 border-b border-gray-200 px-6 py-3">
@@ -620,6 +709,7 @@
         @endif
 
         <!-- Players Table -->
+        <div id="players"></div>
         @if($players->count() > 0)
             <!-- Mobile Sort Controls -->
             <div class="md:hidden mb-4 space-y-3 px-2">
@@ -745,7 +835,7 @@
                                 <span class="font-semibold text-gray-600">S Record:</span>
                                 <span class="text-gray-700 ml-1">
                                     @if($singlesWins > 0 || $singlesLosses > 0)
-                                        <span class="text-green-600 font-semibold">{{ $singlesWins }}</span>-<span class="text-red-600 font-semibold">{{ $singlesLosses }}</span>
+                                        <a href="{{ route('players.show', $player->id) }}?court=singles&team={{ $player->team_id }}#match-history" class="hover:underline text-blue-600"><span class="text-green-600 font-semibold">{{ $singlesWins }}</span>-<span class="text-red-600 font-semibold">{{ $singlesLosses }}</span></a>
                                     @else
                                         -
                                     @endif
@@ -755,7 +845,7 @@
                                 <span class="font-semibold text-gray-600">D Record:</span>
                                 <span class="text-gray-700 ml-1">
                                     @if($doublesWins > 0 || $doublesLosses > 0)
-                                        <span class="text-green-600 font-semibold">{{ $doublesWins }}</span>-<span class="text-red-600 font-semibold">{{ $doublesLosses }}</span>
+                                        <a href="{{ route('players.show', $player->id) }}?court=doubles&team={{ $player->team_id }}#match-history" class="hover:underline text-blue-600"><span class="text-green-600 font-semibold">{{ $doublesWins }}</span>-<span class="text-red-600 font-semibold">{{ $doublesLosses }}</span></a>
                                     @else
                                         -
                                     @endif
@@ -780,7 +870,7 @@
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Player</th>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Team</th>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField == 'utr_singles_rating' && $sortDirection == 'asc') ? 'desc' : 'asc']) }}" class="hover:text-blue-600">
+                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField == 'utr_singles_rating' && $sortDirection == 'desc') ? 'asc' : 'desc']) . '#players' }}" class="hover:text-blue-600">
                                         UTR Singles
                                         @if($sortField == 'utr_singles_rating')
                                             <span class="ml-1">{{ $sortDirection == 'asc' ? '↑' : '↓' }}</span>
@@ -788,7 +878,7 @@
                                     </a>
                                 </th>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField == 'utr_doubles_rating' && $sortDirection == 'asc') ? 'desc' : 'asc']) }}" class="hover:text-blue-600">
+                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField == 'utr_doubles_rating' && $sortDirection == 'desc') ? 'asc' : 'desc']) . '#players' }}" class="hover:text-blue-600">
                                         UTR Doubles
                                         @if($sortField == 'utr_doubles_rating')
                                             <span class="ml-1">{{ $sortDirection == 'asc' ? '↑' : '↓' }}</span>
@@ -796,7 +886,7 @@
                                     </a>
                                 </th>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField == 'USTA_dynamic_rating' && $sortDirection == 'asc') ? 'desc' : 'asc']) }}" class="hover:text-blue-600">
+                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField == 'USTA_dynamic_rating' && $sortDirection == 'desc') ? 'asc' : 'desc']) . '#players' }}" class="hover:text-blue-600">
                                         USTA Dynamic
                                         @if($sortField == 'USTA_dynamic_rating')
                                             <span class="ml-1">{{ $sortDirection == 'asc' ? '↑' : '↓' }}</span>
@@ -943,7 +1033,7 @@
                                             }
                                         @endphp
                                         @if($singlesWins > 0 || $singlesLosses > 0)
-                                            <span class="font-semibold">{{ $singlesWins }}-{{ $singlesLosses }}</span>
+                                            <a href="{{ route('players.show', $player->id) }}?court=singles&team={{ $player->team_id }}#match-history" class="font-semibold hover:underline text-blue-600"><span class="text-green-600">{{ $singlesWins }}</span>-<span class="text-red-600">{{ $singlesLosses }}</span></a>
                                         @else
                                             -
                                         @endif
@@ -978,7 +1068,7 @@
                                             }
                                         @endphp
                                         @if($doublesWins > 0 || $doublesLosses > 0)
-                                            <span class="font-semibold">{{ $doublesWins }}-{{ $doublesLosses }}</span>
+                                            <a href="{{ route('players.show', $player->id) }}?court=doubles&team={{ $player->team_id }}#match-history" class="font-semibold hover:underline text-blue-600"><span class="text-green-600">{{ $doublesWins }}</span>-<span class="text-red-600">{{ $doublesLosses }}</span></a>
                                         @else
                                             -
                                         @endif
@@ -990,6 +1080,7 @@
                 </div>
             </div>
         @endif
+        </div>
     </div>
 </div>
 
@@ -1683,4 +1774,25 @@
         <div id="playerLinksModalContent"></div>
     </div>
 </div>
+
+<button id="back-to-top"
+    onclick="window.scrollTo({ top: 0, behavior: 'smooth' })"
+    class="fixed bottom-6 right-6 z-50 bg-blue-600 hover:bg-blue-700 text-white rounded-full w-10 h-10 flex items-center justify-center shadow-lg opacity-0 pointer-events-none transition-opacity duration-200"
+    aria-label="Back to top">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
+        <path fill-rule="evenodd" d="M14.707 12.707a1 1 0 01-1.414 0L10 9.414l-3.293 3.293a1 1 0 01-1.414-1.414l4-4a1 1 0 011.414 0l4 4a1 1 0 010 1.414z" clip-rule="evenodd" />
+    </svg>
+</button>
+<script>
+    (function () {
+        var btn = document.getElementById('back-to-top');
+        window.addEventListener('scroll', function () {
+            if (window.scrollY > 300) {
+                btn.classList.remove('opacity-0', 'pointer-events-none');
+            } else {
+                btn.classList.add('opacity-0', 'pointer-events-none');
+            }
+        }, { passive: true });
+    })();
+</script>
 @endsection
