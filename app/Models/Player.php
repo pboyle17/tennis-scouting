@@ -10,6 +10,7 @@ class Player extends Model
     protected $fillable = [
       'name', 'utr_id', 'utr_singles_rating', 'utr_doubles_rating', 'utr_singles_reliable', 'utr_doubles_reliable',
       'first_name', 'last_name', 'USTA_rating', 'usta_rating_type', 'USTA_dynamic_rating', 'tennis_record_link', 'tennis_record_last_sync',
+      'tennis_number_singles_rating', 'tennis_number_doubles_rating', 'tennis_number_link',
       'utr_singles_updated_at', 'utr_doubles_updated_at', 'usta_rating_updated_at'
     ];
 

@@ -142,7 +142,11 @@ class PlayerController extends Controller
             'tennis_record_link' => 'nullable|string|max:500',
             'utr_singles_rating' => 'nullable|numeric',
             'utr_doubles_rating' => 'nullable|numeric',
-            'USTA_rating' => 'nullable|numeric'
+            'USTA_rating' => 'nullable|numeric',
+            'USTA_dynamic_rating' => 'nullable|numeric',
+            'tennis_number_singles_rating' => 'nullable|numeric',
+            'tennis_number_doubles_rating' => 'nullable|numeric',
+            'tennis_number_link' => 'nullable|url|max:500',
         ]);
 
         // Check if UTR ratings changed and set updated timestamps

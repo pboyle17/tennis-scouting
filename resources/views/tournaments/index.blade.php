@@ -37,6 +37,7 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Flight</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Dates</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Location</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">USTA Link</th>
@@ -52,6 +53,7 @@
                             </a>
                             <span class="text-xs text-gray-500 ml-2">({{ $tournament->players_count }} players)</span>
                         </td>
+                        <td class="px-4 py-2 text-sm text-gray-700">{{ $tournament->flight ?? '-' }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">
                             @if($tournament->start_date)
                                 {{ $tournament->start_date->format('M d, Y') }}
@@ -78,7 +80,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-gray-500">
+                        <td colspan="6" class="px-4 py-8 text-center text-gray-500">
                             No tournaments yet. Click "Add Tournament" to get started.
                         </td>
                     </tr>

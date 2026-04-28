@@ -195,6 +195,13 @@
             <input type="number" step=".5" name="USTA_rating" id="USTA_rating" value="{{ old('USTA_rating', $player->USTA_rating) }}" class="w-full border rounded p-2">
         </div>
 
+        @env('local')
+        <div class="mb-4">
+            <label class="block mb-1" for="USTA_dynamic_rating">USTA Dynamic Rating</label>
+            <input type="number" step=".01" name="USTA_dynamic_rating" id="USTA_dynamic_rating" value="{{ old('USTA_dynamic_rating', $player->USTA_dynamic_rating) }}" class="w-full border rounded p-2">
+        </div>
+        @endenv
+
         <div class="mb-4">
             <label class="block mb-1" for="usta_rating_type">USTA Rating Type</label>
             <select name="usta_rating_type" id="usta_rating_type" class="w-full border rounded p-2">
@@ -205,6 +212,21 @@
                 <option value="M" {{ old('usta_rating_type', $player->usta_rating_type) == 'M' ? 'selected' : '' }}>M - Medical</option>
                 <option value="T" {{ old('usta_rating_type', $player->usta_rating_type) == 'T' ? 'selected' : '' }}>T - Tournament</option>
             </select>
+        </div>
+
+        <div class="mb-4">
+            <label class="block mb-1" for="tennis_number_singles_rating">Tennis Number Singles Rating</label>
+            <input type="number" step=".01" name="tennis_number_singles_rating" id="tennis_number_singles_rating" value="{{ old('tennis_number_singles_rating', $player->tennis_number_singles_rating) }}" class="w-full border rounded p-2">
+        </div>
+
+        <div class="mb-4">
+            <label class="block mb-1" for="tennis_number_doubles_rating">Tennis Number Doubles Rating</label>
+            <input type="number" step=".01" name="tennis_number_doubles_rating" id="tennis_number_doubles_rating" value="{{ old('tennis_number_doubles_rating', $player->tennis_number_doubles_rating) }}" class="w-full border rounded p-2">
+        </div>
+
+        <div class="mb-4">
+            <label class="block mb-1" for="tennis_number_link">Tennis Number Link</label>
+            <input type="url" name="tennis_number_link" id="tennis_number_link" value="{{ old('tennis_number_link', $player->tennis_number_link) }}" class="w-full border rounded p-2">
         </div>
 
         <div class="flex justify-between">
