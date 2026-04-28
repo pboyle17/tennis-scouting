@@ -33,6 +33,7 @@ class TournamentController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
+            'flight' => 'nullable|string|max:255',
             'usta_link' => 'nullable|string|max:255',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
@@ -81,6 +82,7 @@ class TournamentController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'flight' => 'nullable|string|max:255',
             'usta_link' => 'nullable|string|max:255',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
@@ -88,7 +90,7 @@ class TournamentController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        $tournament->update($request->only(['name', 'usta_link', 'start_date', 'end_date', 'location', 'description']));
+        $tournament->update($request->only(['name', 'flight', 'usta_link', 'start_date', 'end_date', 'location', 'description']));
 
         return redirect()->route('tournaments.index')->with('success', 'Tournament updated successfully.');
     }

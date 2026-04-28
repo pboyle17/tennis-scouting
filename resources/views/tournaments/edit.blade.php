@@ -20,6 +20,12 @@
                 @enderror
             </div>
 
+            <div class="mb-4">
+                <label class="block text-gray-700 font-semibold mb-2" for="flight">Flight</label>
+                <input class="w-full border border-gray-300 p-2 rounded"
+                       type="text" name="flight" id="flight" value="{{ old('flight', $tournament->flight) }}" placeholder="e.g. Flight A, Open, 4.0">
+            </div>
+
             <div class="mb-4 grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2" for="start_date">Start Date</label>

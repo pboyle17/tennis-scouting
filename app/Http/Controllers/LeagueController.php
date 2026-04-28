@@ -204,6 +204,7 @@ class LeagueController extends Controller
         }
 
         usort($teamStandings, function ($a, $b) {
+            if ($a['losses'] !== $b['losses']) return $a['losses'] - $b['losses'];
             if ($b['wins'] !== $a['wins']) return $b['wins'] - $a['wins'];
             $aTotal = $a['games_won'] + $a['games_lost'];
             $bTotal = $b['games_won'] + $b['games_lost'];

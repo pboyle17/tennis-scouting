@@ -149,22 +149,18 @@
             </button>
         </div>
 
+        @if($tournament->flight)
+            <h2 class="text-2xl font-bold text-gray-800 mb-4">{{ $tournament->flight }}</h2>
+        @endif
+
         <div class="overflow-x-auto bg-white rounded-lg shadow">
             <table id="playersTable" class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                            <a href="{{ route('tournaments.show', ['tournament' => $tournament->id, 'sort' => 'first_name', 'direction' => ($sortField === 'first_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
-                                First Name
-                                @if($sortField === 'first_name')
-                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
-                                @endif
-                            </a>
-                        </th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <a href="{{ route('tournaments.show', ['tournament' => $tournament->id, 'sort' => 'last_name', 'direction' => ($sortField === 'last_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
-                                Last Name
-                                @if($sortField === 'last_name')
+                                Name
+                                @if(in_array($sortField, ['first_name', 'last_name']))
                                     <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
                                 @endif
                             </a>
@@ -185,25 +181,48 @@
                                 @endif
                             </a>
                         </th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">UTR Profile</th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            <a href="{{ route('tournaments.show', ['tournament' => $tournament->id, 'sort' => 'tennis_number_singles_rating', 'direction' => ($sortField === 'tennis_number_singles_rating' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
+                                WTN Singles
+                                @if($sortField === 'tennis_number_singles_rating')
+                                    <span class="ml-1">{{ $sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                @endif
+                            </a>
+                        </th>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Links</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @foreach ($sortDirection === 'asc' ? $tournament->players->sortBy($sortField) : $tournament->players->sortByDesc($sortField) as $player)
                         <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('tournaments.show', $tournament->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}">
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->first_name }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->last_name }}</td>
+                            <td class="px-4 py-2 text-sm">
+                                <a href="{{ route('players.show', $player->id) }}" onclick="event.stopPropagation()" class="text-blue-600 hover:underline">{{ $player->first_name }} {{ $player->last_name }}</a>
+                            </td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_doubles_rating }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->tennis_number_singles_rating ? number_format($player->tennis_number_singles_rating, 1) : '' }}</td>
                             <td class="px-4 py-2 text-sm text-center">
-                                @if($player->utr_id)
-                                    <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer">
-                                        <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
-                                    </a>
-                                @endif
+                                <div class="flex items-center gap-2 justify-center">
+                                    @if($player->utr_id)
+                                        <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer">
+                                            <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
+                                        </a>
+                                    @endif
+                                    @if($player->tennis_record_link)
+                                        <a href="{{ $player->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="text-base leading-none">🎾</a>
+                                    @endif
+                                    @if($player->tennis_number_link)
+                                        <a href="{{ $player->tennis_number_link }}" target="_blank" rel="noopener noreferrer">
+                                            <img src="{{ asset('images/wtn_logo.png') }}" alt="WTN Profile" class="h-5 w-5">
+                                        </a>
+                                    @endif
+                                </div>
                             </td>
                             <td class="px-4 py-2 text-sm text-center">
+                                @env('local')
+                                    <a href="{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('tournaments.show', $tournament->id)) }}" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 text-xs mr-2">Edit</a>
+                                @endenv
                                 <form method="POST" action="{{ route('tournaments.removePlayer', [$tournament->id, $player->id]) }}" style="display:inline;"
                                       onsubmit="return confirm('Remove {{ $player->first_name }} {{ $player->last_name }} from this tournament?')">
                                     @csrf

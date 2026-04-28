@@ -14,6 +14,7 @@ class Tournament extends Model
      */
     protected $fillable = [
         'name',
+        'flight',
         'usta_link',
         'start_date',
         'end_date',
