@@ -19,9 +19,8 @@ class BackupDatabaseJob implements ShouldQueue
             $dbUser = $db['username'];
             $dbPassword = $db['password'];
 
-            $env = app()->environment();
             $timestamp = now()->format('Y-m-d_His');
-            $filename = "{$env}_backup_{$dbName}_{$timestamp}.sql";
+            $filename = "backup_{$dbName}_{$timestamp}.sql";
             $localPath = storage_path("app/backups/{$filename}");
 
             if (!file_exists(storage_path('app/backups'))) {
