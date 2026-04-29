@@ -153,7 +153,62 @@
             <h2 class="text-2xl font-bold text-gray-800 mb-4">{{ $tournament->flight }}</h2>
         @endif
 
-        <div class="overflow-x-auto bg-white rounded-lg shadow">
+        <!-- Mobile Sort Controls -->
+        <div class="md:hidden mb-4 flex items-center gap-2 text-sm">
+            <span class="text-gray-600 font-medium">Sort:</span>
+            <select id="mobileSortField" class="border rounded px-2 py-1 text-sm">
+                <option value="last_name" {{ $sortField === 'last_name' ? 'selected' : '' }}>Name</option>
+                <option value="utr_singles_rating" {{ $sortField === 'utr_singles_rating' ? 'selected' : '' }}>UTR Singles</option>
+                <option value="utr_doubles_rating" {{ $sortField === 'utr_doubles_rating' ? 'selected' : '' }}>UTR Doubles</option>
+                <option value="tennis_number_singles_rating" {{ $sortField === 'tennis_number_singles_rating' ? 'selected' : '' }}>WTN Singles</option>
+            </select>
+            <button id="mobileSortDirection" class="border rounded px-3 py-1 text-sm bg-gray-100 hover:bg-gray-200" data-direction="{{ $sortDirection }}">
+                {{ $sortDirection === 'asc' ? '↑' : '↓' }}
+            </button>
+        </div>
+
+        <!-- Mobile Cards -->
+        <div id="playerCards" class="md:hidden space-y-3">
+            @foreach ($sortDirection === 'asc' ? $tournament->players->sortBy($sortField) : $tournament->players->sortByDesc($sortField) as $player)
+                <div class="bg-white rounded-lg shadow p-4" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}">
+                    <div class="flex justify-between items-start mb-2">
+                        <a href="{{ route('players.show', $player->id) }}" class="text-base font-semibold text-blue-600 hover:underline">
+                            {{ $player->first_name }} {{ $player->last_name }}
+                        </a>
+                        <button onclick="openPlayerLinksModal('{{ $player->id }}', '{{ addslashes($player->first_name . ' ' . $player->last_name) }}', '{{ $player->utr_id }}', '{{ $player->tennis_record_link }}', '{{ $player->tennis_number_link }}')" class="bg-blue-500 hover:bg-blue-600 text-white text-xs font-semibold px-3 py-1 rounded">
+                            🔗 Links
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2 text-sm">
+                        <div>
+                            <span class="text-gray-500 text-xs">UTR Singles</span>
+                            <div class="font-medium text-gray-700">{{ $player->utr_singles_rating ?? '—' }}</div>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 text-xs">UTR Doubles</span>
+                            <div class="font-medium text-gray-700">{{ $player->utr_doubles_rating ?? '—' }}</div>
+                        </div>
+                        <div>
+                            <span class="text-gray-500 text-xs">WTN Singles</span>
+                            <div class="font-medium text-gray-700">{{ $player->tennis_number_singles_rating ? number_format($player->tennis_number_singles_rating, 1) : '—' }}</div>
+                        </div>
+                    </div>
+                    @env('local')
+                        <div class="mt-2 pt-2 border-t border-gray-100 flex justify-between items-center">
+                            <a href="{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('tournaments.show', $tournament->id)) }}" class="text-blue-600 hover:text-blue-800 text-xs">Edit</a>
+                            <form method="POST" action="{{ route('tournaments.removePlayer', [$tournament->id, $player->id]) }}" style="display:inline;" onsubmit="return confirm('Remove {{ $player->first_name }} {{ $player->last_name }} from this tournament?')">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="text-red-600 hover:text-red-800 text-xs">Remove</button>
+                            </form>
+                        </div>
+                    @endenv
+                </div>
+            @endforeach
+        </div>
+
+        <!-- Desktop Table -->
+        <div class="hidden md:block overflow-x-auto bg-white rounded-lg shadow">
             <table id="playersTable" class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
@@ -190,7 +245,7 @@
                             </a>
                         </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Links</th>
-                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
+                        @env('local')<th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>@endenv
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
@@ -219,10 +274,9 @@
                                     @endif
                                 </div>
                             </td>
+                            @env('local')
                             <td class="px-4 py-2 text-sm text-center">
-                                @env('local')
-                                    <a href="{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('tournaments.show', $tournament->id)) }}" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 text-xs mr-2">Edit</a>
-                                @endenv
+                                <a href="{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('tournaments.show', $tournament->id)) }}" onclick="event.stopPropagation()" class="text-blue-600 hover:text-blue-800 text-xs mr-2">Edit</a>
                                 <form method="POST" action="{{ route('tournaments.removePlayer', [$tournament->id, $player->id]) }}" style="display:inline;"
                                       onsubmit="return confirm('Remove {{ $player->first_name }} {{ $player->last_name }} from this tournament?')">
                                     @csrf
@@ -232,6 +286,7 @@
                                     </button>
                                 </form>
                             </td>
+                            @endenv
                         </tr>
                     @endforeach
                 </tbody>
@@ -245,7 +300,101 @@
     @endif
 </div>
 
+<!-- Player Links Modal -->
+<div id="playerLinksModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <h3 id="playerLinksModalTitle" class="text-lg font-medium text-gray-900">Player Links</h3>
+            <button onclick="closePlayerLinksModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="sr-only">Close</span>
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+        <div id="playerLinksContent" class="space-y-3">
+            <!-- Links will be inserted here -->
+        </div>
+        <div class="mt-4 flex justify-end">
+            <button onclick="closePlayerLinksModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-4 rounded">
+                Close
+            </button>
+        </div>
+    </div>
+</div>
+
 <script>
+    function openPlayerLinksModal(playerId, playerName, utrId, tennisRecordLink, tennisNumberLink) {
+        const modal = document.getElementById('playerLinksModal');
+        const title = document.getElementById('playerLinksModalTitle');
+        const content = document.getElementById('playerLinksContent');
+
+        title.textContent = playerName + ' - Links';
+
+        let linksHtml = '';
+
+        linksHtml += `
+            <a href="{{ url('/players') }}/${playerId}" class="flex items-center space-x-3 p-3 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition">
+                <span class="text-3xl">👤</span>
+                <div>
+                    <div class="font-semibold text-gray-800">Player Profile</div>
+                    <div class="text-xs text-gray-500">View full profile</div>
+                </div>
+            </a>
+        `;
+
+        if (utrId) {
+            linksHtml += `
+                <a href="https://app.utrsports.net/profiles/${utrId}" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                    <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-8 w-8">
+                    <div>
+                        <div class="font-semibold text-gray-800">UTR Profile</div>
+                        <div class="text-xs text-gray-500">View on UTR Sports</div>
+                    </div>
+                </a>
+            `;
+        }
+
+        if (tennisRecordLink) {
+            linksHtml += `
+                <a href="${tennisRecordLink}" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                    <span class="text-3xl">🎾</span>
+                    <div>
+                        <div class="font-semibold text-gray-800">Tennis Record</div>
+                        <div class="text-xs text-gray-500">View match history</div>
+                    </div>
+                </a>
+            `;
+        }
+
+        if (tennisNumberLink) {
+            linksHtml += `
+                <a href="${tennisNumberLink}" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                    <img src="{{ asset('images/wtn_logo.png') }}" alt="WTN Profile" class="h-8 w-8">
+                    <div>
+                        <div class="font-semibold text-gray-800">World Tennis Number</div>
+                        <div class="text-xs text-gray-500">View WTN profile</div>
+                    </div>
+                </a>
+            `;
+        }
+
+        content.innerHTML = linksHtml;
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closePlayerLinksModal() {
+        const modal = document.getElementById('playerLinksModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    document.getElementById('playerLinksModal').addEventListener('click', function(e) {
+        if (e.target === this) closePlayerLinksModal();
+    });
+
     document.addEventListener('DOMContentLoaded', function() {
         // Toggle Add Player Section
         const toggleAddPlayerBtn = document.getElementById('toggleAddPlayerBtn');
@@ -319,23 +468,52 @@
             updateUI();
         }
 
+        // Mobile Sort Controls
+        (function() {
+            const mobileSortField = document.getElementById('mobileSortField');
+            const mobileSortDirection = document.getElementById('mobileSortDirection');
+
+            if (mobileSortField && mobileSortDirection) {
+                function updateSort() {
+                    const url = new URL(window.location);
+                    url.searchParams.set('sort', mobileSortField.value);
+                    url.searchParams.set('direction', mobileSortDirection.dataset.direction);
+                    window.location.href = url.toString();
+                }
+
+                mobileSortField.addEventListener('change', updateSort);
+
+                mobileSortDirection.addEventListener('click', function() {
+                    const newDirection = this.dataset.direction === 'asc' ? 'desc' : 'asc';
+                    this.dataset.direction = newDirection;
+                    this.textContent = newDirection === 'asc' ? '↑' : '↓';
+                    updateSort();
+                });
+            }
+        })();
+
         // Player table search functionality
         (function () {
             const input = document.getElementById('playerTableSearch');
             const clearBtn = document.getElementById('clearPlayerTableSearch');
             const playersTable = document.getElementById('playersTable');
+            const playerCards = document.getElementById('playerCards');
 
-            if (!input || !clearBtn || !playersTable) return;
+            if (!input || !clearBtn) return;
 
-            const rows = Array.from(playersTable.querySelectorAll('tbody tr[data-name]'));
+            const rows = playersTable ? Array.from(playersTable.querySelectorAll('tbody tr[data-name]')) : [];
+            const cards = playerCards ? Array.from(playerCards.querySelectorAll('[data-name]')) : [];
             let t;
 
             function applyFilter(term) {
                 const q = term.trim().toLowerCase();
                 rows.forEach(row => {
                     const name = row.getAttribute('data-name') || '';
-                    const show = !q || name.includes(q);
-                    row.style.display = show ? '' : 'none';
+                    row.style.display = (!q || name.includes(q)) ? '' : 'none';
+                });
+                cards.forEach(card => {
+                    const name = card.getAttribute('data-name') || '';
+                    card.style.display = (!q || name.includes(q)) ? '' : 'none';
                 });
                 clearBtn.classList.toggle('hidden', q.length === 0);
             }

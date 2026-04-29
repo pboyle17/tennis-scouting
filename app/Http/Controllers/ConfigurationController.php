@@ -109,6 +109,10 @@ class ConfigurationController extends Controller
 
   public function backupDatabase()
   {
+      if (app()->isProduction()) {
+          abort(403);
+      }
+
       try {
           // Get database connection details
           $db = $this->parseConnectionDetails();
@@ -118,10 +122,8 @@ class ConfigurationController extends Controller
           $dbUser = $db['username'];
           $dbPassword = $db['password'];
 
-          // Create filename with environment, database name, and timestamp
-          $env = app()->environment();
           $timestamp = now()->format('Y-m-d_His');
-          $filename = "{$env}_backup_{$dbName}_{$timestamp}.sql";
+          $filename = "backup_{$dbName}_{$timestamp}.sql";
           $localPath = storage_path("app/backups/{$filename}");
 
           // Ensure backup directory exists
