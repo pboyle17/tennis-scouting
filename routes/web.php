@@ -48,10 +48,11 @@ Route::post('/teams/{team}/sync-tr-profiles', [TeamController::class, 'syncTrPro
 Route::get('/config', function () {
     return redirect()->route('configurations.index');
 });
-Route::resource('configurations', ConfigurationController::class);
 Route::post('/configurations/backup-database', [ConfigurationController::class, 'backupDatabase'])->name('configurations.backupDatabase');
 Route::post('/configurations/list-backups', [ConfigurationController::class, 'listBackups'])->name('configurations.listBackups');
 Route::post('/configurations/restore-database', [ConfigurationController::class, 'restoreDatabase'])->name('configurations.restoreDatabase');
+Route::delete('/configurations/delete-backup', [ConfigurationController::class, 'deleteBackup'])->name('configurations.deleteBackup');
+Route::resource('configurations', ConfigurationController::class);
 Route::resource('leagues', LeagueController::class);
 Route::post('/leagues/{league}/add-teams', [LeagueController::class, 'addTeams'])->name('leagues.addTeams');
 Route::delete('/leagues/{league}/remove-team/{team}', [LeagueController::class, 'removeTeam'])->name('leagues.removeTeam');

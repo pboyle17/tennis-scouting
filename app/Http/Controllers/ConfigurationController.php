@@ -201,7 +201,7 @@ class ConfigurationController extends Controller
               $filename = basename($file);
 
               // Parse timestamp from filename (format: env_backup_dbname_Y-m-d_His.sql)
-              preg_match('/.*?_backup_.*?_(\d{4}-\d{2}-\d{2}_\d{6})/', $filename, $matches);
+              preg_match('/backup_.*?_(\d{4}-\d{2}-\d{2}_\d{6})/', $filename, $matches);
               $dateStr = 'Unknown';
               if (isset($matches[1])) {
                   $date = \DateTime::createFromFormat('Y-m-d_His', $matches[1]);
@@ -246,6 +246,23 @@ class ConfigurationController extends Controller
       }
 
       return round($bytes, $precision) . ' ' . $units[$i];
+  }
+
+  public function deleteBackup(Request $request)
+  {
+      if (app()->isProduction()) {
+          abort(403);
+      }
+
+      $s3Key = $request->input('s3_key');
+      if (!$s3Key || !str_starts_with($s3Key, 'backups/')) {
+          return redirect()->route('configurations.index')->with('error', 'Invalid backup path.');
+      }
+
+      \Storage::disk('s3')->delete($s3Key);
+      \Log::info("Backup deleted from S3: {$s3Key}");
+
+      return redirect()->route('configurations.index')->with('success', 'Backup deleted: ' . basename($s3Key));
   }
 
   /**

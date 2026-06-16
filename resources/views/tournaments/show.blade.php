@@ -190,7 +190,7 @@
                         </div>
                         <div>
                             <span class="text-gray-500 text-xs">WTN Singles</span>
-                            <div class="font-medium text-gray-700">{{ $player->tennis_number_singles_rating ? number_format($player->tennis_number_singles_rating, 1) : '—' }}</div>
+                            <div class="font-medium text-gray-700">{{ $player->tennis_number_singles_rating ? number_format($player->tennis_number_singles_rating, 2) : '—' }}</div>
                         </div>
                     </div>
                     @env('local')
@@ -212,6 +212,9 @@
             <table id="playersTable" class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
+                            Rank
+                        </th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <a href="{{ route('tournaments.show', ['tournament' => $tournament->id, 'sort' => 'last_name', 'direction' => ($sortField === 'last_name' && $sortDirection === 'desc') ? 'asc' : 'desc']) }}" class="hover:text-gray-900">
                                 Name
@@ -251,12 +254,13 @@
                 <tbody class="divide-y divide-gray-200">
                     @foreach ($sortDirection === 'asc' ? $tournament->players->sortBy($sortField) : $tournament->players->sortByDesc($sortField) as $player)
                         <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('tournaments.show', $tournament->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}">
+                            <td class="px-4 py-2 text-sm text-gray-700">{{ $loop->iteration }}</td>
                             <td class="px-4 py-2 text-sm">
                                 <a href="{{ route('players.show', $player->id) }}" onclick="event.stopPropagation()" class="text-blue-600 hover:underline">{{ $player->first_name }} {{ $player->last_name }}</a>
                             </td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_doubles_rating }}</td>
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->tennis_number_singles_rating ? number_format($player->tennis_number_singles_rating, 1) : '' }}</td>
+                            <td class="px-4 py-2 text-sm text-gray-700">{{ $player->tennis_number_singles_rating ? number_format($player->tennis_number_singles_rating, 2) : '' }}</td>
                             <td class="px-4 py-2 text-sm text-center">
                                 <div class="flex items-center gap-2 justify-center">
                                     @if($player->utr_id)

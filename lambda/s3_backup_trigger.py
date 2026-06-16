@@ -9,6 +9,7 @@ INTERNAL_RESTORE_TOKEN = os.environ["INTERNAL_RESTORE_TOKEN"]
 
 
 def lambda_handler(event, context):
+    print(f"Event received: {json.dumps(event)}")
     for record in event.get("Records", []):
         s3_key = unquote_plus(record["s3"]["object"]["key"])
 
