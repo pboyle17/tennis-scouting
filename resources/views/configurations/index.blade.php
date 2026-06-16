@@ -40,7 +40,7 @@
                                     <td class="px-4 py-2 text-sm text-gray-700 font-mono">{{ $backup['filename'] }}</td>
                                     <td class="px-4 py-2 text-sm text-gray-700">{{ $backup['date'] }}</td>
                                     <td class="px-4 py-2 text-sm text-gray-700">{{ $backup['size'] }}</td>
-                                    <td class="px-4 py-2 text-sm text-center">
+                                    <td class="px-4 py-2 text-sm text-center space-x-1">
                                         <form method="POST" action="{{ route('configurations.restoreDatabase') }}" style="display:inline;">
                                             @csrf
                                             <input type="hidden" name="filename" value="{{ $backup['path'] }}">
@@ -48,6 +48,16 @@
                                                 🔄 Restore This
                                             </button>
                                         </form>
+                                        @env('local')
+                                        <form method="POST" action="{{ route('configurations.deleteBackup') }}" style="display:inline;">
+                                            @csrf
+                                            @method('DELETE')
+                                            <input type="hidden" name="s3_key" value="{{ $backup['path'] }}">
+                                            <button type="submit" class="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded" onclick="return confirm('Delete backup {{ $backup['filename'] }}?');">
+                                                🗑 Delete
+                                            </button>
+                                        </form>
+                                        @endenv
                                     </td>
                                 </tr>
                             @endforeach

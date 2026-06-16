@@ -15,6 +15,21 @@
             </a>
         </div>
 
+        <!-- Court Nav -->
+        @if(count($availablePositions) > 1)
+            <div class="mb-4 border-b border-gray-200">
+                <nav class="flex flex-wrap -mb-px">
+                    @foreach($availablePositions as $pos)
+                        @php [$posType, $posNum] = explode('_', $pos, 2); @endphp
+                        <a href="{{ route('leagues.courtResults', [$league->id, $posType, $posNum]) }}"
+                           class="px-4 py-2 text-sm font-medium border-b-2 transition whitespace-nowrap {{ $pos === $currentPosition ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300' }}">
+                            {{ ucfirst($posType) }} {{ $posNum }}
+                        </a>
+                    @endforeach
+                </nav>
+            </div>
+        @endif
+
         <!-- Team Filters -->
         @if($teams->count() > 1)
             <div class="mb-6 flex flex-wrap gap-2">
@@ -45,6 +60,41 @@
                 No results available for {{ ucfirst($type) }} {{ $number }} in this league yet.
             </div>
         @else
+            @php
+                $allUtrs = [];
+                $winnerUtrs = [];
+                $loserUtrs = [];
+                foreach ($courts as $court) {
+                    $m = $court->tennisMatch;
+                    $hp = $court->courtPlayers->where('team_id', $m->home_team_id);
+                    $ap = $court->courtPlayers->where('team_id', $m->away_team_id);
+                    $homeWon = $court->home_score > $court->away_score;
+                    $awayWon = $court->away_score > $court->home_score;
+                    $hUtrs = $hp->map(fn($cp) => $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating)->filter()->values()->all();
+                    $aUtrs = $ap->map(fn($cp) => $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating)->filter()->values()->all();
+                    $allUtrs = array_merge($allUtrs, $hUtrs, $aUtrs);
+                    if ($homeWon) { $winnerUtrs = array_merge($winnerUtrs, $hUtrs); $loserUtrs = array_merge($loserUtrs, $aUtrs); }
+                    elseif ($awayWon) { $winnerUtrs = array_merge($winnerUtrs, $aUtrs); $loserUtrs = array_merge($loserUtrs, $hUtrs); }
+                }
+                $avgUtr = count($allUtrs) ? array_sum($allUtrs) / count($allUtrs) : null;
+                $avgWinnerUtr = count($winnerUtrs) ? array_sum($winnerUtrs) / count($winnerUtrs) : null;
+                $avgLoserUtr = count($loserUtrs) ? array_sum($loserUtrs) / count($loserUtrs) : null;
+            @endphp
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <div class="bg-white rounded-lg shadow p-4 text-center">
+                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Avg UTR</div>
+                    <div class="text-2xl font-bold text-gray-800">{{ $avgUtr !== null ? number_format($avgUtr, 2) : '—' }}</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 text-center">
+                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Winner Avg UTR</div>
+                    <div class="text-2xl font-bold text-green-600">{{ $avgWinnerUtr !== null ? number_format($avgWinnerUtr, 2) : '—' }}</div>
+                </div>
+                <div class="bg-white rounded-lg shadow p-4 text-center">
+                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Loser Avg UTR</div>
+                    <div class="text-2xl font-bold text-red-500">{{ $avgLoserUtr !== null ? number_format($avgLoserUtr, 2) : '—' }}</div>
+                </div>
+            </div>
+
             <div class="bg-white rounded-lg shadow-lg overflow-hidden">
                 <div class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
                     <h2 class="text-lg font-semibold text-gray-800">{{ ucfirst($type) }} {{ $number }}</h2>
@@ -206,12 +256,16 @@
                                 @php
                                     $total = $record['wins'] + $record['losses'];
                                     $pct = $total ? round($record['wins'] / $total * 100) : 0;
+                                    $playerUtr = $type === 'singles' ? $record['player']->utr_singles_rating : $record['player']->utr_doubles_rating;
                                 @endphp
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-2">
                                         <a href="{{ route('players.show', $record['player']->id) }}?team={{ $record['team']->id }}&court={{ $type }}&line={{ $number }}#match-history" class="text-blue-600 hover:underline font-medium">
                                             {{ $record['player']->first_name }} {{ $record['player']->last_name }}
                                         </a>
+                                        @if($playerUtr)
+                                            <span class="text-xs text-gray-400">({{ number_format($playerUtr, 2) }})</span>
+                                        @endif
                                     </td>
                                     <td class="px-4 py-2 text-gray-600">
                                         <a href="{{ route('teams.show', $record['team']->id) }}" class="hover:underline">{{ $record['team']->name }}</a>

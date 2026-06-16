@@ -60,8 +60,10 @@ Schedule::call(function () {
             })
             ->count();
 
-        if ($pendingCount === 0 && !app()->isProduction()) {
+        $backupKey = 'backup_dispatched_' . today()->format('Y-m-d');
+        if ($pendingCount === 0 && !app()->isProduction() && !\Cache::has($backupKey)) {
             \App\Jobs\BackupDatabaseJob::dispatch();
+            \Cache::put($backupKey, true, now()->endOfDay());
             Log::info('All scheduled league updates complete — database backup dispatched.');
         }
     }
