@@ -16,12 +16,16 @@ class RacketController extends Controller
     {
         $sortField = $request->get('sort', 'created_at');
         $sortDirection = $request->get('direction', 'desc');
+        $playerId = $request->get('player_id');
 
         $rackets = Racket::with(['player', 'currentStringJob'])
+            ->when($playerId, fn($q) => $q->where('player_id', $playerId))
             ->orderBy($sortField, $sortDirection)
             ->get();
 
-        return view('rackets.index', compact('rackets', 'sortField', 'sortDirection'));
+        $filterPlayer = $playerId ? \App\Models\Player::find($playerId) : null;
+
+        return view('rackets.index', compact('rackets', 'sortField', 'sortDirection', 'filterPlayer'));
     }
 
     /**

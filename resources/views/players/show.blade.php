@@ -166,6 +166,10 @@
                     <span class="text-sm font-semibold">View Tennis Record</span>
                 </a>
             @endif
+            <a href="{{ route('rackets.index', ['player_id' => $player->id]) }}" class="inline-flex items-center bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition">
+                <span class="text-xl mr-2">🏸</span>
+                <span class="text-sm font-semibold">Rackets</span>
+            </a>
             @env('local')
                 @if($player->utr_id)
                     <form method="POST" action="{{ route('players.updateUtrSingle', $player->id) }}">
