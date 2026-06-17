@@ -1,10 +1,17 @@
 @extends('layouts.app')
 
-@section('title', 'Rackets List')
+@section('title', $filterPlayer ? $filterPlayer->first_name . ' ' . $filterPlayer->last_name . ' — Rackets' : 'Rackets List')
 
 @section('content')
 <div class="container mx-auto p-6">
-    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">Rackets List</h1>
+    @if($filterPlayer)
+        <div class="flex items-center gap-3 mb-4">
+            <a href="{{ route('players.show', $filterPlayer->id) }}" class="text-blue-600 hover:underline text-sm">← {{ $filterPlayer->first_name }} {{ $filterPlayer->last_name }}</a>
+        </div>
+    @endif
+    <h1 class="text-3xl font-bold mb-6 text-center text-gray-800">
+        {{ $filterPlayer ? $filterPlayer->first_name . ' ' . $filterPlayer->last_name . ' — Rackets' : 'Rackets List' }}
+    </h1>
 
     @if(session('success'))
         <div class="bg-green-100 text-green-700 p-2 rounded mb-4">

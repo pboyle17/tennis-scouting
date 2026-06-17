@@ -66,5 +66,27 @@ Schedule::call(function () {
             \Cache::put($backupKey, true, now()->endOfDay());
             Log::info('All scheduled league updates complete — database backup dispatched.');
         }
+
+        // Take weekly rating snapshots on Fridays
+        $snapshotKey = 'rating_snapshot_' . today()->format('Y-m-d');
+        if (now()->isFriday() && $pendingCount === 0 && !\Cache::has($snapshotKey)) {
+            $today = today();
+            \App\Models\Player::whereNotNull('utr_singles_rating')
+                ->orWhereNotNull('utr_doubles_rating')
+                ->orWhereNotNull('USTA_dynamic_rating')
+                ->get()
+                ->each(function ($player) use ($today) {
+                    \App\Models\PlayerRatingSnapshot::updateOrCreate(
+                        ['player_id' => $player->id, 'snapshot_date' => $today],
+                        [
+                            'utr_singles_rating'  => $player->utr_singles_rating,
+                            'utr_doubles_rating'  => $player->utr_doubles_rating,
+                            'usta_dynamic_rating' => $player->USTA_dynamic_rating,
+                        ]
+                    );
+                });
+            \Cache::put($snapshotKey, true, now()->endOfDay());
+            Log::info('Friday rating snapshot saved for all players.');
+        }
     }
 })->everyMinute()->name('daily-league-updates')->withoutOverlapping();
