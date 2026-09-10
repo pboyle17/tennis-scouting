@@ -1,0 +1,3 @@
+web: php artisan serve
+worker: XDEBUG_MODE=off php artisan queue:listen --tries=1 --timeout=1800
+scheduler: XDEBUG_MODE=off php artisan schedule:work

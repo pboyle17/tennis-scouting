@@ -90,13 +90,16 @@
             </div>
 
             <!-- Action Buttons -->
-            @env('local')
             <div class="flex space-x-2">
+                <a href="{{ route('players.headToHead', $player->id) }}" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-4 rounded">
+                    Head to Head
+                </a>
+                @env('local')
                 <a href="{{ route('players.edit', $player->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
                     Edit Player
                 </a>
+                @endenv
             </div>
-            @endenv
         </div>
 
         <!-- Current Ratings -->
@@ -183,6 +186,150 @@
         </div>
     </div>
 
+
+    <!-- Rating History Chart -->
+    @if($ratingSnapshots->count() > 0)
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Rating History</h2>
+        <canvas id="ratingHistoryChart"></canvas>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+    <script>
+    (function () {
+        const rawSnapshots = @json($ratingSnapshots);
+        const matchPoints  = @json($matchRatingPoints);
+
+        // Merge match-level points with weekly snapshots; snapshots take priority on the same date
+        const snapshotDates = new Set(rawSnapshots.map(s => s.snapshot_date.substring(0, 10)));
+        const matchByDate   = {};
+        matchPoints.forEach(p => { matchByDate[p.date] = p; });
+
+        const merged = [
+            ...matchPoints
+                .filter(p => !snapshotDates.has(p.date))
+                .map(p => ({ snapshot_date: p.date, utr_singles_rating: p.utr_singles_rating, utr_doubles_rating: p.utr_doubles_rating, usta_dynamic_rating: p.usta_dynamic_rating, _fromMatch: true })),
+            ...rawSnapshots.map(s => ({ ...s, _fromMatch: false })),
+        ].sort((a, b) => a.snapshot_date.substring(0, 10).localeCompare(b.snapshot_date.substring(0, 10)));
+
+        const snapshots = merged;
+        const current = {
+            utr_singles_rating:  @json($player->utr_singles_rating),
+            utr_doubles_rating:  @json($player->utr_doubles_rating),
+            usta_dynamic_rating: @json($player->USTA_dynamic_rating),
+        };
+
+        const last = snapshots[snapshots.length - 1];
+        const differs =
+            parseFloat(current.utr_singles_rating)  !== parseFloat(last.utr_singles_rating) ||
+            parseFloat(current.utr_doubles_rating)  !== parseFloat(last.utr_doubles_rating) ||
+            parseFloat(current.usta_dynamic_rating) !== parseFloat(last.usta_dynamic_rating);
+
+        if (differs) {
+            snapshots.push({ snapshot_date: 'Today', ...current, _fromMatch: false });
+        }
+
+        const labels = snapshots.map(s => {
+            if (s.snapshot_date === 'Today') return 'Today';
+            const d = new Date(s.snapshot_date.substring(0, 10) + 'T00:00:00');
+            return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        });
+        const utrSingles  = snapshots.map(s => s.utr_singles_rating);
+        const utrDoubles  = snapshots.map(s => s.utr_doubles_rating);
+        const usta        = snapshots.map(s => s.usta_dynamic_rating);
+        const isMobile    = window.innerWidth < 768;
+
+        // Per-point styling: filled = match, hollow = snapshot
+        const pointBg = (color) => snapshots.map(s => s._fromMatch ? color : 'white');
+        const pointR  = snapshots.map(s => s._fromMatch ? (isMobile ? 4 : 5) : (isMobile ? 2 : 3));
+
+        new Chart(document.getElementById('ratingHistoryChart'), {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'UTR Singles',
+                        data: utrSingles,
+                        borderColor: '#3b82f6',
+                        backgroundColor: 'rgba(59,130,246,0.1)',
+                        pointBackgroundColor: pointBg('#3b82f6'),
+                        pointBorderColor: '#3b82f6',
+                        pointRadius: pointR,
+                        pointBorderWidth: 2,
+                        tension: 0.3,
+                        spanGaps: true,
+                    },
+                    {
+                        label: 'UTR Doubles',
+                        data: utrDoubles,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16,185,129,0.1)',
+                        pointBackgroundColor: pointBg('#10b981'),
+                        pointBorderColor: '#10b981',
+                        pointRadius: pointR,
+                        pointBorderWidth: 2,
+                        tension: 0.3,
+                        spanGaps: true,
+                    },
+                    {
+                        label: 'USTA Dynamic',
+                        data: usta,
+                        borderColor: '#f59e0b',
+                        backgroundColor: 'rgba(245,158,11,0.1)',
+                        pointBackgroundColor: pointBg('#f59e0b'),
+                        pointBorderColor: '#f59e0b',
+                        pointRadius: pointR,
+                        pointBorderWidth: 2,
+                        tension: 0.3,
+                        spanGaps: true,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                aspectRatio: isMobile ? 1.4 : 2.5,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: { boxWidth: 12, padding: 10, font: { size: isMobile ? 11 : 12 } },
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => ctx.parsed.y !== null ? `${ctx.dataset.label}: ${ctx.parsed.y.toFixed(2)}` : null,
+                            afterBody: (items) => {
+                                const s = snapshots[items[0].dataIndex];
+                                if (!s._fromMatch) return [];
+                                const mp = matchByDate[s.snapshot_date.substring(0, 10)];
+                                if (!mp || !mp.opponents || !mp.opponents.length) return [];
+                                const type = s.utr_doubles_rating !== null ? 'doubles' : 'singles';
+                                return ['', 'vs ' + mp.opponents.map(o => {
+                                    const r = type === 'doubles' ? o.utr_doubles_rating : o.utr_singles_rating;
+                                    return `${o.name}${r !== null ? ' (' + parseFloat(r).toFixed(2) + ')' : ''}`;
+                                }).join(' / ')];
+                            },
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        ticks: {
+                            maxTicksLimit: isMobile ? 6 : 12,
+                            maxRotation: isMobile ? 45 : 0,
+                            font: { size: isMobile ? 10 : 12 },
+                        },
+                    },
+                    y: {
+                        beginAtZero: false,
+                        ticks: { font: { size: isMobile ? 10 : 12 } },
+                    },
+                },
+            },
+        });
+    })();
+    </script>
+    @endif
 
     <!-- Match History -->
     <div id="match-history" class="bg-white rounded-lg shadow-md p-6 mb-6">
