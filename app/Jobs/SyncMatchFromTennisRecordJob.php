@@ -59,6 +59,11 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
             // Load match relationships
             $this->match->load(['homeTeam.players', 'awayTeam.players']);
 
+            // Our stored home/away assignment is inferred from schedule locations and
+            // can be wrong (e.g. it ties in 2-team leagues). Verify against the actual
+            // Home Team / Visiting Team columns on this page and correct if needed.
+            $this->detectTeamOrientation($crawler);
+
             Log::info("Starting to parse match {$this->match->id}", [
                 'home_team' => $this->match->homeTeam->name,
                 'away_team' => $this->match->awayTeam->name,
@@ -763,6 +768,130 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
             'names' => $names
         ]);
         return $names;
+    }
+
+    /**
+     * Tennis Record's Home Team / Visiting Team columns are the source of truth.
+     * Check which side of the page each roster actually appears on, and swap
+     * home_team_id/away_team_id if our stored assignment has them backwards.
+     */
+    protected function detectTeamOrientation(Crawler $crawler): void
+    {
+        ['home' => $pageHomeNames, 'away' => $pageAwayNames] = $this->collectCourtColumnPlayerNames($crawler);
+
+        if (empty($pageHomeNames) && empty($pageAwayNames)) {
+            Log::info("No player names available to verify team orientation for match {$this->match->id}");
+            return;
+        }
+
+        $correctScore = 0;
+        $reversedScore = 0;
+
+        foreach ($pageHomeNames as $name) {
+            if ($this->findPlayer($name, $this->match->homeTeam)) {
+                $correctScore++;
+            }
+            if ($this->findPlayer($name, $this->match->awayTeam)) {
+                $reversedScore++;
+            }
+        }
+
+        foreach ($pageAwayNames as $name) {
+            if ($this->findPlayer($name, $this->match->awayTeam)) {
+                $correctScore++;
+            }
+            if ($this->findPlayer($name, $this->match->homeTeam)) {
+                $reversedScore++;
+            }
+        }
+
+        Log::info("Team orientation check for match {$this->match->id}", [
+            'correct_score' => $correctScore,
+            'reversed_score' => $reversedScore,
+        ]);
+
+        if ($reversedScore > $correctScore) {
+            Log::warning("Match {$this->match->id} has home/away teams reversed vs Tennis Record - swapping", [
+                'old_home_team_id' => $this->match->home_team_id,
+                'old_away_team_id' => $this->match->away_team_id,
+            ]);
+
+            $this->match->update([
+                'home_team_id' => $this->match->away_team_id,
+                'away_team_id' => $this->match->home_team_id,
+            ]);
+
+            $this->match->load(['homeTeam.players', 'awayTeam.players']);
+        }
+
+        // Now that home/away is verified against the page, record this team's
+        // real home venue so schedule syncing can use it instead of guessing
+        // from location frequency (which ties in 2-team leagues). Only do this
+        // when we actually had a confident signal either way.
+        $homeTeam = $this->match->homeTeam;
+        $hadSignal = $correctScore > 0 || $reversedScore > 0;
+        if ($hadSignal && $homeTeam && $this->match->location && $homeTeam->home_location !== $this->match->location) {
+            $homeTeam->update(['home_location' => $this->match->location]);
+            Log::info("Recorded home venue for team {$homeTeam->id}", [
+                'home_location' => $this->match->location,
+            ]);
+        }
+    }
+
+    /**
+     * Walk every court block on the page and collect the player names listed
+     * in the "Home Team" and "Visiting Team" columns, regardless of court type.
+     * Used only to verify our home/away assignment, not to build court records.
+     *
+     * @return array{home: string[], away: string[]}
+     */
+    protected function collectCourtColumnPlayerNames(Crawler $crawler): array
+    {
+        $homeNames = [];
+        $awayNames = [];
+
+        $crawler->filter('div.wrapper496')->each(function (Crawler $wrapper) use (&$homeNames, &$awayNames) {
+            if (!preg_match('/(?:Singles|Doubles)\s*#\d+/i', trim($wrapper->text()))) {
+                return;
+            }
+
+            $table = $wrapper->nextAll()->filter('div.container496')->first()->filter('table')->first();
+            if ($table->count() === 0) {
+                return;
+            }
+
+            $dataRow = null;
+            $table->filter('tr')->each(function (Crawler $row) use (&$dataRow) {
+                if ($dataRow !== null) {
+                    return;
+                }
+                $cells = $row->filter('td');
+                if ($cells->count() >= 3 && $cells->eq(0)->filter('a')->count() > 0) {
+                    $dataRow = $row;
+                }
+            });
+
+            if (!$dataRow) {
+                return;
+            }
+
+            $cells = $dataRow->filter('td');
+            $extract = function (Crawler $cell) {
+                $names = [];
+                $cell->filter('a')->each(function (Crawler $link) use (&$names) {
+                    $name = $this->extractPlayerName(trim($link->text()));
+                    if ($name !== '') {
+                        $names[] = $name;
+                    }
+                });
+                return $names;
+            };
+
+            array_push($homeNames, ...$extract($cells->eq(0)));
+            array_push($awayNames, ...$extract($cells->eq($cells->count() - 1)));
+        });
+
+        return ['home' => $homeNames, 'away' => $awayNames];
     }
 
     protected function findPlayer(string $name, $team): ?Player

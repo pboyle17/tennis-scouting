@@ -198,8 +198,16 @@ class SyncTeamMatchesJob implements ShouldQueue
                         ]);
                     }
 
+                    // Once a match has synced court results, those courts (not this
+                    // schedule-page guess) are the authoritative source for the score
+                    // and for home/away orientation. Different team schedule pages can
+                    // disagree on the home/away tie-break, so never let this job touch
+                    // scores for a match that's already been synced in detail.
+                    $hasCourtResults = $existingMatch && $existingMatch->courts()->exists();
+
                     $hasScoreConflict = false;
-                    if ($existingMatch &&
+                    if (!$hasCourtResults &&
+                        $existingMatch &&
                         $existingMatch->home_score !== null &&
                         $existingMatch->away_score !== null &&
                         ($matchData['home_score'] !== null || $matchData['away_score'] !== null) &&
@@ -232,10 +240,29 @@ class SyncTeamMatchesJob implements ShouldQueue
                         $updateData['start_time'] = $matchData['start_time'];
                     }
 
-                    // Only update scores if there's no conflict
-                    if (!$hasScoreConflict) {
+                    // Only update scores if there's no conflict and courts aren't
+                    // already the authoritative source for this match
+                    if (!$hasScoreConflict && !$hasCourtResults) {
                         $updateData['home_score'] = $matchData['home_score'] ?? null;
                         $updateData['away_score'] = $matchData['away_score'] ?? null;
+                    }
+
+                    // Correct a previously wrong home/away guess on an existing,
+                    // not-yet-played match — but only once we have a confident,
+                    // venue-learned answer, and only while courts (the eventual
+                    // source of truth) haven't been synced yet.
+                    if ($existingMatch && !$hasCourtResults && !empty($matchData['orientation_confident']) &&
+                        ($existingMatch->home_team_id !== $matchData['home_team_id'] ||
+                         $existingMatch->away_team_id !== $matchData['away_team_id'])) {
+                        $updateData['home_team_id'] = $matchData['home_team_id'];
+                        $updateData['away_team_id'] = $matchData['away_team_id'];
+                        Log::info("Correcting home/away orientation for unplayed match using learned venue", [
+                            'match_id' => $existingMatch->id,
+                            'old_home_team_id' => $existingMatch->home_team_id,
+                            'old_away_team_id' => $existingMatch->away_team_id,
+                            'new_home_team_id' => $matchData['home_team_id'],
+                            'new_away_team_id' => $matchData['away_team_id'],
+                        ]);
                     }
 
                     if ($existingMatch) {
@@ -638,16 +665,26 @@ class SyncTeamMatchesJob implements ShouldQueue
             'home_location_count' => $maxCount
         ]);
 
+        // If we already know this team's real home venue (learned from actual
+        // synced match results), trust it over the majority-vote guess above —
+        // that guess ties (and can pick either side) in leagues with only two teams.
+        $currentTeamForCall = $teamId ? $teams->firstWhere('id', $teamId) : null;
+        $knownHomeLocation = ($currentTeamForCall && $currentTeamForCall->home_location)
+            ? strtolower(trim($currentTeamForCall->home_location))
+            : null;
+
         // Now convert preliminary matches to final matches with proper home/away assignment
         foreach ($preliminaryMatches as $match) {
             $currentTeam = $match['current_team'];
             $opponentTeam = $match['opponent_team'];
             $location = $match['location'];
+            $locationKey = $location ? strtolower(trim($location)) : null;
 
             // Determine if current team is home or away based on location
             $isHomeMatch = false;
-            if ($homeLocation && $location) {
-                $locationKey = strtolower(trim($location));
+            if ($knownHomeLocation && $locationKey) {
+                $isHomeMatch = ($locationKey === $knownHomeLocation);
+            } elseif ($homeLocation && $locationKey) {
                 $isHomeMatch = ($locationKey === $homeLocation);
             }
 
@@ -683,7 +720,10 @@ class SyncTeamMatchesJob implements ShouldQueue
                 'home_score' => $homeScore,
                 'away_score' => $awayScore,
                 'external_id' => $match['external_id'],
-                'tennis_record_match_link' => $match['tennis_record_match_link']
+                'tennis_record_match_link' => $match['tennis_record_match_link'],
+                // True only when home/away came from a learned venue rather than
+                // the majority-vote guess, which can be wrong in 2-team leagues.
+                'orientation_confident' => $knownHomeLocation !== null,
             ];
 
             Log::info("Successfully parsed match with home/away determined by location", [

@@ -117,7 +117,146 @@ class PlayerController extends Controller
             ]
         ];
 
-        return view('players.show', compact('player', 'courtPlayers', 'stats'));
+        $ratingSnapshots = \App\Models\PlayerRatingSnapshot::where('player_id', $player->id)
+            ->orderBy('snapshot_date')
+            ->get(['snapshot_date', 'utr_singles_rating', 'utr_doubles_rating', 'usta_dynamic_rating']);
+
+        $matchRatingPoints = $courtPlayers
+            ->filter(fn($cp) => $cp->court->tennisMatch->start_time !== null
+                && ($cp->utr_singles_rating !== null || $cp->utr_doubles_rating !== null || $cp->usta_dynamic_rating !== null))
+            ->map(fn($cp) => [
+                'date'                => \Carbon\Carbon::parse($cp->court->tennisMatch->start_time)->toDateString(),
+                'utr_singles_rating'  => $cp->utr_singles_rating,
+                'utr_doubles_rating'  => $cp->utr_doubles_rating,
+                'usta_dynamic_rating' => $cp->usta_dynamic_rating,
+                'opponents'           => $cp->court->courtPlayers
+                    ->where('team_id', '!=', $cp->team_id)
+                    ->map(fn($opp) => [
+                        'name'               => $opp->player->first_name . ' ' . $opp->player->last_name,
+                        'utr_singles_rating' => $opp->utr_singles_rating,
+                        'utr_doubles_rating' => $opp->utr_doubles_rating,
+                    ])
+                    ->values()
+                    ->all(),
+            ])
+            ->sortBy('date')
+            ->unique('date')
+            ->values();
+
+        return view('players.show', compact('player', 'courtPlayers', 'stats', 'ratingSnapshots', 'matchRatingPoints'));
+    }
+
+    public function headToHead(Request $request, Player $player)
+    {
+        $allPlayers = Player::orderBy('last_name')->orderBy('first_name')
+            ->where('id', '!=', $player->id)
+            ->get(['id', 'first_name', 'last_name', 'utr_singles_rating', 'utr_doubles_rating', 'USTA_dynamic_rating']);
+
+        $opponent      = null;
+        $directMatches = collect();
+        $commonOpponents = collect();
+
+        if ($opponentId = $request->get('opponent')) {
+            $opponent = Player::findOrFail($opponentId);
+
+            // Court appearances keyed by court_id => team_id for each player
+            $aCourts = \App\Models\CourtPlayer::where('player_id', $player->id)->get(['court_id', 'team_id'])->keyBy('court_id');
+            $bCourts = \App\Models\CourtPlayer::where('player_id', $opponent->id)->get(['court_id', 'team_id'])->keyBy('court_id');
+
+            // Courts shared by both, on opposing teams
+            $sharedCourtIds = $aCourts->keys()->intersect($bCourts->keys())
+                ->filter(fn($id) => $aCourts[$id]->team_id !== $bCourts[$id]->team_id)
+                ->values();
+
+            $directMatches = \App\Models\Court::whereIn('id', $sharedCourtIds)
+                ->with(['tennisMatch.homeTeam', 'tennisMatch.awayTeam', 'courtPlayers.player', 'courtSets'])
+                ->get()
+                ->filter(fn($c) => $c->home_score !== null)
+                ->sortByDesc(fn($c) => $c->tennisMatch->start_time)
+                ->map(fn($c) => [
+                    'court'       => $c,
+                    'player_cp'   => $c->courtPlayers->firstWhere('player_id', $player->id),
+                    'opponent_cp' => $c->courtPlayers->firstWhere('player_id', $opponent->id),
+                ])
+                ->values();
+
+            // Opponents of player A (opposing team, excluding player B)
+            $aOpponentIds = \App\Models\CourtPlayer::whereIn('court_id', $aCourts->keys())
+                ->whereNotIn('player_id', [$player->id, $opponent->id])
+                ->get(['court_id', 'player_id', 'team_id'])
+                ->filter(fn($cp) => $aCourts->has($cp->court_id) && $cp->team_id !== $aCourts[$cp->court_id]->team_id)
+                ->pluck('player_id')->unique();
+
+            // Opponents of player B (opposing team, excluding player A)
+            $bOpponentIds = \App\Models\CourtPlayer::whereIn('court_id', $bCourts->keys())
+                ->whereNotIn('player_id', [$opponent->id, $player->id])
+                ->get(['court_id', 'player_id', 'team_id'])
+                ->filter(fn($cp) => $bCourts->has($cp->court_id) && $cp->team_id !== $bCourts[$cp->court_id]->team_id)
+                ->pluck('player_id')->unique();
+
+            $commonIds = $aOpponentIds->intersect($bOpponentIds)->values();
+
+            if ($commonIds->isNotEmpty()) {
+                $commonCpRows = \App\Models\CourtPlayer::whereIn('player_id', $commonIds)
+                    ->get(['court_id', 'player_id', 'team_id', 'won']);
+
+                // For each common opponent, collect court IDs where player A or B faced them
+                $aVsCourtIds = []; // commonPlayerId => [courtId, ...]
+                $bVsCourtIds = [];
+                foreach ($commonCpRows as $cp) {
+                    $cid = $cp->court_id;
+                    $pid = $cp->player_id;
+                    if ($aCourts->has($cid) && $aCourts[$cid]->team_id !== $cp->team_id) {
+                        $aVsCourtIds[$pid][] = $cid;
+                    }
+                    if ($bCourts->has($cid) && $bCourts[$cid]->team_id !== $cp->team_id) {
+                        $bVsCourtIds[$pid][] = $cid;
+                    }
+                }
+
+                // Bulk load all those courts
+                $allCommonCourtIds = array_unique(array_merge(
+                    ...array_values($aVsCourtIds),
+                    ...array_values($bVsCourtIds),
+                ));
+
+                $commonCourts = \App\Models\Court::whereIn('id', $allCommonCourtIds)
+                    ->with(['tennisMatch', 'courtPlayers.player', 'courtSets'])
+                    ->get()
+                    ->filter(fn($c) => $c->home_score !== null)
+                    ->keyBy('id');
+
+                $matchesVs = function (int $subjectId, array $courtIds) use ($commonCourts, $player, $opponent) {
+                    return collect($courtIds)
+                        ->map(fn($cid) => $commonCourts->get($cid))
+                        ->filter()
+                        ->sortByDesc(fn($c) => $c->tennisMatch->start_time)
+                        ->map(fn($c) => [
+                            'court'      => $c,
+                            'subject_cp' => $c->courtPlayers->firstWhere('player_id', $subjectId),
+                        ])
+                        ->values();
+                };
+
+                $commonOpponents = Player::whereIn('id', $commonIds)->orderBy('last_name')->orderBy('first_name')
+                    ->get(['id', 'first_name', 'last_name', 'utr_singles_rating'])
+                    ->map(function ($opp) use ($player, $opponent, $aVsCourtIds, $bVsCourtIds, $matchesVs) {
+                        $aMatches = $matchesVs($player->id,   $aVsCourtIds[$opp->id] ?? []);
+                        $bMatches = $matchesVs($opponent->id, $bVsCourtIds[$opp->id] ?? []);
+                        $aWins = $aMatches->where('subject_cp.won', true)->count();
+                        $bWins = $bMatches->where('subject_cp.won', true)->count();
+                        return [
+                            'player'          => $opp,
+                            'player_record'   => ['wins' => $aWins,   'losses' => $aMatches->count() - $aWins],
+                            'opponent_record' => ['wins' => $bWins,   'losses' => $bMatches->count() - $bWins],
+                            'player_matches'  => $aMatches,
+                            'opponent_matches'=> $bMatches,
+                        ];
+                    });
+            }
+        }
+
+        return view('players.head-to-head', compact('player', 'opponent', 'allPlayers', 'directMatches', 'commonOpponents'));
     }
 
     /**

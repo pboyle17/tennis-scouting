@@ -2,6 +2,7 @@
 
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schedule;
 
@@ -61,15 +62,15 @@ Schedule::call(function () {
             ->count();
 
         $backupKey = 'backup_dispatched_' . today()->format('Y-m-d');
-        if ($pendingCount === 0 && !app()->isProduction() && !\Cache::has($backupKey)) {
+        if ($pendingCount === 0 && !app()->isProduction() && !Cache::has($backupKey)) {
             \App\Jobs\BackupDatabaseJob::dispatch();
-            \Cache::put($backupKey, true, now()->endOfDay());
+            Cache::put($backupKey, true, now()->endOfDay());
             Log::info('All scheduled league updates complete — database backup dispatched.');
         }
 
         // Take weekly rating snapshots on Fridays
         $snapshotKey = 'rating_snapshot_' . today()->format('Y-m-d');
-        if (now()->isFriday() && $pendingCount === 0 && !\Cache::has($snapshotKey)) {
+        if (now()->isFriday() && $pendingCount === 0 && !Cache::has($snapshotKey)) {
             $today = today();
             \App\Models\Player::whereNotNull('utr_singles_rating')
                 ->orWhereNotNull('utr_doubles_rating')
@@ -85,7 +86,7 @@ Schedule::call(function () {
                         ]
                     );
                 });
-            \Cache::put($snapshotKey, true, now()->endOfDay());
+            Cache::put($snapshotKey, true, now()->endOfDay());
             Log::info('Friday rating snapshot saved for all players.');
         }
     }
