@@ -117,15 +117,41 @@ class PlayerController extends Controller
             ]
         ];
 
+        // Best win = highest-rated opponent beaten. Worst loss = lowest-rated
+        // opponent lost to. Both ranked by the opponent's UTR rating at the
+        // time of the match (as snapshotted on the opposing CourtPlayer).
+        $bestWins = $this->extremeMatchesByCourtType($courtPlayers, won: true, keepHigher: true);
+        $worstLosses = $this->extremeMatchesByCourtType($courtPlayers, won: false, keepHigher: false);
+
         $ratingSnapshots = \App\Models\PlayerRatingSnapshot::where('player_id', $player->id)
             ->orderBy('snapshot_date')
             ->get(['snapshot_date', 'utr_singles_rating', 'utr_doubles_rating', 'usta_dynamic_rating']);
+
+        // Upcoming matches (next 7 days) for any team this player is on
+        $teamIds = $player->teams->pluck('id');
+        $upcomingMatches = \App\Models\TennisMatch::where(function ($query) use ($teamIds) {
+                $query->whereIn('home_team_id', $teamIds)
+                    ->orWhereIn('away_team_id', $teamIds);
+            })
+            ->whereBetween('start_time', [now(), now()->addDays(7)])
+            ->with(['homeTeam', 'awayTeam', 'league'])
+            ->orderBy('start_time')
+            ->get()
+            ->map(function ($match) use ($teamIds) {
+                $isHomeTeam = $teamIds->contains($match->home_team_id);
+                return [
+                    'match' => $match,
+                    'my_team' => $isHomeTeam ? $match->homeTeam : $match->awayTeam,
+                    'opponent' => $isHomeTeam ? $match->awayTeam : $match->homeTeam,
+                ];
+            });
 
         $matchRatingPoints = $courtPlayers
             ->filter(fn($cp) => $cp->court->tennisMatch->start_time !== null
                 && ($cp->utr_singles_rating !== null || $cp->utr_doubles_rating !== null || $cp->usta_dynamic_rating !== null))
             ->map(fn($cp) => [
                 'date'                => \Carbon\Carbon::parse($cp->court->tennisMatch->start_time)->toDateString(),
+                'court_type'          => $cp->court->court_type,
                 'utr_singles_rating'  => $cp->utr_singles_rating,
                 'utr_doubles_rating'  => $cp->utr_doubles_rating,
                 'usta_dynamic_rating' => $cp->usta_dynamic_rating,
@@ -143,7 +169,52 @@ class PlayerController extends Controller
             ->unique('date')
             ->values();
 
-        return view('players.show', compact('player', 'courtPlayers', 'stats', 'ratingSnapshots', 'matchRatingPoints'));
+        return view('players.show', compact('player', 'courtPlayers', 'stats', 'ratingSnapshots', 'matchRatingPoints', 'upcomingMatches', 'bestWins', 'worstLosses'));
+    }
+
+    /**
+     * For each court type, find the win/loss against the most extreme-rated
+     * opponent (highest for a win, lowest for a loss). Uses the opponent's
+     * current UTR rating rather than their rating at match time, since a
+     * rating backed by more matches is more accurate than an old snapshot.
+     */
+    private function extremeMatchesByCourtType($courtPlayers, bool $won, bool $keepHigher): array
+    {
+        $result = ['singles' => null, 'doubles' => null];
+
+        foreach ($courtPlayers->where('won', $won) as $cp) {
+            $court = $cp->court;
+            $opponents = $court->courtPlayers->where('team_id', '!=', $cp->team_id)->values();
+            if ($opponents->isEmpty()) {
+                continue;
+            }
+
+            if ($court->court_type === 'singles') {
+                $opponentRating = $opponents->first()->player->utr_singles_rating;
+            } else {
+                $opponentRatings = $opponents->pluck('player.utr_doubles_rating')->filter()->values();
+                $opponentRating = $opponentRatings->isNotEmpty() ? $opponentRatings->avg() : null;
+            }
+
+            if ($opponentRating === null) {
+                continue;
+            }
+
+            $existing = $result[$court->court_type] ?? null;
+            $isMoreExtreme = !$existing || ($keepHigher
+                ? $opponentRating > $existing['opponent_rating']
+                : $opponentRating < $existing['opponent_rating']);
+
+            if ($isMoreExtreme) {
+                $result[$court->court_type] = [
+                    'court_player' => $cp,
+                    'opponents' => $opponents,
+                    'opponent_rating' => $opponentRating,
+                ];
+            }
+        }
+
+        return $result;
     }
 
     public function headToHead(Request $request, Player $player)
