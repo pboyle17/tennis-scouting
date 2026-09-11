@@ -156,9 +156,20 @@ class SyncMatchFromTennisRecordJob implements ShouldQueue
         }
 
         try {
-            $parsed = $timeStr
-                ? Carbon::parse($dateMatch[1] . ' ' . $timeStr)
-                : Carbon::parse($dateMatch[1]);
+            if ($timeStr) {
+                $parsed = Carbon::parse($dateMatch[1] . ' ' . $timeStr);
+            } else {
+                // The results page doesn't always include a time-of-day (only
+                // Scheduled Date). Don't let that clobber a real time we already
+                // have — e.g. captured from the team schedule page's Time column
+                // — with a date-only midnight value. Just fix the date and keep
+                // whatever time-of-day the match already has.
+                $datePart = Carbon::parse($dateMatch[1]);
+                $existing = $this->match->start_time;
+                $parsed = $existing
+                    ? $datePart->setTime($existing->hour, $existing->minute, $existing->second)
+                    : $datePart;
+            }
         } catch (\Exception $e) {
             Log::warning("Failed to parse date from match page", [
                 'match_id' => $this->match->id,

@@ -186,6 +186,72 @@
         </div>
     </div>
 
+    <!-- Upcoming Matches -->
+    @if($upcomingMatches->count() > 0)
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Upcoming Matches</h2>
+        <div class="space-y-3">
+            @foreach($upcomingMatches as $entry)
+                @php
+                    $match = $entry['match'];
+                    $opponent = $entry['opponent'];
+                    $myTeam = $entry['my_team'];
+                @endphp
+                <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition cursor-pointer" onclick="window.location='{{ route('tennis-matches.show', $match->id) }}'">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                            <div class="text-sm font-semibold text-gray-700">
+                                {{ $match->start_time->format('l, M d, Y') }}
+                                <span class="text-xs text-gray-500 font-normal">{{ $match->start_time->format('g:i A') }}</span>
+                            </div>
+                            <div class="text-sm text-gray-600 mt-1">
+                                <span class="text-gray-500">{{ $myTeam->name }}</span>
+                                <span class="mx-1 text-gray-400">vs</span>
+                                <a href="{{ route('teams.show', $opponent->id) }}" onclick="event.stopPropagation()" class="text-blue-600 font-semibold hover:underline">
+                                    {{ $opponent->name }}
+                                </a>
+                            </div>
+                            @if($match->location)
+                                <div class="text-xs text-gray-500 mt-1">{{ $match->location }}</div>
+                            @endif
+                        </div>
+                        @if($match->league)
+                            <span class="text-xs text-gray-500 bg-gray-100 rounded-full px-3 py-1 self-start sm:self-center">{{ $match->league->name }}</span>
+                        @endif
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
+    <!-- Best Wins -->
+    @if($bestWins['singles'] || $bestWins['doubles'])
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Best Wins</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            @foreach(['singles' => 'Singles', 'doubles' => 'Doubles'] as $type => $label)
+                @if($bestWins[$type])
+                    @include('players._extreme-match-card', ['entry' => $bestWins[$type], 'type' => $type, 'resultLabel' => "Best {$label} Win"])
+                @endif
+            @endforeach
+        </div>
+    </div>
+    @endif
+
+    <!-- Worst Losses -->
+    @if($worstLosses['singles'] || $worstLosses['doubles'])
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-2xl font-bold text-gray-800 mb-4">Worst Losses</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            @foreach(['singles' => 'Singles', 'doubles' => 'Doubles'] as $type => $label)
+                @if($worstLosses[$type])
+                    @include('players._extreme-match-card', ['entry' => $worstLosses[$type], 'type' => $type, 'resultLabel' => "Worst {$label} Loss"])
+                @endif
+            @endforeach
+        </div>
+    </div>
+    @endif
 
     <!-- Rating History Chart -->
     @if($ratingSnapshots->count() > 0)
@@ -207,7 +273,7 @@
         const merged = [
             ...matchPoints
                 .filter(p => !snapshotDates.has(p.date))
-                .map(p => ({ snapshot_date: p.date, utr_singles_rating: p.utr_singles_rating, utr_doubles_rating: p.utr_doubles_rating, usta_dynamic_rating: p.usta_dynamic_rating, _fromMatch: true })),
+                .map(p => ({ snapshot_date: p.date, court_type: p.court_type, utr_singles_rating: p.utr_singles_rating, utr_doubles_rating: p.utr_doubles_rating, usta_dynamic_rating: p.usta_dynamic_rating, _fromMatch: true })),
             ...rawSnapshots.map(s => ({ ...s, _fromMatch: false })),
         ].sort((a, b) => a.snapshot_date.substring(0, 10).localeCompare(b.snapshot_date.substring(0, 10)));
 
@@ -238,9 +304,13 @@
         const usta        = snapshots.map(s => s.usta_dynamic_rating);
         const isMobile    = window.innerWidth < 768;
 
-        // Per-point styling: filled = match, hollow = snapshot
-        const pointBg = (color) => snapshots.map(s => s._fromMatch ? color : 'white');
-        const pointR  = snapshots.map(s => s._fromMatch ? (isMobile ? 4 : 5) : (isMobile ? 2 : 3));
+        // Per-point styling: filled = match (of the matching court type), hollow = snapshot.
+        // A match snapshot always carries both singles and doubles ratings regardless of
+        // which type was actually played, so gate the singles/doubles fill by court_type;
+        // the dynamic rating applies to both, so it fills for either.
+        const isRelevant = (s, type) => s._fromMatch && (type === 'dynamic' || s.court_type === type);
+        const pointBg = (color, type) => snapshots.map(s => isRelevant(s, type) ? color : 'white');
+        const pointR  = (type) => snapshots.map(s => isRelevant(s, type) ? (isMobile ? 4 : 5) : (isMobile ? 2 : 3));
 
         new Chart(document.getElementById('ratingHistoryChart'), {
             type: 'line',
@@ -252,9 +322,9 @@
                         data: utrSingles,
                         borderColor: '#3b82f6',
                         backgroundColor: 'rgba(59,130,246,0.1)',
-                        pointBackgroundColor: pointBg('#3b82f6'),
+                        pointBackgroundColor: pointBg('#3b82f6', 'singles'),
                         pointBorderColor: '#3b82f6',
-                        pointRadius: pointR,
+                        pointRadius: pointR('singles'),
                         pointBorderWidth: 2,
                         tension: 0.3,
                         spanGaps: true,
@@ -264,9 +334,9 @@
                         data: utrDoubles,
                         borderColor: '#10b981',
                         backgroundColor: 'rgba(16,185,129,0.1)',
-                        pointBackgroundColor: pointBg('#10b981'),
+                        pointBackgroundColor: pointBg('#10b981', 'doubles'),
                         pointBorderColor: '#10b981',
-                        pointRadius: pointR,
+                        pointRadius: pointR('doubles'),
                         pointBorderWidth: 2,
                         tension: 0.3,
                         spanGaps: true,
@@ -276,9 +346,9 @@
                         data: usta,
                         borderColor: '#f59e0b',
                         backgroundColor: 'rgba(245,158,11,0.1)',
-                        pointBackgroundColor: pointBg('#f59e0b'),
+                        pointBackgroundColor: pointBg('#f59e0b', 'dynamic'),
                         pointBorderColor: '#f59e0b',
-                        pointRadius: pointR,
+                        pointRadius: pointR('dynamic'),
                         pointBorderWidth: 2,
                         tension: 0.3,
                         spanGaps: true,
@@ -303,7 +373,7 @@
                                 if (!s._fromMatch) return [];
                                 const mp = matchByDate[s.snapshot_date.substring(0, 10)];
                                 if (!mp || !mp.opponents || !mp.opponents.length) return [];
-                                const type = s.utr_doubles_rating !== null ? 'doubles' : 'singles';
+                                const type = mp.court_type === 'doubles' ? 'doubles' : 'singles';
                                 return ['', 'vs ' + mp.opponents.map(o => {
                                     const r = type === 'doubles' ? o.utr_doubles_rating : o.utr_singles_rating;
                                     return `${o.name}${r !== null ? ' (' + parseFloat(r).toFixed(2) + ')' : ''}`;
