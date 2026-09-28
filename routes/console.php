@@ -24,7 +24,7 @@ Schedule::call(function () {
         }
         $utrIds = array_unique($utrIds);
         if (!empty($utrIds)) {
-            \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, 'utr_update_' . uniqid());
+            \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, 'utr_update_' . uniqid(), $league->id);
             $league->utr_last_updated_at = now();
         }
 

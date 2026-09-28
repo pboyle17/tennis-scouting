@@ -56,6 +56,11 @@
                             @else
                                 -
                             @endif
+                            @if(in_array($league->last_utr_update_status, ['error', 'warning']))
+                                <span class="{{ $league->last_utr_update_status === 'error' ? 'text-red-600' : 'text-amber-500' }}" title="{{ $league->last_utr_update_message }}">
+                                    {{ $league->last_utr_update_status === 'error' ? '⛔' : '⚠️' }}
+                                </span>
+                            @endif
                         </span>
                     </div>
                     <div>
@@ -214,6 +219,11 @@
                                 <span class="text-gray-600" title="{{ $league->utr_last_updated_at->format('Y-m-d H:i') }}">{{ $league->utr_last_updated_at->diffForHumans() }}</span>
                             @else
                                 <span class="text-gray-400">-</span>
+                            @endif
+                            @if(in_array($league->last_utr_update_status, ['error', 'warning']))
+                                <span class="{{ $league->last_utr_update_status === 'error' ? 'text-red-600' : 'text-amber-500' }}" title="{{ $league->last_utr_update_message }}">
+                                    {{ $league->last_utr_update_status === 'error' ? '⛔' : '⚠️' }}
+                                </span>
                             @endif
                         </td>
                         <td class="px-4 py-2 text-sm text-center">

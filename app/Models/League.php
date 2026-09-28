@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class League extends Model
 {
-    protected $fillable = ['name', 'usta_link', 'tennis_record_link', 'NTRP_rating', 'is_combo', 'active', 'daily_update', 'daily_update_time'];
+    protected $fillable = ['name', 'usta_link', 'tennis_record_link', 'NTRP_rating', 'is_combo', 'active', 'daily_update', 'daily_update_time', 'last_utr_update_status', 'last_utr_update_message'];
 
     protected $casts = [
         'active' => 'boolean',
