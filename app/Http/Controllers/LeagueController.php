@@ -390,7 +390,7 @@ class LeagueController extends Controller
 
         // Dispatch a single job to process all players sequentially (throttled to 10/min)
         $jobKey = 'utr_update_' . uniqid();
-        \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, $jobKey);
+        \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, $jobKey, $league->id);
 
         $league->utr_last_updated_at = now();
         $league->save();
@@ -736,7 +736,7 @@ class LeagueController extends Controller
         }
         $utrIds = array_unique($utrIds);
         if (!empty($utrIds)) {
-            \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, 'utr_update_' . uniqid());
+            \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, 'utr_update_' . uniqid(), $league->id);
             $league->utr_last_updated_at = now();
         }
 

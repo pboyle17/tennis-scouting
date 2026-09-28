@@ -433,7 +433,7 @@ class TeamController extends Controller
         // Dispatch a job for each batch
         foreach ($batches as $batch) {
             $jobKey = 'utr_update_' . uniqid();
-            UpdateUtrRatingsJob::dispatch($batch, $jobKey);
+            UpdateUtrRatingsJob::dispatch($batch, $jobKey, $team->league_id);
         }
 
         $playerCount = count($utrIds);

@@ -5,6 +5,7 @@ namespace App\Services;
 use Illuminate\Support\Facades\Http;
 use App\Models\Configuration;
 use Illuminate\Support\Facades\Log;
+use App\Exceptions\UtrRateLimitException;
 
 class UtrService
 {
@@ -32,6 +33,21 @@ class UtrService
 
         if ($response->successful()) {
             return $response->json();
+        }
+
+        if ($response->status() === 429) {
+            $retryAfter = $response->header('Retry-After');
+
+            Log::error("UTR API rate limited (429) fetching player {$utrId}", [
+                'utr_id' => $utrId,
+                'retry_after' => $retryAfter,
+                'headers' => $response->headers(),
+            ]);
+
+            throw new UtrRateLimitException(
+                "UTR API rate limited (429) for ID {$utrId}." . ($retryAfter ? " Retry-After: {$retryAfter}" : ''),
+                $retryAfter !== null ? (int) $retryAfter : null
+            );
         }
 
         throw new \Exception(
