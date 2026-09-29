@@ -17,34 +17,7 @@ Schedule::call(function () {
         ->get();
 
     foreach ($leagues as $league) {
-        // Dispatch UTR update
-        $utrIds = [];
-        foreach ($league->teams as $team) {
-            $utrIds = array_merge($utrIds, $team->players()->whereNotNull('utr_id')->pluck('utr_id')->toArray());
-        }
-        $utrIds = array_unique($utrIds);
-        if (!empty($utrIds)) {
-            \App\Jobs\UpdateUtrRatingsJob::dispatch($utrIds, 'utr_update_' . uniqid(), $league->id);
-            $league->utr_last_updated_at = now();
-        }
-
-        // Dispatch team syncs
-        $teamsToSync = $league->teams()->whereNotNull('tennis_record_link')->get();
-        foreach ($teamsToSync as $team) {
-            \App\Jobs\SyncTeamFromTennisRecordJob::dispatch($team);
-        }
-        if ($teamsToSync->isNotEmpty()) {
-            $league->teams_last_synced_at = now();
-        }
-
-        // Dispatch match detail syncs
-        $teamIds = $league->teams->pluck('id');
-        $matches = \App\Models\TennisMatch::where(function ($q) use ($teamIds) {
-            $q->whereIn('home_team_id', $teamIds)->orWhereIn('away_team_id', $teamIds);
-        })->whereNotNull('tennis_record_match_link')->get();
-        foreach ($matches as $match) {
-            \App\Jobs\SyncMatchFromTennisRecordJob::dispatch($match);
-        }
+        $league->dispatchUpdate();
 
         $league->last_daily_run_at = now();
         $league->save();

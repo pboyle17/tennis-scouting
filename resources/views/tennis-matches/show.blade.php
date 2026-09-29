@@ -154,14 +154,21 @@
                     <div class="px-2 md:px-8">
                         @if($match->home_score !== null && $match->away_score !== null)
                             <div class="flex items-center space-x-2 md:space-x-4">
-                                <div class="text-4xl md:text-5xl font-bold {{ $match->home_score > $match->away_score ? 'text-green-600' : 'text-gray-700' }}">
+                                <div class="text-4xl md:text-5xl font-bold {{ $match->homeWon() ? 'text-green-600' : 'text-gray-700' }}">
                                     {{ $match->home_score }}
                                 </div>
                                 <div class="text-2xl md:text-3xl text-gray-400">-</div>
-                                <div class="text-4xl md:text-5xl font-bold {{ $match->away_score > $match->home_score ? 'text-green-600' : 'text-gray-700' }}">
+                                <div class="text-4xl md:text-5xl font-bold {{ $match->awayWon() ? 'text-green-600' : 'text-gray-700' }}">
                                     {{ $match->away_score }}
                                 </div>
                             </div>
+                            @if($method = $match->tiebreakMethod())
+                                @php $totals = $match->tiebreakTotals(); @endphp
+                                <div class="text-xs text-gray-500 text-center mt-1">
+                                    Won on {{ $method }}
+                                    ({{ $totals["home_{$method}"] }}-{{ $totals["away_{$method}"] }})
+                                </div>
+                            @endif
                         @else
                             <div class="text-2xl text-gray-400 italic">Not played</div>
                         @endif

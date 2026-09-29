@@ -13,8 +13,32 @@ class ConfigurationController extends Controller
     public function index()
     {
       $configurations = Configuration::all();
-      return view('configurations.index', compact('configurations'));
+      $latestBackup = $this->latestBackup();
+      return view('configurations.index', compact('configurations', 'latestBackup'));
     }
+
+  /**
+   * Find the newest backup in S3 by the timestamp in its filename (cached briefly).
+   */
+  private function latestBackup(): ?array
+  {
+      try {
+          return \Cache::remember('latest_backup', now()->addMinutes(5), function () {
+              $latest = null;
+              foreach (\Storage::disk('s3')->files('backups') as $file) {
+                  if (!preg_match('/backup_.*?_(\d{4}-\d{2}-\d{2}_\d{6})/', basename($file), $matches)) continue;
+                  $date = \Carbon\Carbon::createFromFormat('Y-m-d_His', $matches[1], config('app.timezone'));
+                  if (!$latest || $date->gt($latest['at'])) {
+                      $latest = ['at' => $date, 'filename' => basename($file)];
+                  }
+              }
+              return $latest;
+          });
+      } catch (\Exception $e) {
+          \Log::warning('Could not determine latest backup', ['error' => $e->getMessage()]);
+          return null;
+      }
+  }
 
     /**
      * Show the form for creating a new resource.
@@ -165,6 +189,8 @@ class ConfigurationController extends Controller
           // Delete local backup file
           unlink($localPath);
 
+          \Cache::forget('latest_backup');
+
           $message = "Database backup uploaded successfully to S3: {$filename}";
           \Log::info($message);
 
@@ -260,6 +286,7 @@ class ConfigurationController extends Controller
       }
 
       \Storage::disk('s3')->delete($s3Key);
+      \Cache::forget('latest_backup');
       \Log::info("Backup deleted from S3: {$s3Key}");
 
       return redirect()->route('configurations.index')->with('success', 'Backup deleted: ' . basename($s3Key));

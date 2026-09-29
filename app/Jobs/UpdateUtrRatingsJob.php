@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Bus\Batchable;
 use Illuminate\Foundation\Queue\Queueable;
 use App\Models\League;
 use App\Models\Player;
@@ -14,7 +15,7 @@ use Carbon\Carbon;
 
 class UpdateUtrRatingsJob implements ShouldQueue
 {
-    use Queueable;
+    use Batchable, Queueable;
 
     /**
      * The number of seconds the job can run before timing out.
@@ -33,15 +34,17 @@ class UpdateUtrRatingsJob implements ShouldQueue
     protected $playerIds;
     protected $jobKey;
     protected $leagueId;
+    protected $skipUpdatedToday;
 
     /**
      * Create a new job instance.
      */
-    public function __construct(array $playerIds = [], $jobKey = null, ?int $leagueId = null)
+    public function __construct(array $playerIds = [], $jobKey = null, ?int $leagueId = null, bool $skipUpdatedToday = false)
     {
         $this->playerIds = $playerIds;
         $this->jobKey = $jobKey ?? 'utr_update_' . uniqid();
         $this->leagueId = $leagueId;
+        $this->skipUpdatedToday = $skipUpdatedToday;
     }
 
     /**
@@ -66,6 +69,8 @@ class UpdateUtrRatingsJob implements ShouldQueue
       $processed = 0;
       $updated = 0;
       $failed = 0;
+      $skipped = 0;
+      $requests = 0;
 
       // Set initial status
       Cache::put($this->jobKey, [
@@ -79,6 +84,14 @@ class UpdateUtrRatingsJob implements ShouldQueue
       $rateLimited = false;
 
       foreach ($players as $player) {
+          // Skip players already refreshed today (league/scheduled updates only)
+          if ($this->skipUpdatedToday && $player->utr_singles_updated_at?->isToday()) {
+              $skipped++;
+              $processed++;
+              continue;
+          }
+
+          $requests++;
           try {
             $data = $utrService->fetchUtrRating($player->utr_id);
             $player->utr_singles_rating = $data['singlesUtr'];
@@ -116,12 +129,13 @@ class UpdateUtrRatingsJob implements ShouldQueue
               'processed' => $processed,
               'updated' => $updated,
               'failed' => $failed,
+              'skipped' => $skipped,
           ], 300);
 
           // Throttle in batches of 20 requests, then pause a minute, rather
           // than spacing every request evenly. No need to wait after the
           // last player in the list.
-          if ($processed % 20 === 0 && $processed < $total) {
+          if ($requests % 20 === 0 && $processed < $total) {
               sleep(60);
           }
       }
@@ -133,10 +147,11 @@ class UpdateUtrRatingsJob implements ShouldQueue
           'processed' => $processed,
           'updated' => $updated,
           'failed' => $failed,
-      ], 300);
+          'skipped' => $skipped,
+      ], 3600); // kept longer so league update progress can still read it
 
       Log::info(
-        "UTR update completed. Total: {$total}, Updated: {$updated}, Failed: {$failed}"
+        "UTR update completed. Total: {$total}, Updated: {$updated}, Failed: {$failed}, Skipped (updated today): {$skipped}"
     );
 
       $this->recordLeagueStatus($total, $updated, $failed, $rateLimited);

@@ -68,7 +68,19 @@
         </div>
     @endif
 
-    <div class="flex justify-end mb-4 space-x-2">
+    <div class="flex flex-wrap justify-end items-center mb-4 gap-2">
+        <div class="mr-auto text-sm text-gray-600">
+            <span class="font-semibold">Last backup:</span>
+            @if($latestBackup)
+                @php $backupAge = $latestBackup['at']->diffInHours(now()); @endphp
+                <span class="{{ $backupAge >= 48 ? 'text-red-600 font-semibold' : 'text-gray-800' }}" title="{{ $latestBackup['filename'] }}">
+                    {{ $latestBackup['at']->format('M j, Y g:i A') }}
+                    ({{ $latestBackup['at']->diffForHumans() }})
+                </span>
+            @else
+                <span class="text-gray-400">Unknown</span>
+            @endif
+        </div>
         @env('local')
             <form method="POST" action="{{ route('configurations.backupDatabase') }}" style="display:inline;">
                 @csrf
