@@ -3,6 +3,7 @@
 namespace App\Jobs;
 
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Bus\Batchable;
 use Illuminate\Foundation\Queue\Queueable;
 use App\Models\Team;
 use App\Models\Player;
@@ -13,7 +14,7 @@ use Illuminate\Support\Facades\Cache;
 
 class SyncTeamFromTennisRecordJob implements ShouldQueue
 {
-    use Queueable;
+    use Batchable, Queueable;
 
     protected $team;
     protected $jobKey;

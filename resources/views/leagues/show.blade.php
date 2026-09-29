@@ -165,8 +165,8 @@
     <!-- UTR Search Results -->
     @if(session('utr_search_results'))
         <div class="mb-6">
-            <!-- Success notification area -->
-            <div id="utr-success-notifications" class="mb-4"></div>
+            <!-- Success notification area (fixed so toasts don't shift the page) -->
+            <div id="utr-success-notifications" class="fixed top-20 right-4 z-50 flex flex-col items-end gap-2 max-w-sm pointer-events-none"></div>
 
             @foreach(session('utr_search_results') as $searchResult)
                 @php
@@ -408,6 +408,7 @@
             <p class="text-gray-700">
                 <span class="font-semibold">Team Comparison:</span> <span class="text-green-600 font-semibold">Green (+)</span> = above league avg, <span class="text-red-600 font-semibold">Red (-)</span> = below league avg.
             </p>
+            <div class="mt-2">@include('partials.rating-toggle')</div>
         </div>
         @forelse ($league->teams as $team)
             @php
@@ -486,12 +487,12 @@
                                 $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                             @endphp
                             <a href="{{ route('leagues.courtResults', [$league->id, 'singles', 1]) }}{{ $teamFilter }}" class="block text-gray-700 hover:text-blue-600">
-                                <div>UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                <div class="rating-utr">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
                                     @if($utrDiff !== null)
                                         <span class="{{ $utrDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
                                     @endif
                                 </div>
-                                <div>USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                <div class="rating-usta">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
                                     @if($ustaDiff !== null)
                                         <span class="{{ $ustaDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
                                     @endif
@@ -515,12 +516,12 @@
                                 $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                             @endphp
                             <a href="{{ route('leagues.courtResults', [$league->id, 'singles', 2]) }}{{ $teamFilter }}" class="block text-gray-700 hover:text-blue-600">
-                                <div>UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                <div class="rating-utr">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
                                     @if($utrDiff !== null)
                                         <span class="{{ $utrDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
                                     @endif
                                 </div>
-                                <div>USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                <div class="rating-usta">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
                                     @if($ustaDiff !== null)
                                         <span class="{{ $ustaDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
                                     @endif
@@ -544,12 +545,12 @@
                                 $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                             @endphp
                             <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 1]) }}{{ $teamFilter }}" class="block text-gray-700 hover:text-blue-600">
-                                <div>UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                <div class="rating-utr">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
                                     @if($utrDiff !== null)
                                         <span class="{{ $utrDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
                                     @endif
                                 </div>
-                                <div>USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                <div class="rating-usta">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
                                     @if($ustaDiff !== null)
                                         <span class="{{ $ustaDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
                                     @endif
@@ -573,12 +574,12 @@
                                 $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                             @endphp
                             <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 2]) }}{{ $teamFilter }}" class="block text-gray-700 hover:text-blue-600">
-                                <div>UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                <div class="rating-utr">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
                                     @if($utrDiff !== null)
                                         <span class="{{ $utrDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
                                     @endif
                                 </div>
-                                <div>USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                <div class="rating-usta">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
                                     @if($ustaDiff !== null)
                                         <span class="{{ $ustaDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
                                     @endif
@@ -602,12 +603,12 @@
                                 $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                             @endphp
                             <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 3]) }}{{ $teamFilter }}" class="block text-gray-700 hover:text-blue-600">
-                                <div>UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
+                                <div class="rating-utr">UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
                                     @if($utrDiff !== null)
                                         <span class="{{ $utrDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
                                     @endif
                                 </div>
-                                <div>USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
+                                <div class="rating-usta">USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
                                     @if($ustaDiff !== null)
                                         <span class="{{ $ustaDiff >= 0 ? 'text-green-600 font-semibold' : 'text-red-600 font-semibold' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
                                     @endif
@@ -635,16 +636,27 @@
                 <span class="text-red-600 font-semibold">Red (-)</span> means below league average.
                 Hover over any cell to see the league average for that position.
             </p>
+            <div class="mt-3">@include('partials.rating-toggle')</div>
         </div>
         <table class="w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Team Name</th>
-                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Singles #1</th>
-                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Singles #2</th>
-                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Doubles #1</th>
-                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Doubles #2</th>
-                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Doubles #3</th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        <a href="{{ route('leagues.courtResults', [$league->id, 'singles', 1]) }}" class="hover:text-blue-600 hover:underline">Singles #1</a>
+                    </th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        <a href="{{ route('leagues.courtResults', [$league->id, 'singles', 2]) }}" class="hover:text-blue-600 hover:underline">Singles #2</a>
+                    </th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 1]) }}" class="hover:text-blue-600 hover:underline">Doubles #1</a>
+                    </th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 2]) }}" class="hover:text-blue-600 hover:underline">Doubles #2</a>
+                    </th>
+                    <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">
+                        <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 3]) }}" class="hover:text-blue-600 hover:underline">Doubles #3</a>
+                    </th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-200">
@@ -723,13 +735,13 @@
                                     $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                                 @endphp
                                 <a href="{{ route('leagues.courtResults', [$league->id, 'singles', 1]) }}{{ $teamFilter }}" class="block relative group text-xs">
-                                    <div class="{{ $utrColor }}">
+                                    <div class="rating-utr {{ $utrColor }}">
                                         UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
                                         @if($utrDiff !== null)
                                             <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
                                         @endif
                                     </div>
-                                    <div class="{{ $ustaColor }}">
+                                    <div class="rating-usta {{ $ustaColor }}">
                                         USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
                                         @if($ustaDiff !== null)
                                             <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
@@ -737,8 +749,8 @@
                                     </div>
                                     <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
                                         <div class="font-semibold mb-1">League Average - Singles #1</div>
-                                        <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
-                                        <div>USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
+                                        <div class="rating-utr">UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
+                                        <div class="rating-usta">USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
                                     </div>
                                 </a>
                             @else
@@ -758,13 +770,13 @@
                                     $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                                 @endphp
                                 <a href="{{ route('leagues.courtResults', [$league->id, 'singles', 2]) }}{{ $teamFilter }}" class="block relative group text-xs">
-                                    <div class="{{ $utrColor }}">
+                                    <div class="rating-utr {{ $utrColor }}">
                                         UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
                                         @if($utrDiff !== null)
                                             <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
                                         @endif
                                     </div>
-                                    <div class="{{ $ustaColor }}">
+                                    <div class="rating-usta {{ $ustaColor }}">
                                         USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
                                         @if($ustaDiff !== null)
                                             <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
@@ -772,8 +784,8 @@
                                     </div>
                                     <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
                                         <div class="font-semibold mb-1">League Average - Singles #2</div>
-                                        <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
-                                        <div>USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
+                                        <div class="rating-utr">UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
+                                        <div class="rating-usta">USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
                                     </div>
                                 </a>
                             @else
@@ -793,13 +805,13 @@
                                     $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                                 @endphp
                                 <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 1]) }}{{ $teamFilter }}" class="block relative group text-xs">
-                                    <div class="{{ $utrColor }}">
+                                    <div class="rating-utr {{ $utrColor }}">
                                         UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
                                         @if($utrDiff !== null)
                                             <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
                                         @endif
                                     </div>
-                                    <div class="{{ $ustaColor }}">
+                                    <div class="rating-usta {{ $ustaColor }}">
                                         USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
                                         @if($ustaDiff !== null)
                                             <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
@@ -807,8 +819,8 @@
                                     </div>
                                     <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
                                         <div class="font-semibold mb-1">League Average - Doubles #1</div>
-                                        <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
-                                        <div>USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
+                                        <div class="rating-utr">UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
+                                        <div class="rating-usta">USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
                                     </div>
                                 </a>
                             @else
@@ -828,13 +840,13 @@
                                     $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                                 @endphp
                                 <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 2]) }}{{ $teamFilter }}" class="block relative group text-xs">
-                                    <div class="{{ $utrColor }}">
+                                    <div class="rating-utr {{ $utrColor }}">
                                         UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
                                         @if($utrDiff !== null)
                                             <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
                                         @endif
                                     </div>
-                                    <div class="{{ $ustaColor }}">
+                                    <div class="rating-usta {{ $ustaColor }}">
                                         USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
                                         @if($ustaDiff !== null)
                                             <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
@@ -842,8 +854,8 @@
                                     </div>
                                     <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
                                         <div class="font-semibold mb-1">League Average - Doubles #2</div>
-                                        <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
-                                        <div>USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
+                                        <div class="rating-utr">UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
+                                        <div class="rating-usta">USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
                                     </div>
                                 </a>
                             @else
@@ -863,13 +875,13 @@
                                     $ustaDiff = $teamUsta && $leagueAvgUsta ? $teamUsta - $leagueAvgUsta : null;
                                 @endphp
                                 <a href="{{ route('leagues.courtResults', [$league->id, 'doubles', 3]) }}{{ $teamFilter }}" class="block relative group text-xs">
-                                    <div class="{{ $utrColor }}">
+                                    <div class="rating-utr {{ $utrColor }}">
                                         UTR: {{ $teamUtr ? number_format($teamUtr, 2) : '-' }}
                                         @if($utrDiff !== null)
                                             <span class="{{ $utrDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $utrDiff >= 0 ? '+' : '' }}{{ number_format($utrDiff, 2) }})</span>
                                         @endif
                                     </div>
-                                    <div class="{{ $ustaColor }}">
+                                    <div class="rating-usta {{ $ustaColor }}">
                                         USTA: {{ $teamUsta ? number_format($teamUsta, 2) : '-' }}
                                         @if($ustaDiff !== null)
                                             <span class="{{ $ustaDiff >= 0 ? 'text-green-600' : 'text-red-600' }}">({{ $ustaDiff >= 0 ? '+' : '' }}{{ number_format($ustaDiff, 2) }})</span>
@@ -877,8 +889,8 @@
                                     </div>
                                     <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2 hidden group-hover:block bg-gray-800 text-white text-xs rounded py-2 px-3 whitespace-nowrap z-50">
                                         <div class="font-semibold mb-1">League Average - Doubles #3</div>
-                                        <div>UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
-                                        <div>USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
+                                        <div class="rating-utr">UTR: {{ $leagueAvgUtr ? number_format($leagueAvgUtr, 2) : 'N/A' }}</div>
+                                        <div class="rating-usta">USTA: {{ $leagueAvgUsta ? number_format($leagueAvgUsta, 2) : 'N/A' }}</div>
                                     </div>
                                 </a>
                             @else
@@ -1506,9 +1518,9 @@
                                         @if($isUnplayed)
                                             <span class="text-gray-400">{{ $match->home_score }} - {{ $match->away_score }}</span>
                                         @else
-                                            <span class="{{ $match->home_score > $match->away_score ? 'text-green-600' : 'text-gray-900' }}">{{ $match->home_score }}</span>
+                                            <span class="{{ $match->homeWon() ? 'text-green-600' : 'text-gray-900' }}">{{ $match->home_score }}</span>
                                             <span class="text-gray-900"> - </span>
-                                            <span class="{{ $match->away_score > $match->home_score ? 'text-green-600' : 'text-gray-900' }}">{{ $match->away_score }}</span>
+                                            <span class="{{ $match->awayWon() ? 'text-green-600' : 'text-gray-900' }}">{{ $match->away_score }}</span>
                                         @endif
                                     </div>
                                 @else
@@ -1585,9 +1597,9 @@
                                             @if($isUnplayed)
                                                 <span class="text-gray-400">{{ $match->home_score }} - {{ $match->away_score }}</span>
                                             @else
-                                                <span class="{{ $match->home_score > $match->away_score ? 'text-green-600' : 'text-gray-900' }}">{{ $match->home_score }}</span>
+                                                <span class="{{ $match->homeWon() ? 'text-green-600' : 'text-gray-900' }}">{{ $match->home_score }}</span>
                                                 <span class="text-gray-900"> - </span>
-                                                <span class="{{ $match->away_score > $match->home_score ? 'text-green-600' : 'text-gray-900' }}">{{ $match->away_score }}</span>
+                                                <span class="{{ $match->awayWon() ? 'text-green-600' : 'text-gray-900' }}">{{ $match->away_score }}</span>
                                             @endif
                                         </a>
                                     @else
@@ -2098,7 +2110,7 @@
                     if (response.ok && data.success) {
                         // Show success notification
                         const notification = document.createElement('div');
-                        notification.className = 'bg-green-100 text-green-700 p-2 rounded mb-2 transition-opacity duration-500';
+                        notification.className = 'bg-green-100 text-green-700 p-2 rounded shadow-lg transition-opacity duration-500';
                         notification.textContent = data.message;
                         notificationsArea.appendChild(notification);
 
@@ -2118,7 +2130,7 @@
                     } else {
                         // Show error notification
                         const notification = document.createElement('div');
-                        notification.className = 'bg-red-100 text-red-700 p-2 rounded mb-2';
+                        notification.className = 'bg-red-100 text-red-700 p-2 rounded shadow-lg';
                         notification.textContent = 'Error: ' + (data.message || data.error || JSON.stringify(data) || 'Failed to save UTR data');
                         notificationsArea.appendChild(notification);
 
@@ -2128,7 +2140,7 @@
                 } catch (error) {
                     console.error('Error:', error);
                     const notification = document.createElement('div');
-                    notification.className = 'bg-red-100 text-red-700 p-2 rounded mb-2';
+                    notification.className = 'bg-red-100 text-red-700 p-2 rounded shadow-lg';
                     notification.textContent = 'Network error: ' + error.message;
                     notificationsArea.appendChild(notification);
 

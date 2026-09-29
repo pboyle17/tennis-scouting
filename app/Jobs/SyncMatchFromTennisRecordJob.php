@@ -7,6 +7,7 @@ use App\Models\CourtPlayer;
 use App\Models\Player;
 use App\Models\TennisMatch;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Bus\Batchable;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -15,7 +16,7 @@ use Symfony\Component\DomCrawler\Crawler;
 
 class SyncMatchFromTennisRecordJob implements ShouldQueue
 {
-    use Queueable;
+    use Batchable, Queueable;
 
     public $timeout = 300; // 5 minutes
     public $tries = 3;

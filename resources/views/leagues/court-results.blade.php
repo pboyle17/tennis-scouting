@@ -10,9 +10,12 @@
                 <h1 class="text-3xl font-bold text-gray-800">{{ ucfirst($type) }} {{ $number }} Results</h1>
                 <a href="{{ route('leagues.show', $league->id) }}" class="text-blue-600 hover:underline text-sm">{{ $league->name }}</a>
             </div>
-            <a href="{{ route('leagues.show', $league->id) }}" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded self-start">
-                ← Back to League
-            </a>
+            <div class="flex items-center gap-3 self-start">
+                @include('partials.rating-toggle')
+                <a href="{{ route('leagues.show', $league->id) }}" class="bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded">
+                    ← Back to League
+                </a>
+            </div>
         </div>
 
         <!-- Court Nav -->
@@ -61,39 +64,41 @@
             </div>
         @else
             @php
-                $allUtrs = [];
-                $winnerUtrs = [];
-                $loserUtrs = [];
-                foreach ($courts as $court) {
-                    $m = $court->tennisMatch;
-                    $hp = $court->courtPlayers->where('team_id', $m->home_team_id);
-                    $ap = $court->courtPlayers->where('team_id', $m->away_team_id);
-                    $homeWon = $court->home_score > $court->away_score;
-                    $awayWon = $court->away_score > $court->home_score;
-                    $hUtrs = $hp->map(fn($cp) => $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating)->filter()->values()->all();
-                    $aUtrs = $ap->map(fn($cp) => $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating)->filter()->values()->all();
-                    $allUtrs = array_merge($allUtrs, $hUtrs, $aUtrs);
-                    if ($homeWon) { $winnerUtrs = array_merge($winnerUtrs, $hUtrs); $loserUtrs = array_merge($loserUtrs, $aUtrs); }
-                    elseif ($awayWon) { $winnerUtrs = array_merge($winnerUtrs, $aUtrs); $loserUtrs = array_merge($loserUtrs, $hUtrs); }
+                $ratingStats = [];
+                foreach (['utr', 'usta'] as $kind) {
+                    $all = []; $winners = []; $losers = [];
+                    foreach ($courts as $court) {
+                        $m = $court->tennisMatch;
+                        $rate = fn($cp) => $kind === 'usta'
+                            ? $cp->usta_dynamic_rating
+                            : ($type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating);
+                        $h = $court->courtPlayers->where('team_id', $m->home_team_id)->map($rate)->filter()->values()->all();
+                        $a = $court->courtPlayers->where('team_id', $m->away_team_id)->map($rate)->filter()->values()->all();
+                        $all = array_merge($all, $h, $a);
+                        if ($court->home_score > $court->away_score) { $winners = array_merge($winners, $h); $losers = array_merge($losers, $a); }
+                        elseif ($court->away_score > $court->home_score) { $winners = array_merge($winners, $a); $losers = array_merge($losers, $h); }
+                    }
+                    $avg = fn($vals) => count($vals) ? array_sum($vals) / count($vals) : null;
+                    $ratingStats[$kind] = ['avg' => $avg($all), 'winner' => $avg($winners), 'loser' => $avg($losers)];
                 }
-                $avgUtr = count($allUtrs) ? array_sum($allUtrs) / count($allUtrs) : null;
-                $avgWinnerUtr = count($winnerUtrs) ? array_sum($winnerUtrs) / count($winnerUtrs) : null;
-                $avgLoserUtr = count($loserUtrs) ? array_sum($loserUtrs) / count($loserUtrs) : null;
+                $ratingLabels = ['utr' => 'UTR', 'usta' => 'USTA'];
             @endphp
-            <div class="grid grid-cols-3 gap-4 mb-4">
-                <div class="bg-white rounded-lg shadow p-4 text-center">
-                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Avg UTR</div>
-                    <div class="text-2xl font-bold text-gray-800">{{ $avgUtr !== null ? number_format($avgUtr, 2) : '—' }}</div>
+            @foreach($ratingStats as $kind => $stat)
+                <div class="rating-{{ $kind }} grid grid-cols-3 gap-4 mb-4">
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Avg {{ $ratingLabels[$kind] }}</div>
+                        <div class="text-2xl font-bold text-gray-800">{{ $stat['avg'] !== null ? number_format($stat['avg'], 2) : '—' }}</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Winner Avg {{ $ratingLabels[$kind] }}</div>
+                        <div class="text-2xl font-bold text-green-600">{{ $stat['winner'] !== null ? number_format($stat['winner'], 2) : '—' }}</div>
+                    </div>
+                    <div class="bg-white rounded-lg shadow p-4 text-center">
+                        <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Loser Avg {{ $ratingLabels[$kind] }}</div>
+                        <div class="text-2xl font-bold text-red-500">{{ $stat['loser'] !== null ? number_format($stat['loser'], 2) : '—' }}</div>
+                    </div>
                 </div>
-                <div class="bg-white rounded-lg shadow p-4 text-center">
-                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Winner Avg UTR</div>
-                    <div class="text-2xl font-bold text-green-600">{{ $avgWinnerUtr !== null ? number_format($avgWinnerUtr, 2) : '—' }}</div>
-                </div>
-                <div class="bg-white rounded-lg shadow p-4 text-center">
-                    <div class="text-xs text-gray-500 uppercase font-semibold mb-1">Loser Avg UTR</div>
-                    <div class="text-2xl font-bold text-red-500">{{ $avgLoserUtr !== null ? number_format($avgLoserUtr, 2) : '—' }}</div>
-                </div>
-            </div>
+            @endforeach
 
             <div class="bg-white rounded-lg shadow-lg overflow-hidden">
                 <div class="bg-gray-50 border-b border-gray-200 px-6 py-4 flex items-center justify-between">
@@ -128,12 +133,13 @@
                                     </td>
                                     <td class="px-4 py-3">
                                         @foreach($homePlayers as $cp)
-                                            @php $utr = $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating; @endphp
+                                            @php $utr = $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating; $usta = $cp->usta_dynamic_rating; @endphp
                                             <div>
                                                 <a href="{{ route('players.show', $cp->player->id) }}?team={{ $cp->team_id }}&court={{ $type }}&line={{ $number }}#match-history" class="hover:underline {{ $homeWon ? 'text-green-600 font-semibold' : 'text-blue-600' }}">
                                                     {{ $cp->player->first_name }} {{ $cp->player->last_name }}
                                                 </a>
-                                                <span class="text-xs text-gray-400 ml-1">{{ $utr ? number_format($utr, 2) : 'x.xx' }}</span>
+                                                <span class="rating-utr text-xs text-gray-400 ml-1">{{ $utr ? number_format($utr, 2) : 'x.xx' }}</span>
+                                                <span class="rating-usta text-xs text-gray-400 ml-1">{{ $usta ? number_format($usta, 2) : 'x.xx' }}</span>
                                             </div>
                                         @endforeach
                                         @if($homePlayers->isEmpty()) <span class="text-gray-400 italic text-xs">Default</span> @endif
@@ -152,12 +158,13 @@
                                     </td>
                                     <td class="px-4 py-3">
                                         @foreach($awayPlayers as $cp)
-                                            @php $utr = $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating; @endphp
+                                            @php $utr = $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating; $usta = $cp->usta_dynamic_rating; @endphp
                                             <div>
                                                 <a href="{{ route('players.show', $cp->player->id) }}?team={{ $cp->team_id }}&court={{ $type }}&line={{ $number }}#match-history" class="hover:underline {{ $awayWon ? 'text-green-600 font-semibold' : 'text-blue-600' }}">
                                                     {{ $cp->player->first_name }} {{ $cp->player->last_name }}
                                                 </a>
-                                                <span class="text-xs text-gray-400 ml-1">{{ $utr ? number_format($utr, 2) : 'x.xx' }}</span>
+                                                <span class="rating-utr text-xs text-gray-400 ml-1">{{ $utr ? number_format($utr, 2) : 'x.xx' }}</span>
+                                                <span class="rating-usta text-xs text-gray-400 ml-1">{{ $usta ? number_format($usta, 2) : 'x.xx' }}</span>
                                             </div>
                                         @endforeach
                                         @if($awayPlayers->isEmpty()) <span class="text-gray-400 italic text-xs">Default</span> @endif
@@ -197,10 +204,11 @@
                                         <a href="{{ route('teams.show', $match->home_team_id) }}" class="hover:underline">{{ $match->homeTeam->name }}</a>
                                     </div>
                                     @foreach($homePlayers as $cp)
-                                        @php $utr = $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating; @endphp
+                                        @php $utr = $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating; $usta = $cp->usta_dynamic_rating; @endphp
                                         <div class="text-sm">
                                             <a href="{{ route('players.show', $cp->player->id) }}?team={{ $cp->team_id }}&court={{ $type }}&line={{ $number }}#match-history" class="hover:underline {{ $homeWon ? 'text-green-600 font-semibold' : 'text-blue-600' }}">{{ $cp->player->first_name }} {{ $cp->player->last_name }}</a>
-                                            <span class="text-xs text-gray-400">{{ $utr ? number_format($utr, 2) : 'x.xx' }}</span>
+                                            <span class="rating-utr text-xs text-gray-400">{{ $utr ? number_format($utr, 2) : 'x.xx' }}</span>
+                                            <span class="rating-usta text-xs text-gray-400">{{ $usta ? number_format($usta, 2) : 'x.xx' }}</span>
                                         </div>
                                     @endforeach
                                     @if($homePlayers->isEmpty()) <span class="text-gray-400 italic text-xs">Default</span> @endif
@@ -219,10 +227,11 @@
                                         <a href="{{ route('teams.show', $match->away_team_id) }}" class="hover:underline">{{ $match->awayTeam->name }}</a>
                                     </div>
                                     @foreach($awayPlayers as $cp)
-                                        @php $utr = $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating; @endphp
+                                        @php $utr = $type === 'singles' ? $cp->utr_singles_rating : $cp->utr_doubles_rating; $usta = $cp->usta_dynamic_rating; @endphp
                                         <div class="text-sm">
                                             <a href="{{ route('players.show', $cp->player->id) }}?team={{ $cp->team_id }}&court={{ $type }}&line={{ $number }}#match-history" class="hover:underline {{ $awayWon ? 'text-green-600 font-semibold' : 'text-blue-600' }}">{{ $cp->player->first_name }} {{ $cp->player->last_name }}</a>
-                                            <span class="text-xs text-gray-400">{{ $utr ? number_format($utr, 2) : 'x.xx' }}</span>
+                                            <span class="rating-utr text-xs text-gray-400">{{ $utr ? number_format($utr, 2) : 'x.xx' }}</span>
+                                            <span class="rating-usta text-xs text-gray-400">{{ $usta ? number_format($usta, 2) : 'x.xx' }}</span>
                                         </div>
                                     @endforeach
                                     @if($awayPlayers->isEmpty()) <span class="text-gray-400 italic text-xs">Default</span> @endif
@@ -257,6 +266,7 @@
                                     $total = $record['wins'] + $record['losses'];
                                     $pct = $total ? round($record['wins'] / $total * 100) : 0;
                                     $playerUtr = $type === 'singles' ? $record['player']->utr_singles_rating : $record['player']->utr_doubles_rating;
+                                    $playerUsta = $record['player']->USTA_dynamic_rating;
                                 @endphp
                                 <tr class="hover:bg-gray-50">
                                     <td class="px-4 py-2">
@@ -264,7 +274,10 @@
                                             {{ $record['player']->first_name }} {{ $record['player']->last_name }}
                                         </a>
                                         @if($playerUtr)
-                                            <span class="text-xs text-gray-400">({{ number_format($playerUtr, 2) }})</span>
+                                            <span class="rating-utr text-xs text-gray-400">({{ number_format($playerUtr, 2) }})</span>
+                                        @endif
+                                        @if($playerUsta)
+                                            <span class="rating-usta text-xs text-gray-400">({{ number_format($playerUsta, 2) }})</span>
                                         @endif
                                     </td>
                                     <td class="px-4 py-2 text-gray-600">

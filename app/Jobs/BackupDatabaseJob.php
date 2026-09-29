@@ -52,6 +52,7 @@ class BackupDatabaseJob implements ShouldQueue
             $s3Path = "backups/{$filename}";
             \Storage::disk('s3')->put($s3Path, file_get_contents($localPath));
             unlink($localPath);
+            \Cache::forget('latest_backup');
 
             \Log::info("Scheduled database backup uploaded to S3: {$filename}");
 

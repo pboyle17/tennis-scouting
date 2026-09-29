@@ -133,8 +133,8 @@
 
     @if(session('utr_search_results'))
         <div class="mb-6">
-            <!-- Success notification area -->
-            <div id="utr-success-notifications" class="mb-4"></div>
+            <!-- Success notification area (fixed so toasts don't shift the page) -->
+            <div id="utr-success-notifications" class="fixed top-20 right-4 z-50 flex flex-col items-end gap-2 max-w-sm pointer-events-none"></div>
 
             @foreach(session('utr_search_results') as $searchResult)
                 @php
@@ -1258,9 +1258,9 @@
                                     @if($isUnplayed)
                                         <span class="text-gray-400">{{ $currentScore }} - {{ $opponentScore }}</span>
                                     @else
-                                        <span class="{{ $currentScore > $opponentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $currentScore }}</span>
+                                        <span class="{{ $match->winningSide() === ($isHomeTeam ? 'home' : 'away') ? 'text-green-600' : 'text-gray-900' }}">{{ $currentScore }}</span>
                                         <span class="text-gray-900"> - </span>
-                                        <span class="{{ $opponentScore > $currentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $opponentScore }}</span>
+                                        <span class="{{ $match->winningSide() === ($isHomeTeam ? 'away' : 'home') ? 'text-green-600' : 'text-gray-900' }}">{{ $opponentScore }}</span>
                                     @endif
                                 </div>
                             @else
@@ -1354,9 +1354,9 @@
                                             @if($isUnplayed)
                                                 <span class="text-gray-400">{{ $currentScore }} - {{ $opponentScore }}</span>
                                             @else
-                                                <span class="{{ $currentScore > $opponentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $currentScore }}</span>
+                                                <span class="{{ $match->winningSide() === ($isHomeTeam ? 'home' : 'away') ? 'text-green-600' : 'text-gray-900' }}">{{ $currentScore }}</span>
                                                 <span class="text-gray-900"> - </span>
-                                                <span class="{{ $opponentScore > $currentScore ? 'text-green-600' : 'text-gray-900' }}">{{ $opponentScore }}</span>
+                                                <span class="{{ $match->winningSide() === ($isHomeTeam ? 'away' : 'home') ? 'text-green-600' : 'text-gray-900' }}">{{ $opponentScore }}</span>
                                             @endif
                                         </a>
                                     @else
@@ -1694,7 +1694,7 @@
                     if (response.ok && data.success) {
                         // Show success notification
                         const notification = document.createElement('div');
-                        notification.className = 'bg-green-100 text-green-700 p-2 rounded mb-2 transition-opacity duration-500';
+                        notification.className = 'bg-green-100 text-green-700 p-2 rounded shadow-lg transition-opacity duration-500';
                         notification.textContent = data.message;
                         notificationsArea.appendChild(notification);
 
@@ -1714,7 +1714,7 @@
                     } else {
                         // Show error notification
                         const notification = document.createElement('div');
-                        notification.className = 'bg-red-100 text-red-700 p-2 rounded mb-2';
+                        notification.className = 'bg-red-100 text-red-700 p-2 rounded shadow-lg';
                         notification.textContent = 'Error: ' + (data.message || data.error || JSON.stringify(data) || 'Failed to save UTR data');
                         notificationsArea.appendChild(notification);
 
@@ -1725,7 +1725,7 @@
 
                     // Show error notification
                     const notification = document.createElement('div');
-                    notification.className = 'bg-red-100 text-red-700 p-2 rounded mb-2';
+                    notification.className = 'bg-red-100 text-red-700 p-2 rounded shadow-lg';
                     notification.textContent = 'Error: Failed to save UTR data. Please check the console for details.';
                     notificationsArea.appendChild(notification);
 
