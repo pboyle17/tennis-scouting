@@ -64,9 +64,7 @@
                                 -
                             @endif
                             @if(in_array($league->last_utr_update_status, ['error', 'warning']))
-                                <span class="{{ $league->last_utr_update_status === 'error' ? 'text-red-600' : 'text-amber-500' }}" title="{{ $league->last_utr_update_message }}">
-                                    {{ $league->last_utr_update_status === 'error' ? '⛔' : '⚠️' }}
-                                </span>
+                                @include('partials.status-popover', ['status' => $league->last_utr_update_status, 'message' => $league->last_utr_update_message])
                             @endif
                         </span>
                     </div>
@@ -274,9 +272,7 @@
                                 <span class="text-gray-400">-</span>
                             @endif
                             @if(in_array($league->last_utr_update_status, ['error', 'warning']))
-                                <span class="{{ $league->last_utr_update_status === 'error' ? 'text-red-600' : 'text-amber-500' }}" title="{{ $league->last_utr_update_message }}">
-                                    {{ $league->last_utr_update_status === 'error' ? '⛔' : '⚠️' }}
-                                </span>
+                                @include('partials.status-popover', ['status' => $league->last_utr_update_status, 'message' => $league->last_utr_update_message])
                             @endif
                         </td>
                         <td class="px-4 py-2 text-sm text-center">

@@ -127,24 +127,52 @@ class PlayerController extends Controller
             ->orderBy('snapshot_date')
             ->get(['snapshot_date', 'utr_singles_rating', 'utr_doubles_rating', 'usta_dynamic_rating']);
 
-        // Upcoming matches (next 7 days) for any team this player is on
+        // Upcoming / recent matches for any team this player is on. Each shows the weekend
+        // of the nearest match in that direction, however far away it is.
         $teamIds = $player->teams->pluck('id');
-        $upcomingMatches = \App\Models\TennisMatch::where(function ($query) use ($teamIds) {
+        $teamMatches = fn() => \App\Models\TennisMatch::where(function ($query) use ($teamIds) {
                 $query->whereIn('home_team_id', $teamIds)
                     ->orWhereIn('away_team_id', $teamIds);
-            })
-            ->whereBetween('start_time', [now(), now()->addDays(7)])
-            ->with(['homeTeam', 'awayTeam', 'league'])
-            ->orderBy('start_time')
-            ->get()
-            ->map(function ($match) use ($teamIds) {
-                $isHomeTeam = $teamIds->contains($match->home_team_id);
-                return [
-                    'match' => $match,
-                    'my_team' => $isHomeTeam ? $match->homeTeam : $match->awayTeam,
-                    'opponent' => $isHomeTeam ? $match->awayTeam : $match->homeTeam,
-                ];
             });
+        $teamMatchEntry = function ($match) use ($teamIds, $courtPlayers) {
+            $isHomeTeam = $teamIds->contains($match->home_team_id);
+            return [
+                'match' => $match,
+                'is_home' => $isHomeTeam,
+                'my_team' => $isHomeTeam ? $match->homeTeam : $match->awayTeam,
+                'opponent' => $isHomeTeam ? $match->awayTeam : $match->homeTeam,
+                'court_player' => $courtPlayers->first(fn($cp) => $cp->court->tennis_match_id === $match->id),
+            ];
+        };
+
+        // Upcoming: everything from now through the end of the next match's weekend
+        $upcomingMatches = collect();
+        $upcomingLabel = null;
+        if ($nextMatchTime = $teamMatches()->where('start_time', '>=', now())->min('start_time')) {
+            [$weekendStart, $weekendEnd] = $this->weekendOf(\Carbon\Carbon::parse($nextMatchTime));
+            $upcomingMatches = $teamMatches()
+                ->whereBetween('start_time', [now(), $weekendEnd])
+                ->with(['homeTeam', 'awayTeam', 'league'])
+                ->orderBy('start_time')
+                ->get()
+                ->map($teamMatchEntry);
+            $upcomingLabel = $this->weekendLabel($weekendStart);
+        }
+
+        // Recent: the weekend of the most recent past match, up to now
+        $recentMatches = collect();
+        $recentLabel = null;
+        if ($lastMatchTime = $teamMatches()->where('start_time', '<', now())->max('start_time')) {
+            $lastMatchTime = \Carbon\Carbon::parse($lastMatchTime);
+            [$weekendStart, $weekendEnd] = $this->weekendOf($lastMatchTime);
+            $recentMatches = $teamMatches()
+                ->whereBetween('start_time', [$weekendStart->copy()->min($lastMatchTime->copy()->startOfDay()), now()->min($weekendEnd)])
+                ->with(['homeTeam', 'awayTeam', 'league', 'courts.courtSets'])
+                ->orderBy('start_time')
+                ->get()
+                ->map($teamMatchEntry);
+            $recentLabel = $this->weekendLabel($weekendStart);
+        }
 
         $matchRatingPoints = $courtPlayers
             ->filter(fn($cp) => $cp->court->tennisMatch->start_time !== null
@@ -169,7 +197,7 @@ class PlayerController extends Controller
             ->unique('date')
             ->values();
 
-        return view('players.show', compact('player', 'courtPlayers', 'stats', 'ratingSnapshots', 'matchRatingPoints', 'upcomingMatches', 'bestWins', 'worstLosses'));
+        return view('players.show', compact('player', 'courtPlayers', 'stats', 'ratingSnapshots', 'matchRatingPoints', 'upcomingMatches', 'upcomingLabel', 'recentMatches', 'recentLabel', 'bestWins', 'worstLosses'));
     }
 
     /**
@@ -647,5 +675,31 @@ class PlayerController extends Controller
             }
             return redirect($redirectUrl)->with('error', 'Failed to sync Tennis Record profile: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Saturday 00:00 and Sunday 23:59 of the weekend in the week (Mon-Sun) containing $time.
+     */
+    private function weekendOf(\Carbon\Carbon $time): array
+    {
+        $end = $time->copy()->endOfWeek(\Carbon\Carbon::SUNDAY);
+        return [$end->copy()->subDay()->startOfDay(), $end];
+    }
+
+    /**
+     * e.g. "Last weekend · Oct 3–Oct 4", or just "Sep 19–Sep 20" when further away.
+     */
+    private function weekendLabel(\Carbon\Carbon $saturday): string
+    {
+        $thisSaturday = now()->startOfWeek()->addDays(5)->startOfDay();
+        $prefix = match ((int) round($thisSaturday->diffInDays($saturday, false))) {
+            0 => 'This weekend · ',
+            -7 => 'Last weekend · ',
+            7 => 'Next weekend · ',
+            default => '',
+        };
+        $sunday = $saturday->copy()->addDay();
+        $year = $sunday->year !== now()->year ? ', ' . $sunday->year : '';
+        return $prefix . $saturday->format('M j') . '–' . $sunday->format('M j') . $year;
     }
 }
