@@ -253,6 +253,10 @@
                                             @endif
                                         </div>
                                     @endforeach
+                                    @php $pairUtrs = $court->court_type === 'doubles' ? $homePlayers->pluck('utr_doubles_rating')->filter() : collect(); @endphp
+                                    @if($homePlayers->count() === 2 && $pairUtrs->count() === 2)
+                                        <div class="text-xs text-gray-500 mt-1">Avg: <span class="font-semibold text-gray-700">{{ number_format($pairUtrs->avg(), 2) }}</span></div>
+                                    @endif
                                 @endif
                             </div>
 
@@ -288,6 +292,10 @@
                                             </a>
                                         </div>
                                     @endforeach
+                                    @php $pairUtrs = $court->court_type === 'doubles' ? $awayPlayers->pluck('utr_doubles_rating')->filter() : collect(); @endphp
+                                    @if($awayPlayers->count() === 2 && $pairUtrs->count() === 2)
+                                        <div class="text-xs text-gray-500 mt-1">Avg: <span class="font-semibold text-gray-700">{{ number_format($pairUtrs->avg(), 2) }}</span></div>
+                                    @endif
                                 @endif
                             </div>
                         </div>
@@ -353,6 +361,10 @@
                                                     @endif
                                                 </div>
                                             @endforeach
+                                            @php $pairUtrs = $court->court_type === 'doubles' ? $homePlayers->pluck('utr_doubles_rating')->filter() : collect(); @endphp
+                                            @if($homePlayers->count() === 2 && $pairUtrs->count() === 2)
+                                                <div class="text-xs text-gray-500 mt-1">Avg: <span class="font-semibold text-gray-700">{{ number_format($pairUtrs->avg(), 2) }}</span></div>
+                                            @endif
                                         @endif
                                     </td>
                                     <td class="px-6 py-4 text-center">
@@ -390,6 +402,10 @@
                                                     @endif
                                                 </div>
                                             @endforeach
+                                            @php $pairUtrs = $court->court_type === 'doubles' ? $awayPlayers->pluck('utr_doubles_rating')->filter() : collect(); @endphp
+                                            @if($awayPlayers->count() === 2 && $pairUtrs->count() === 2)
+                                                <div class="text-xs text-gray-500 mt-1">Avg: <span class="font-semibold text-gray-700">{{ number_format($pairUtrs->avg(), 2) }}</span></div>
+                                            @endif
                                         @endif
                                     </td>
                                     @env('local')
@@ -1135,6 +1151,46 @@
             });
         });
 
+    // Team court-position averages (e.g. each team's #1 singles average), drawn as dashed lines on the lineup charts
+    const matchCourtAverages = {
+        [@json($match->home_team_id)]: @json($homeCourtStats ?? []),
+        [@json($match->away_team_id)]: @json($awayCourtStats ?? []),
+    };
+    const courtAvgDashes = { 1: '8,4', 2: '3,3', 3: '10,3,2,3' };
+
+    // Returns [{teamIndex, number, value}] for the given court type and rating type
+    function getCourtAverageLines(teamData, courtType, ratingType) {
+        const lines = [];
+        teamData.forEach((team, teamIndex) => {
+            (matchCourtAverages[team.team_id] || [])
+                .filter(stat => stat.court_type === courtType)
+                .forEach(stat => {
+                    const raw = ratingType === 'utr'
+                        ? (courtType === 'singles' ? stat.avg_utr_singles : stat.avg_utr_doubles)
+                        : stat.avg_usta_dynamic;
+                    const value = raw != null ? parseFloat(raw) : null;
+                    if (value) lines.push({ teamIndex, number: stat.court_number, value });
+                });
+        });
+        return lines;
+    }
+
+    // SVG for the average lines, with labels in the right margin nudged apart so they don't overlap
+    function renderCourtAverageLines(lines, courtType, yScale, margin, width, colors) {
+        let out = '';
+        const prefix = courtType === 'singles' ? 'S' : 'D';
+        const labels = lines.map(line => ({ ...line, y: yScale(line.value) })).sort((a, b) => a.y - b.y);
+        let lastY = -Infinity;
+        labels.forEach(line => {
+            const color = colors[line.teamIndex % colors.length];
+            out += `<line x1="${margin.left}" y1="${line.y}" x2="${width - margin.right}" y2="${line.y}" stroke="${color}" stroke-width="1.5" stroke-dasharray="${courtAvgDashes[line.number] || '6,3'}" opacity="0.7"><title>${prefix}${line.number} average: ${line.value.toFixed(2)}</title></line>`;
+            const labelY = Math.max(line.y + 4, lastY + 13);
+            lastY = labelY;
+            out += `<text x="${width - margin.right + 6}" y="${labelY}" font-size="11" font-weight="600" fill="${color}">${prefix}${line.number} avg ${line.value.toFixed(2)}</text>`;
+        });
+        return out;
+    }
+
     // Match Lineup Comparison Chart
     @if($matchLineupData && count($matchLineupData) > 0)
         const matchLineupData = @json($matchLineupData);
@@ -1191,6 +1247,10 @@
                     }
                 });
             });
+
+            // Include each team's court averages in the range so their lines stay on the chart
+            const courtAvgLines = getCourtAverageLines(sortedTeamData, 'singles', currentMatchRatingType);
+            courtAvgLines.forEach(line => { minRating = Math.min(minRating, line.value); maxRating = Math.max(maxRating, line.value); });
 
             // Add padding to the range
             const padding = (maxRating - minRating) * 0.1;
@@ -1306,8 +1366,11 @@
                 });
             });
 
-            // Draw legend
-            let legendY = margin.top;
+            // Draw team court-average lines
+            svg += renderCourtAverageLines(courtAvgLines, 'singles', yScale, margin, width, colors);
+
+            // Draw legend (bottom of the right margin, clear of the average labels)
+            let legendY = margin.top + chartHeight - sortedTeamData.length * 25 + 10;
             sortedTeamData.forEach((teamData, teamIndex) => {
                 const color = colors[teamIndex % colors.length];
 
@@ -1468,6 +1531,10 @@
                 });
             });
 
+            // Include each team's court averages in the range so their lines stay on the chart
+            const courtAvgLines = getCourtAverageLines(sortedTeamData, 'doubles', currentMatchDoublesRatingType);
+            courtAvgLines.forEach(line => { minRating = Math.min(minRating, line.value); maxRating = Math.max(maxRating, line.value); });
+
             // Add padding to the range
             const padding = (maxRating - minRating) * 0.1;
             minRating -= padding;
@@ -1584,8 +1651,11 @@
                 });
             });
 
-            // Draw legend
-            let legendY = margin.top;
+            // Draw team court-average lines
+            svg += renderCourtAverageLines(courtAvgLines, 'doubles', yScale, margin, width, colors);
+
+            // Draw legend (bottom of the right margin, clear of the average labels)
+            let legendY = margin.top + chartHeight - sortedTeamData.length * 25 + 10;
             sortedTeamData.forEach((teamData, teamIndex) => {
                 const color = colors[teamIndex % colors.length];
 

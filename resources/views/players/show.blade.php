@@ -186,10 +186,101 @@
         </div>
     </div>
 
+    <!-- Recent Matches (last weekend) -->
+    @if($recentMatches->count() > 0)
+    <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">Recent Matches</h2>
+            <span class="text-sm text-gray-500">{{ $recentLabel }}</span>
+        </div>
+        <div class="space-y-3">
+            @foreach($recentMatches as $entry)
+                @php
+                    $match = $entry['match'];
+                    $opponent = $entry['opponent'];
+                    $myTeam = $entry['my_team'];
+                    $cp = $entry['court_player'];
+                    $isPlayed = $match->home_score !== null && $match->away_score !== null
+                        && !($match->home_score === 0 && $match->away_score === 0);
+                    $myScore = $entry['is_home'] ? $match->home_score : $match->away_score;
+                    $oppScore = $entry['is_home'] ? $match->away_score : $match->home_score;
+                    $teamWon = $match->winningSide() === ($entry['is_home'] ? 'home' : 'away');
+                    $teamLost = $match->winningSide() === ($entry['is_home'] ? 'away' : 'home');
+                @endphp
+                <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition cursor-pointer" onclick="window.location='{{ route('tennis-matches.show', $match->id) }}'">
+                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div>
+                            <div class="text-sm font-semibold text-gray-700">
+                                {{ $match->start_time->format('l, M d, Y') }}
+                                <span class="text-xs text-gray-500 font-normal">{{ $match->start_time->format('g:i A') }}</span>
+                            </div>
+                            <div class="text-sm text-gray-600 mt-1">
+                                <span class="text-gray-500">{{ $myTeam->name }}</span>
+                                <span class="mx-1 text-gray-400">vs</span>
+                                <a href="{{ route('teams.show', $opponent->id) }}" onclick="event.stopPropagation()" class="text-blue-600 font-semibold hover:underline">
+                                    {{ $opponent->name }}
+                                </a>
+                            </div>
+
+                            @if($cp)
+                                @php
+                                    $court = $cp->court;
+                                    $partner = $court->courtPlayers->first(fn($o) => $o->team_id === $cp->team_id && $o->player_id !== $player->id);
+                                    $opponents = $court->courtPlayers->where('team_id', '!=', $cp->team_id);
+                                    $iAmHome = $cp->team_id === $match->home_team_id;
+                                @endphp
+                                <div class="text-sm mt-2 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <span class="text-xs font-medium text-gray-600 bg-gray-100 rounded px-2 py-0.5">{{ ucfirst($court->court_type) }} #{{ $court->court_number }}</span>
+                                    @if($cp->won !== null)
+                                        <span class="{{ $cp->won ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' }} text-xs px-2 py-0.5 rounded font-semibold">{{ $cp->won ? 'Win' : 'Loss' }}</span>
+                                    @endif
+                                    @foreach($court->courtSets->sortBy('set_number') as $set)
+                                        @php $ms = $iAmHome ? $set->home_score : $set->away_score; $os = $iAmHome ? $set->away_score : $set->home_score; @endphp
+                                        <span class="font-semibold"><span class="{{ $ms > $os ? 'text-green-600' : 'text-gray-700' }}">{{ $ms }}</span>-<span class="{{ $os > $ms ? 'text-red-600' : 'text-gray-700' }}">{{ $os }}</span></span>
+                                    @endforeach
+                                </div>
+                                <div class="text-xs text-gray-600 mt-1">
+                                    @if($partner)
+                                        with <a href="{{ route('players.show', $partner->player_id) }}" onclick="event.stopPropagation()" class="text-blue-600 hover:underline">{{ $partner->player->first_name }} {{ $partner->player->last_name }}</a>
+                                    @endif
+                                    vs
+                                    @forelse($opponents as $opp)
+                                        @if(!$loop->first) / @endif
+                                        <a href="{{ route('players.show', $opp->player_id) }}" onclick="event.stopPropagation()" class="text-red-600 hover:underline">{{ $opp->player->first_name }} {{ $opp->player->last_name }}</a>
+                                    @empty
+                                        <span class="text-orange-500 italic">Defaulted</span>
+                                    @endforelse
+                                </div>
+                            @elseif($isPlayed)
+                                <div class="text-xs text-gray-400 italic mt-2">Did not play</div>
+                            @endif
+                        </div>
+                        <div class="flex sm:flex-col items-center sm:items-end gap-2 self-start">
+                            @if($isPlayed)
+                                <span class="text-lg font-bold">
+                                    <span class="{{ $teamWon ? 'text-green-600' : 'text-gray-900' }}">{{ $myScore }}</span><span class="text-gray-400">-</span><span class="{{ $teamLost ? 'text-red-600' : 'text-gray-900' }}">{{ $oppScore }}</span>
+                                </span>
+                            @else
+                                <span class="text-xs text-gray-400 italic">No result yet</span>
+                            @endif
+                            @if($match->league)
+                                <span class="text-xs text-gray-500 bg-gray-100 rounded-full px-3 py-1">{{ $match->league->name }}</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
     <!-- Upcoming Matches -->
     @if($upcomingMatches->count() > 0)
     <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 class="text-2xl font-bold text-gray-800 mb-4">Upcoming Matches</h2>
+        <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">Upcoming Matches</h2>
+            <span class="text-sm text-gray-500">{{ $upcomingLabel }}</span>
+        </div>
         <div class="space-y-3">
             @foreach($upcomingMatches as $entry)
                 @php
