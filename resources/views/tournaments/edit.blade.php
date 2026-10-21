@@ -20,12 +20,6 @@
                 @enderror
             </div>
 
-            <div class="mb-4">
-                <label class="block text-gray-700 font-semibold mb-2" for="flight">Flight</label>
-                <input class="w-full border border-gray-300 p-2 rounded"
-                       type="text" name="flight" id="flight" value="{{ old('flight', $tournament->flight) }}" placeholder="e.g. Flight A, Open, 4.0">
-            </div>
-
             <div class="mb-4 grid grid-cols-2 gap-4">
                 <div>
                     <label class="block text-gray-700 font-semibold mb-2" for="start_date">Start Date</label>
@@ -59,6 +53,15 @@
                 <input class="w-full border border-gray-300 p-2 rounded @error('usta_link') border-red-500 @enderror"
                        type="url" name="usta_link" id="usta_link" value="{{ old('usta_link', $tournament->usta_link) }}" placeholder="https://tennislink.usta.com/...">
                 @error('usta_link')
+                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-gray-700 font-semibold mb-2" for="utr_link">UTR Link</label>
+                <input class="w-full border border-gray-300 p-2 rounded @error('utr_link') border-red-500 @enderror"
+                       type="url" name="utr_link" id="utr_link" value="{{ old('utr_link', $tournament->utr_link) }}" placeholder="https://app.utrsports.net/events/...">
+                @error('utr_link')
                     <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
                 @enderror
             </div>

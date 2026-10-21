@@ -499,20 +499,25 @@
             @include('partials.rating-toggle')
         </div>
 
-        @if($courtPlayers->count() > 0)
+        @if($historyEntries->isNotEmpty())
             @php
                 $matchTeams = $courtPlayers->map(fn($cp) => $cp->team)->unique('id')->values()
                     ->sortByDesc(fn($t) => $t->league?->active ?? true)->values();
             @endphp
 
-            {{-- Team filter --}}
-            @if($matchTeams->count() > 1)
+            {{-- Team filter (tournaments are listed too, and start switched on) --}}
+            @if($matchTeams->count() + $historyTournaments->count() > 1)
                 <div class="mb-2 flex flex-wrap items-center gap-2">
                     <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Team:</span>
                     @foreach($matchTeams as $team)
                         <button data-team="{{ $team->id }}"
                                 data-league-active="{{ ($team->league?->active ?? true) ? '1' : '0' }}"
                                 class="team-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">{{ $team->name }}</button>
+                    @endforeach
+                    @foreach($historyTournaments as $historyTournament)
+                        <button data-team="tournament-{{ $historyTournament->id }}"
+                                data-league-active="1"
+                                class="team-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">🏆 {{ $historyTournament->name }}</button>
                     @endforeach
                 </div>
             @endif
@@ -534,6 +539,7 @@
                         );
                     })
                     ->filter()
+                    ->concat($tournamentPartners)
                     ->unique('player_id')
                     ->sortBy(fn($cp) => $cp->player->last_name)
                     ->values();
@@ -596,7 +602,12 @@
 
             {{-- Mobile card view --}}
             <div class="md:hidden space-y-4">
-                @foreach($courtPlayers as $courtPlayer)
+                @foreach($historyEntries as $entry)
+                    @if($entry['type'] === 'tournament')
+                        @include('players._tournament-history-entry', ['tmp' => $entry['item'], 'mode' => 'card'])
+                        @continue
+                    @endif
+                    @php $courtPlayer = $entry['item']; @endphp
                     @php
                         $match = $courtPlayer->court->tennisMatch;
                         $court = $courtPlayer->court;
@@ -731,7 +742,12 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
-                        @foreach($courtPlayers as $courtPlayer)
+                        @foreach($historyEntries as $entry)
+                            @if($entry['type'] === 'tournament')
+                                @include('players._tournament-history-entry', ['tmp' => $entry['item'], 'mode' => 'row'])
+                                @continue
+                            @endif
+                            @php $courtPlayer = $entry['item']; @endphp
                             @php
                                 $match = $courtPlayer->court->tennisMatch;
                                 $court = $courtPlayer->court;

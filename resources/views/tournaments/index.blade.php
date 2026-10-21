@@ -23,9 +23,11 @@
             💡 <strong>Click</strong> a tournament name to view players
         </div>
         <div class="flex space-x-2">
-            <button onclick="openUstaModal()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
-                🏆 Create from USTA Link
-            </button>
+            @env('local')
+                <button onclick="openUtrModal()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
+                    🏆 Create from UTR Link
+                </button>
+            @endenv
             <a href="{{ route('tournaments.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
                 + Add Tournament
             </a>
@@ -37,10 +39,9 @@
             <thead class="bg-gray-50">
                 <tr>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Name</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Flight</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Dates</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Location</th>
-                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">USTA Link</th>
+                    <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Links</th>
                     <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>
                 </tr>
             </thead>
@@ -53,7 +54,6 @@
                             </a>
                             <span class="text-xs text-gray-500 ml-2">({{ $tournament->players_count }} players)</span>
                         </td>
-                        <td class="px-4 py-2 text-sm text-gray-700">{{ $tournament->flight ?? '-' }}</td>
                         <td class="px-4 py-2 text-sm text-gray-700">
                             @if($tournament->start_date)
                                 {{ $tournament->start_date->format('M d, Y') }}
@@ -71,6 +71,11 @@
                                     <img src="{{ asset('images/usta_logo.png') }}" alt="USTA Link" class="h-10 w-15">
                                 </a>
                             @endif
+                            @if($tournament->utr_link)
+                                <a class='inline-block ml-1 align-middle' href="{{ $tournament->utr_link }}" target="_blank" rel="noopener noreferrer">
+                                    <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Link" class="h-8 w-8">
+                                </a>
+                            @endif
                         </td>
                         <td class="px-4 py-2 text-sm">
                             <a href="{{ route('tournaments.edit', $tournament->id) }}" class="text-blue-600 hover:text-blue-800 text-sm">
@@ -80,7 +85,7 @@
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="6" class="px-4 py-8 text-center text-gray-500">
+                        <td colspan="5" class="px-4 py-8 text-center text-gray-500">
                             No tournaments yet. Click "Add Tournament" to get started.
                         </td>
                     </tr>
@@ -90,12 +95,13 @@
     </div>
 </div>
 
-<!-- USTA Link Modal -->
-<div id="ustaModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+@env('local')
+<!-- UTR Link Modal -->
+<div id="utrModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg p-6 w-full max-w-md">
         <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-medium text-gray-900">Create Tournament from USTA Link</h3>
-            <button onclick="closeUstaModal()" class="text-gray-400 hover:text-gray-600">
+            <h3 class="text-lg font-medium text-gray-900">Create Tournament from UTR Link</h3>
+            <button onclick="closeUtrModal()" class="text-gray-400 hover:text-gray-600">
                 <span class="sr-only">Close</span>
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -103,38 +109,35 @@
             </button>
         </div>
 
-        <form id="ustaForm" method="POST" action="{{ route('tournaments.createFromUstaLink') }}">
+        <form id="utrForm" method="POST" action="{{ route('tournaments.createFromUtrLink') }}">
             @csrf
             <div class="mb-4">
-                <label for="usta_link" class="block text-sm font-medium text-gray-700 mb-2">
-                    USTA Tournament URL
+                <label for="utr_link" class="block text-sm font-medium text-gray-700 mb-2">
+                    UTR Event URL
                 </label>
-                <input type="url" name="usta_link" id="usta_link" required
-                       placeholder="https://playtennis.usta.com/Competitions/.../Tournaments/..."
+                <input type="url" name="utr_link" id="utr_link" required
+                       placeholder="https://app.utrsports.net/tournaments/3560084"
                        class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
                 <p class="mt-1 text-xs text-gray-500">
-                    Paste the USTA tournament page URL from playtennis.usta.com
+                    Paste the event's page URL from app.utrsports.net
                 </p>
             </div>
 
             <div class="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
                 <h4 class="text-sm font-medium text-yellow-800 mb-1">What this will do:</h4>
                 <ul class="text-xs text-yellow-700 list-disc list-inside space-y-1">
-                    <li>Scrape tournament name and details from USTA page</li>
-                    <li>Extract dates, location, and description</li>
-                    <li>Create tournament with all available information</li>
+                    <li>Create the tournament with its name and dates from UTR</li>
+                    <li>Sync every draw and match result in the background</li>
+                    <li>Add the event's players, creating any that are missing</li>
                 </ul>
-                <p class="text-xs text-yellow-600 mt-2">
-                    <strong>Example URL:</strong> https://playtennis.usta.com/Competitions/indianapolisracquetclubdean/Tournaments/overview/...
-                </p>
             </div>
 
             <div class="flex justify-end space-x-3">
-                <button type="button" onclick="closeUstaModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-4 rounded">
+                <button type="button" onclick="closeUtrModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-4 rounded">
                     Cancel
                 </button>
-                <button type="submit" id="ustaSubmitBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
-                    🚀 Create Tournament
+                <button type="submit" id="utrSubmitBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
+                    🚀 Create &amp; Sync
                 </button>
             </div>
         </form>
@@ -142,44 +145,39 @@
 </div>
 
 <script>
-    // USTA Tournament Creation functionality
-    function openUstaModal() {
-        document.getElementById('ustaModal').classList.remove('hidden');
-        document.getElementById('ustaModal').classList.add('flex');
-        document.getElementById('usta_link').focus();
+    function openUtrModal() {
+        document.getElementById('utrModal').classList.remove('hidden');
+        document.getElementById('utrModal').classList.add('flex');
+        document.getElementById('utr_link').focus();
     }
 
-    function closeUstaModal() {
-        document.getElementById('ustaModal').classList.add('hidden');
-        document.getElementById('ustaModal').classList.remove('flex');
-        document.getElementById('usta_link').value = '';
+    function closeUtrModal() {
+        document.getElementById('utrModal').classList.add('hidden');
+        document.getElementById('utrModal').classList.remove('flex');
+        document.getElementById('utr_link').value = '';
     }
 
     // Close modal when clicking outside
-    document.getElementById('ustaModal').addEventListener('click', function(e) {
+    document.getElementById('utrModal').addEventListener('click', function(e) {
         if (e.target === this) {
-            closeUstaModal();
+            closeUtrModal();
         }
     });
 
-    // Handle form submission
-    const ustaForm = document.getElementById('ustaForm');
-    if (ustaForm) {
-        ustaForm.addEventListener('submit', function(e) {
-            const ustaLink = document.getElementById('usta_link').value;
-
-            // Validate URL
-            if (!ustaLink.includes('playtennis.usta.com')) {
+    const utrForm = document.getElementById('utrForm');
+    if (utrForm) {
+        utrForm.addEventListener('submit', function(e) {
+            const utrLink = document.getElementById('utr_link').value;
+            if (!/utrsports\.net\/(tournaments|events)\/\d+/.test(utrLink)) {
                 e.preventDefault();
-                alert('Please enter a valid USTA tournament URL from playtennis.usta.com');
+                alert('Please enter a UTR event URL like https://app.utrsports.net/tournaments/3560084');
                 return;
             }
-
-            // Show loading state
-            const submitBtn = document.getElementById('ustaSubmitBtn');
+            const submitBtn = document.getElementById('utrSubmitBtn');
             submitBtn.disabled = true;
             submitBtn.innerHTML = '⏳ Creating...';
         });
     }
 </script>
+@endenv
 @endsection
