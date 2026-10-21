@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Tournament;
 use App\Models\Player;
-use App\Services\UstaTournamentScrapingService;
 
 class TournamentController extends Controller
 {
@@ -33,8 +32,8 @@ class TournamentController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'flight' => 'nullable|string|max:255',
             'usta_link' => 'nullable|string|max:255',
+            'utr_link' => 'nullable|url|max:255',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'location' => 'nullable|string|max:255',
@@ -54,7 +53,12 @@ class TournamentController extends Controller
         $sortField = $request->get('sort', 'utr_singles_rating');
         $sortDirection = $request->get('direction', 'desc');
 
-        $tournament->load('players');
+        $tournament->load([
+            'players',
+            'draws' => fn($q) => $q->orderByRaw("CASE WHEN team_type = 'singles' THEN 0 ELSE 1 END")->orderBy('name'),
+            'draws.matches.sets',
+            'draws.matches.matchPlayers.player',
+        ]);
 
         // Get players not in this tournament for the add player functionality
         $availablePlayers = Player::whereDoesntHave('tournaments', function($query) use ($tournament) {
@@ -82,15 +86,15 @@ class TournamentController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'flight' => 'nullable|string|max:255',
             'usta_link' => 'nullable|string|max:255',
+            'utr_link' => 'nullable|url|max:255',
             'start_date' => 'nullable|date',
             'end_date' => 'nullable|date|after_or_equal:start_date',
             'location' => 'nullable|string|max:255',
             'description' => 'nullable|string',
         ]);
 
-        $tournament->update($request->only(['name', 'flight', 'usta_link', 'start_date', 'end_date', 'location', 'description']));
+        $tournament->update($request->only(['name', 'usta_link', 'utr_link', 'start_date', 'end_date', 'location', 'description']));
 
         return redirect()->route('tournaments.index')->with('success', 'Tournament updated successfully.');
     }
@@ -167,48 +171,60 @@ class TournamentController extends Controller
     }
 
     /**
-     * Create a tournament from a USTA link
+     * Create a tournament from a UTR event link, then queue a sync of its draws and results.
      */
-    public function createFromUstaLink(Request $request)
+    public function createFromUtrLink(Request $request, \App\Services\UtrService $utr)
     {
-        $request->validate([
-            'usta_link' => 'required|url'
-        ]);
+        abort_unless(app()->isLocal(), 404);
 
-        $ustaLink = $request->usta_link;
+        $request->validate(['utr_link' => 'required|url|max:255']);
 
-        // Validate that it's a USTA playtennis.usta.com link
-        if (!str_contains($ustaLink, 'playtennis.usta.com')) {
-            return back()->with('error', 'Please provide a valid USTA tournament link from playtennis.usta.com');
+        $eventId = Tournament::parseUtrEventId($request->utr_link);
+        if (!$eventId) {
+            return back()->with('error', 'Please provide a UTR event link like https://app.utrsports.net/tournaments/3560084');
+        }
+
+        $existing = Tournament::whereNotNull('utr_link')->get()->first(fn($t) => $t->utrEventId() === $eventId);
+        if ($existing) {
+            return redirect()->route('tournaments.show', $existing->id)
+                ->with('error', 'A tournament for this UTR event already exists. Use "Sync from UTR" to refresh it.');
         }
 
         try {
-            $scrapingService = new UstaTournamentScrapingService();
-            $tournamentData = $scrapingService->scrapeTournamentData($ustaLink);
-
-            // Check if tournament with this USTA link already exists
-            $existingTournament = Tournament::where('usta_link', $ustaLink)->first();
-            if ($existingTournament) {
-                return redirect()->route('tournaments.show', $existingTournament->id)
-                    ->with('error', 'A tournament with this USTA link already exists.');
-            }
-
-            // Create the tournament
-            $tournament = Tournament::create([
-                'name' => $tournamentData['name'],
-                'usta_link' => $tournamentData['usta_link'],
-                'start_date' => $tournamentData['start_date'],
-                'end_date' => $tournamentData['end_date'],
-                'location' => $tournamentData['location'],
-                'description' => $tournamentData['description'],
-            ]);
-
-            return redirect()->route('tournaments.show', $tournament->id)
-                ->with('success', "Tournament '{$tournament->name}' has been created successfully from USTA link!");
-
+            $event = $utr->fetchImportedEvent($eventId);
+        } catch (\App\Exceptions\UtrRateLimitException $e) {
+            return back()->with('error', 'UTR is rate limiting requests right now. Please try again in a few minutes.');
         } catch (\Exception $e) {
-            \Log::error('Failed to create tournament from USTA link: ' . $e->getMessage());
-            return back()->with('error', 'Failed to scrape tournament data from USTA link. Please try again or create the tournament manually.');
+            \Log::error('Failed to fetch UTR event for tournament creation: ' . $e->getMessage());
+            return back()->with('error', 'Could not load that event from UTR. Check the link, or that the UTR login (JWT) in Configurations is still valid.');
         }
+
+        $tournament = Tournament::create([
+            'name' => $event['name'] ?? "UTR event {$eventId}",
+            'utr_link' => $request->utr_link,
+            'start_date' => isset($event['startDate']) ? substr($event['startDate'], 0, 10) : null,
+            'end_date' => isset($event['endDate']) ? substr($event['endDate'], 0, 10) : null,
+        ]);
+
+        \App\Jobs\SyncTournamentFromUtrJob::dispatch($tournament);
+
+        return redirect()->route('tournaments.show', $tournament->id)
+            ->with('success', "Tournament '{$tournament->name}' created. Syncing draws and results from UTR — refresh in a minute.");
+    }
+
+    /**
+     * Queue a sync of draws, matches and players from the tournament's UTR event.
+     */
+    public function syncFromUtr(Tournament $tournament)
+    {
+        abort_unless(app()->isLocal(), 404);
+
+        if (!$tournament->utrEventId()) {
+            return back()->with('error', 'Add a UTR link (e.g. https://app.utrsports.net/tournaments/3560084) before syncing.');
+        }
+
+        \App\Jobs\SyncTournamentFromUtrJob::dispatch($tournament);
+
+        return back()->with('success', 'UTR sync queued. Refresh in a minute to see draws and results.');
     }
 }

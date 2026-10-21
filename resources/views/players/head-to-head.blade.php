@@ -75,7 +75,7 @@
             <h2 class="text-xl font-bold text-gray-800 mb-4">
                 Head to Head Matches
                 @if($directMatches->count())
-                    @php $playerWins = $directMatches->where('player_cp.won', true)->count(); $opponentWins = $directMatches->where('opponent_cp.won', true)->count(); @endphp
+                    @php $playerWins = $directMatches->where('won', true)->count(); $opponentWins = $directMatches->where('other_won', true)->count(); @endphp
                     <span class="ml-2 text-base font-normal text-gray-500">{{ $player->first_name }} {{ $playerWins }}–{{ $opponentWins }} {{ $opponent->first_name }}</span>
                 @endif
             </h2>
@@ -95,25 +95,29 @@
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             @foreach($directMatches as $row)
-                                @php $court = $row['court']; $pCp = $row['player_cp']; $oCp = $row['opponent_cp']; $match = $court->tennisMatch; $pIsHome = $pCp && $pCp->team_id === $match->home_team_id; @endphp
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-gray-600 whitespace-nowrap">{{ $match->start_time ? \Carbon\Carbon::parse($match->start_time)->format('M j, Y') : '—' }}</td>
-                                    <td class="px-4 py-3 {{ $pCp?->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                <tr class="hover:bg-gray-50 {{ $row['source'] === 'tournament' ? 'bg-amber-50/30' : '' }}">
+                                    <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
+                                        {{ $row['date'] ? $row['date']->format('M j, Y') : '—' }}
+                                        @if($row['label'])<div class="text-xs text-gray-500 whitespace-normal">{{ $row['label'] }}</div>@endif
+                                    </td>
+                                    <td class="px-4 py-3 {{ $row['won'] ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
                                         {{ $player->first_name }} {{ $player->last_name }}
-                                        @if($pCp?->utr_singles_rating)<span class="text-xs text-gray-400 ml-1">({{ number_format($pCp->utr_singles_rating, 2) }})</span>@endif
+                                        @if($row['rating'])<span class="text-xs text-gray-400 ml-1">({{ number_format($row['rating'], 2) }})</span>@endif
                                     </td>
                                     <td class="px-4 py-3 text-center whitespace-nowrap">
-                                        @foreach($court->courtSets->sortBy('set_number') as $set)
-                                            <span class="mr-1">
-                                                <span class="{{ ($pIsHome ? $set->home_score > $set->away_score : $set->away_score > $set->home_score) ? 'text-green-600 font-semibold' : 'text-gray-700' }}">{{ $pIsHome ? $set->home_score : $set->away_score }}</span>-<span class="{{ ($pIsHome ? $set->away_score > $set->home_score : $set->home_score > $set->away_score) ? 'text-green-600 font-semibold' : 'text-gray-700' }}">{{ $pIsHome ? $set->away_score : $set->home_score }}</span>
-                                            </span>
-                                        @endforeach
+                                        @if($row['walkover'])
+                                            <span class="text-orange-500 italic">Walkover</span>
+                                        @else
+                                            @foreach($row['sets'] as [$mine, $theirs, $tb])
+                                                <span class="mr-1"><span class="{{ $mine > $theirs ? 'text-green-600 font-semibold' : 'text-gray-700' }}">{{ $mine }}</span>-<span class="{{ $theirs > $mine ? 'text-green-600 font-semibold' : 'text-gray-700' }}">{{ $theirs }}</span>@if($tb !== null)<span class="text-xs text-gray-400">({{ $tb }})</span>@endif</span>
+                                            @endforeach
+                                        @endif
                                     </td>
-                                    <td class="px-4 py-3 {{ $oCp?->won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                    <td class="px-4 py-3 {{ $row['other_won'] ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
                                         {{ $opponent->first_name }} {{ $opponent->last_name }}
-                                        @if($oCp?->utr_singles_rating)<span class="text-xs text-gray-400 ml-1">({{ number_format($oCp->utr_singles_rating, 2) }})</span>@endif
+                                        @if($row['other_rating'])<span class="text-xs text-gray-400 ml-1">({{ number_format($row['other_rating'], 2) }})</span>@endif
                                     </td>
-                                    <td class="px-4 py-3"><a href="{{ route('tennis-matches.show', $match->id) }}" class="text-blue-600 hover:underline text-xs">View</a></td>
+                                    <td class="px-4 py-3"><a href="{{ $row['url'] }}" class="text-blue-600 hover:underline text-xs">View</a></td>
                                 </tr>
                             @endforeach
                         </tbody>
@@ -121,28 +125,32 @@
                 </div>
                 <div class="md:hidden space-y-3">
                     @foreach($directMatches as $row)
-                        @php $court = $row['court']; $pCp = $row['player_cp']; $oCp = $row['opponent_cp']; $match = $court->tennisMatch; $pIsHome = $pCp && $pCp->team_id === $match->home_team_id; @endphp
-                        <div class="border border-gray-200 rounded-lg p-3">
-                            <div class="flex justify-between mb-2">
-                                <span class="text-xs text-gray-500">{{ $match->start_time ? \Carbon\Carbon::parse($match->start_time)->format('M j, Y') : '—' }}</span>
-                                <a href="{{ route('tennis-matches.show', $match->id) }}" class="text-blue-600 text-xs hover:underline">View</a>
+                        <div class="border rounded-lg p-3 {{ $row['source'] === 'tournament' ? 'border-amber-200 bg-amber-50/30' : 'border-gray-200' }}">
+                            <div class="flex justify-between mb-2 gap-2">
+                                <span class="text-xs text-gray-500">
+                                    {{ $row['date'] ? $row['date']->format('M j, Y') : '—' }}
+                                    @if($row['label'])<span class="block">{{ $row['label'] }}</span>@endif
+                                </span>
+                                <a href="{{ $row['url'] }}" class="text-blue-600 text-xs hover:underline">View</a>
                             </div>
                             <div class="flex items-center justify-between gap-2 text-sm">
-                                <div class="flex-1 {{ ($pCp && $pCp->won) ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                <div class="flex-1 {{ $row['won'] ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
                                     {{ $player->first_name }}
-                                    @if($pCp && $pCp->utr_singles_rating)
-                                        <span class="text-xs font-normal text-gray-400"> ({{ number_format($pCp->utr_singles_rating, 2) }})</span>
+                                    @if($row['rating'])
+                                        <span class="text-xs font-normal text-gray-400"> ({{ number_format($row['rating'], 2) }})</span>
                                     @endif
                                 </div>
                                 <div class="text-center font-mono text-xs">
-                                    @foreach($court->courtSets->sortBy('set_number') as $set)
-                                        {{ $pIsHome ? $set->home_score : $set->away_score }}-{{ $pIsHome ? $set->away_score : $set->home_score }}{{ $loop->last ? '' : ' ' }}
-                                    @endforeach
+                                    @if($row['walkover'])
+                                        <span class="text-orange-500 italic">W/O</span>
+                                    @else
+                                        {{ collect($row['sets'])->map(fn($set) => $set[0] . '-' . $set[1] . ($set[2] !== null ? '(' . $set[2] . ')' : ''))->implode(' ') }}
+                                    @endif
                                 </div>
-                                <div class="flex-1 text-right {{ ($oCp && $oCp->won) ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
+                                <div class="flex-1 text-right {{ $row['other_won'] ? 'text-green-600 font-semibold' : 'text-gray-700' }}">
                                     {{ $opponent->first_name }}
-                                    @if($oCp && $oCp->utr_singles_rating)
-                                        <span class="text-xs font-normal text-gray-400"> ({{ number_format($oCp->utr_singles_rating, 2) }})</span>
+                                    @if($row['other_rating'])
+                                        <span class="text-xs font-normal text-gray-400"> ({{ number_format($row['other_rating'], 2) }})</span>
                                     @endif
                                 </div>
                             </div>
@@ -195,17 +203,23 @@
                                         @else
                                             <div class="space-y-2">
                                                 @foreach($side['matches'] as $mrow)
-                                                    @php $c = $mrow['court']; $sCp = $mrow['subject_cp']; $m = $c->tennisMatch; $sIsHome = $sCp && $sCp->team_id === $m->home_team_id; @endphp
-                                                    <div class="flex items-center justify-between text-sm bg-white rounded border border-gray-200 px-3 py-2">
-                                                        <span class="text-gray-500 text-xs whitespace-nowrap">{{ $m->start_time ? \Carbon\Carbon::parse($m->start_time)->format('M j, Y') : '—' }}</span>
-                                                        <span class="font-mono text-xs mx-2">
-                                                            @foreach($c->courtSets->sortBy('set_number') as $set)
-                                                                <span class="{{ ($sIsHome ? $set->home_score > $set->away_score : $set->away_score > $set->home_score) ? 'text-green-600 font-semibold' : 'text-gray-600' }}">{{ $sIsHome ? $set->home_score : $set->away_score }}</span>-<span class="{{ ($sIsHome ? $set->away_score > $set->home_score : $set->home_score > $set->away_score) ? 'text-green-600 font-semibold' : 'text-gray-600' }}">{{ $sIsHome ? $set->away_score : $set->home_score }}</span>
-                                                                @if(!$loop->last) &nbsp; @endif
-                                                            @endforeach
-                                                        </span>
-                                                        <span class="{{ $sCp?->won ? 'text-green-600 font-semibold' : 'text-red-500' }} text-xs">{{ $sCp?->won ? 'W' : 'L' }}</span>
-                                                        <a href="{{ route('tennis-matches.show', $m->id) }}" class="text-blue-600 hover:underline text-xs ml-2">View</a>
+                                                    <div class="text-sm rounded border px-3 py-2 {{ $mrow['source'] === 'tournament' ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-200' }}">
+                                                        <div class="flex items-center justify-between">
+                                                            <span class="text-gray-500 text-xs whitespace-nowrap">{{ $mrow['date'] ? $mrow['date']->format('M j, Y') : '—' }}</span>
+                                                            <span class="font-mono text-xs mx-2">
+                                                                @if($mrow['walkover'])
+                                                                    <span class="text-orange-500 italic">Walkover</span>
+                                                                @else
+                                                                    @foreach($mrow['sets'] as [$mine, $theirs, $tb])
+                                                                        <span class="{{ $mine > $theirs ? 'text-green-600 font-semibold' : 'text-gray-600' }}">{{ $mine }}</span>-<span class="{{ $theirs > $mine ? 'text-green-600 font-semibold' : 'text-gray-600' }}">{{ $theirs }}</span>@if($tb !== null)<span class="text-gray-400">({{ $tb }})</span>@endif
+                                                                        @if(!$loop->last) &nbsp; @endif
+                                                                    @endforeach
+                                                                @endif
+                                                            </span>
+                                                            <span class="{{ $mrow['won'] ? 'text-green-600 font-semibold' : 'text-red-500' }} text-xs">{{ $mrow['won'] ? 'W' : 'L' }}</span>
+                                                            <a href="{{ $mrow['url'] }}" class="text-blue-600 hover:underline text-xs ml-2">View</a>
+                                                        </div>
+                                                        @if($mrow['label'])<div class="text-xs text-gray-500 mt-1">{{ $mrow['label'] }}</div>@endif
                                                     </div>
                                                 @endforeach
                                             </div>

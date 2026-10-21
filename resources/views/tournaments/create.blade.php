@@ -56,6 +56,15 @@
                 @enderror
             </div>
 
+            <div class="mb-4">
+                <label class="block text-gray-700 font-semibold mb-2" for="utr_link">UTR Link</label>
+                <input class="w-full border border-gray-300 p-2 rounded @error('utr_link') border-red-500 @enderror"
+                       type="url" name="utr_link" id="utr_link" value="{{ old('utr_link') }}" placeholder="https://app.utrsports.net/events/...">
+                @error('utr_link')
+                    <p class="text-red-500 text-xs mt-1">{{ $message }}</p>
+                @enderror
+            </div>
+
             <div class="mb-6">
                 <label class="block text-gray-700 font-semibold mb-2" for="description">Description</label>
                 <textarea class="w-full border border-gray-300 p-2 rounded @error('description') border-red-500 @enderror"

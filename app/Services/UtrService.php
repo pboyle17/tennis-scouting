@@ -89,4 +89,79 @@ class UtrService
             "Body: " . json_encode($response->json())
         );
     }
+
+    /**
+     * Imported (e.g. USTA-sanctioned) event details: name, dates, game types.
+     */
+    public function fetchImportedEvent(int $eventId): array
+    {
+        return $this->getJson("v1/imported/events/{$eventId}");
+    }
+
+    /**
+     * Draws (divisions) in an imported event.
+     */
+    public function fetchImportedEventDraws(int $eventId): array
+    {
+        return $this->getJson("v1/imported/events/{$eventId}/draws");
+    }
+
+    /**
+     * Match results for one draw of an imported event.
+     */
+    public function fetchImportedEventResults(int $eventId, int $drawId): array
+    {
+        return $this->getJson("v1/imported/events/{$eventId}/results", ['drawId' => $drawId]);
+    }
+
+    /**
+     * All players in an imported event (follows paging).
+     */
+    public function fetchImportedEventPlayers(int $eventId): array
+    {
+        $players = [];
+        $skip = 0;
+        $pageSize = 100;
+
+        do {
+            $page = $this->getJson("v1/imported/events/{$eventId}/players", [
+                'order' => 'desc', 'sort' => 'singlesUtr', 'skip' => $skip, 'top' => $pageSize,
+            ]);
+            $batch = $page['players'] ?? [];
+            $players = array_merge($players, $batch);
+            $skip += $pageSize;
+        } while (count($batch) === $pageSize && $skip < ($page['totalCount'] ?? 0));
+
+        return $players;
+    }
+
+    /**
+     * Authenticated GET against the UTR API, throwing UtrRateLimitException on 429.
+     */
+    private function getJson(string $path, array $query = []): array
+    {
+        $config = Configuration::first();
+
+        if (!$config || !$config->jwt) {
+            throw new \Exception("No JWT configured in configurations table.");
+        }
+
+        $response = Http::withHeaders([
+            'Authorization' => 'Bearer ' . $config->jwt
+        ])->get("https://api.utrsports.net/{$path}", $query);
+
+        if ($response->successful()) {
+            return $response->json() ?? [];
+        }
+
+        if ($response->status() === 429) {
+            $retryAfter = $response->header('Retry-After');
+            throw new UtrRateLimitException(
+                "UTR API rate limited (429) for {$path}." . ($retryAfter ? " Retry-After: {$retryAfter}" : ''),
+                $retryAfter !== null ? (int) $retryAfter : null
+            );
+        }
+
+        throw new \Exception("UTR API request failed for {$path}. Status: {$response->status()}.");
+    }
 }

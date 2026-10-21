@@ -7,6 +7,15 @@
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-3xl font-bold text-center text-gray-800">{{ $tournament->name }}</h1>
         <div class="flex space-x-2">
+            @if(app()->isLocal() && $tournament->utrEventId())
+                <form method="POST" action="{{ route('tournaments.syncFromUtr', $tournament->id) }}">
+                    @csrf
+                    <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded cursor-pointer"
+                            title="{{ $tournament->utr_last_synced_at ? 'Last synced ' . $tournament->utr_last_synced_at->diffForHumans() : 'Never synced' }}">
+                        🔄 Sync from UTR
+                    </button>
+                </form>
+            @endif
             <a href="{{ route('tournaments.edit', $tournament->id) }}" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
                 Edit Tournament
             </a>
@@ -57,6 +66,15 @@
                     </a>
                 </div>
             @endif
+            @if($tournament->utr_link)
+                <div>
+                    <label class="text-sm font-semibold text-gray-600">UTR Link</label>
+                    <a href="{{ $tournament->utr_link }}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:underline flex items-center">
+                        <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR" class="h-8 w-8 mr-2">
+                        View on UTR
+                    </a>
+                </div>
+            @endif
         </div>
         @if($tournament->description)
             <div class="mt-4">
@@ -65,6 +83,93 @@
             </div>
         @endif
     </div>
+
+    <!-- Draws & Results -->
+    @if($tournament->draws->isNotEmpty())
+        @php
+            $sideNames = fn($players) => $players->map(fn($mp) => $mp->player)->filter();
+        @endphp
+        <div class="bg-white rounded-lg shadow p-6 mb-6">
+            <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+                <h2 class="text-2xl font-bold text-gray-800">Draws &amp; Results</h2>
+                @if($tournament->utr_last_synced_at)
+                    <span class="text-sm text-gray-500">Synced from UTR {{ $tournament->utr_last_synced_at->diffForHumans() }}</span>
+                @endif
+            </div>
+            <div class="space-y-3">
+                @foreach($tournament->draws as $draw)
+                    @php
+                        $matches = $draw->matches->sortBy([fn($a, $b) => $a->roundRank() <=> $b->roundRank(), ['played_on', 'asc']]);
+                        $final = $draw->matches->firstWhere('round_code', 'F');
+                        $champions = $final ? $sideNames($final->matchPlayers->where('won', true)->sortBy('position')) : collect();
+                    @endphp
+                    <details class="border border-gray-200 rounded-lg group">
+                        <summary class="cursor-pointer px-4 py-3 flex flex-wrap items-center justify-between gap-2 hover:bg-gray-50 rounded-lg">
+                            <span class="font-semibold text-gray-800">
+                                <span class="inline-block transition-transform group-open:rotate-90 mr-1">▶</span>
+                                {{ $draw->name }}
+                            </span>
+                            <span class="text-sm text-gray-500">
+                                @if($champions->isNotEmpty())
+                                    🏆 {{ $champions->map(fn($p) => $p->first_name . ' ' . $p->last_name)->implode(' / ') }} ·
+                                @endif
+                                {{ $draw->matches->count() }} {{ Str::plural('match', $draw->matches->count()) }}
+                                @if($draw->player_count) · {{ $draw->player_count }} players @endif
+                            </span>
+                        </summary>
+                        @if($matches->isEmpty())
+                            <p class="px-4 pb-4 text-sm text-gray-500">No results yet.</p>
+                        @else
+                            <div class="overflow-x-auto px-4 pb-4">
+                                <table class="min-w-full text-sm">
+                                    <thead>
+                                        <tr class="text-xs text-gray-500 uppercase text-left">
+                                            <th class="py-2 pr-4">Round</th>
+                                            <th class="py-2 pr-4">Winner</th>
+                                            <th class="py-2 pr-4">Score</th>
+                                            <th class="py-2 pr-4">Loser</th>
+                                            <th class="py-2">Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-100">
+                                        @foreach($matches as $match)
+                                            @php $ratingField = $draw->team_type === 'doubles' ? 'utr_doubles_rating' : 'utr_singles_rating'; @endphp
+                                            <tr>
+                                                <td class="py-2 pr-4 text-gray-600 whitespace-nowrap">{{ $match->round_name ?? 'Round robin' }}</td>
+                                                @foreach([true, false] as $won)
+                                                    @if(!$won)
+                                                        <td class="py-2 pr-4 whitespace-nowrap font-semibold">
+                                                            @if($match->isWalkover())
+                                                                <span class="text-orange-500 italic font-normal">Walkover</span>
+                                                            @else
+                                                                {{ $match->scoreText() }}
+                                                            @endif
+                                                        </td>
+                                                    @endif
+                                                    <td class="py-2 pr-4">
+                                                        @foreach($match->matchPlayers->where('won', $won)->sortBy('position') as $mp)
+                                                            @if(!$loop->first) <span class="text-gray-400">/</span> @endif
+                                                            <a href="{{ route('players.show', $mp->player_id) }}" class="hover:underline {{ $won ? 'text-green-600 font-semibold' : 'text-gray-700' }}">{{ $mp->player->first_name }} {{ $mp->player->last_name }}</a>
+                                                            @if($mp->$ratingField)<span class="text-xs text-gray-400">({{ number_format($mp->$ratingField, 2) }})</span>@endif
+                                                        @endforeach
+                                                    </td>
+                                                @endforeach
+                                                <td class="py-2 text-gray-500 whitespace-nowrap">{{ $match->played_on?->format('M j') }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </details>
+                @endforeach
+            </div>
+        </div>
+    @elseif(app()->isLocal() && $tournament->utrEventId())
+        <div class="bg-blue-50 border-l-4 border-blue-400 p-4 mb-6 text-sm text-gray-700">
+            No draws yet. Click <strong>Sync from UTR</strong> to pull this event's draws and results.
+        </div>
+    @endif
 
     <div class="mb-4 flex justify-between items-center">
         <div class="text-sm text-gray-600">
@@ -148,10 +253,6 @@
                 ✖ Clear
             </button>
         </div>
-
-        @if($tournament->flight)
-            <h2 class="text-2xl font-bold text-gray-800 mb-4">{{ $tournament->flight }}</h2>
-        @endif
 
         <!-- Mobile Sort Controls -->
         <div class="md:hidden mb-4 flex items-center gap-2 text-sm">

@@ -74,6 +74,39 @@ class PlayerController extends Controller
                 return $courtPlayer->court->tennisMatch->start_time ?? $courtPlayer->court->tennisMatch->created_at;
             });
 
+        // Tournament matches (synced from UTR) for this player
+        $tournamentMatchPlayers = \App\Models\TournamentMatchPlayer::where('player_id', $player->id)
+            ->with(['match.draw.tournament', 'match.sets', 'match.matchPlayers.player'])
+            ->get();
+
+        // League and tournament matches together, newest first, for the match history
+        $historyEntries = collect()
+            ->concat($courtPlayers->map(fn($cp) => [
+                'type' => 'league',
+                'item' => $cp,
+                'date' => $cp->court->tennisMatch->start_time ?? $cp->court->tennisMatch->created_at,
+                'rank' => 0,
+            ]))
+            ->concat($tournamentMatchPlayers->map(fn($tmp) => [
+                'type' => 'tournament',
+                'item' => $tmp,
+                'date' => $tmp->match->played_on ?? $tmp->match->created_at,
+                // Tournament matches only have a date, so later rounds sort first within a day
+                'rank' => $tmp->match->roundRank(),
+            ]))
+            ->sortBy([
+                fn($a, $b) => \Carbon\Carbon::parse($b['date'])->timestamp <=> \Carbon\Carbon::parse($a['date'])->timestamp,
+                fn($a, $b) => $b['rank'] <=> $a['rank'],
+            ])
+            ->values();
+
+        $historyTournaments = $tournamentMatchPlayers->map(fn($tmp) => $tmp->match->draw->tournament)->unique('id')->values();
+        $tournamentPartners = $tournamentMatchPlayers
+            ->filter(fn($tmp) => $tmp->match->draw->team_type === 'doubles')
+            ->map(fn($tmp) => $tmp->match->matchPlayers->first(fn($other) => $other->won === $tmp->won && $other->player_id !== $player->id))
+            ->filter()
+            ->values();
+
         // Calculate match statistics
         $totalMatches = $courtPlayers->count();
         $wins = $courtPlayers->where('won', true)->count();
@@ -197,7 +230,7 @@ class PlayerController extends Controller
             ->unique('date')
             ->values();
 
-        return view('players.show', compact('player', 'courtPlayers', 'stats', 'ratingSnapshots', 'matchRatingPoints', 'upcomingMatches', 'upcomingLabel', 'recentMatches', 'recentLabel', 'bestWins', 'worstLosses'));
+        return view('players.show', compact('player', 'courtPlayers', 'stats', 'ratingSnapshots', 'matchRatingPoints', 'upcomingMatches', 'upcomingLabel', 'recentMatches', 'recentLabel', 'historyEntries', 'historyTournaments', 'tournamentPartners', 'bestWins', 'worstLosses'));
     }
 
     /**
@@ -257,97 +290,111 @@ class PlayerController extends Controller
 
         if ($opponentId = $request->get('opponent')) {
             $opponent = Player::findOrFail($opponentId);
+            $aId = $player->id;
+            $bId = $opponent->id;
 
-            // Court appearances keyed by court_id => team_id for each player
-            $aCourts = \App\Models\CourtPlayer::where('player_id', $player->id)->get(['court_id', 'team_id'])->keyBy('court_id');
-            $bCourts = \App\Models\CourtPlayer::where('player_id', $opponent->id)->get(['court_id', 'team_id'])->keyBy('court_id');
+            // --- League appearances: court_id => CourtPlayer (team_id) ---
+            $aCourts = \App\Models\CourtPlayer::where('player_id', $aId)->get(['court_id', 'team_id'])->keyBy('court_id');
+            $bCourts = \App\Models\CourtPlayer::where('player_id', $bId)->get(['court_id', 'team_id'])->keyBy('court_id');
 
-            // Courts shared by both, on opposing teams
+            // --- Tournament appearances: tournament_match_id => TournamentMatchPlayer (won) ---
+            $aTourn = \App\Models\TournamentMatchPlayer::where('player_id', $aId)->get(['tournament_match_id', 'won'])->keyBy('tournament_match_id');
+            $bTourn = \App\Models\TournamentMatchPlayer::where('player_id', $bId)->get(['tournament_match_id', 'won'])->keyBy('tournament_match_id');
+
+            // Direct meetings: same court/match, opposite sides
             $sharedCourtIds = $aCourts->keys()->intersect($bCourts->keys())
                 ->filter(fn($id) => $aCourts[$id]->team_id !== $bCourts[$id]->team_id)
                 ->values();
-
-            $directMatches = \App\Models\Court::whereIn('id', $sharedCourtIds)
-                ->with(['tennisMatch.homeTeam', 'tennisMatch.awayTeam', 'courtPlayers.player', 'courtSets'])
-                ->get()
-                ->filter(fn($c) => $c->home_score !== null)
-                ->sortByDesc(fn($c) => $c->tennisMatch->start_time)
-                ->map(fn($c) => [
-                    'court'       => $c,
-                    'player_cp'   => $c->courtPlayers->firstWhere('player_id', $player->id),
-                    'opponent_cp' => $c->courtPlayers->firstWhere('player_id', $opponent->id),
-                ])
+            $sharedTournIds = $aTourn->keys()->intersect($bTourn->keys())
+                ->filter(fn($id) => $aTourn[$id]->won !== $bTourn[$id]->won)
                 ->values();
 
-            // Opponents of player A (opposing team, excluding player B)
-            $aOpponentIds = \App\Models\CourtPlayer::whereIn('court_id', $aCourts->keys())
-                ->whereNotIn('player_id', [$player->id, $opponent->id])
-                ->get(['court_id', 'player_id', 'team_id'])
-                ->filter(fn($cp) => $aCourts->has($cp->court_id) && $cp->team_id !== $aCourts[$cp->court_id]->team_id)
-                ->pluck('player_id')->unique();
+            $directCourts = \App\Models\Court::whereIn('id', $sharedCourtIds)
+                ->with(['tennisMatch', 'courtPlayers', 'courtSets'])
+                ->get()
+                ->filter(fn($c) => $c->home_score !== null);
+            $directTourn = \App\Models\TournamentMatch::whereIn('id', $sharedTournIds)
+                ->with(['draw.tournament', 'sets', 'matchPlayers'])
+                ->get();
 
-            // Opponents of player B (opposing team, excluding player A)
-            $bOpponentIds = \App\Models\CourtPlayer::whereIn('court_id', $bCourts->keys())
-                ->whereNotIn('player_id', [$opponent->id, $player->id])
-                ->get(['court_id', 'player_id', 'team_id'])
-                ->filter(fn($cp) => $bCourts->has($cp->court_id) && $cp->team_id !== $bCourts[$cp->court_id]->team_id)
-                ->pluck('player_id')->unique();
+            $directMatches = $directCourts->map(fn($c) => $this->h2hLeagueRow($c, $aId, $bId))
+                ->concat($directTourn->map(fn($m) => $this->h2hTournamentRow($m, $aId, $bId)))
+                ->sortByDesc(fn($row) => $row['date']?->timestamp ?? 0)
+                ->values();
+
+            // Opponents each player has faced, in leagues and tournaments
+            $leagueOpponents = function ($courts, array $exclude) {
+                return \App\Models\CourtPlayer::whereIn('court_id', $courts->keys())
+                    ->whereNotIn('player_id', $exclude)
+                    ->get(['court_id', 'player_id', 'team_id'])
+                    ->filter(fn($cp) => $cp->team_id !== $courts[$cp->court_id]->team_id)
+                    ->pluck('player_id');
+            };
+            $tournamentOpponents = function ($tourn, array $exclude) {
+                return \App\Models\TournamentMatchPlayer::whereIn('tournament_match_id', $tourn->keys())
+                    ->whereNotIn('player_id', $exclude)
+                    ->get(['tournament_match_id', 'player_id', 'won'])
+                    ->filter(fn($mp) => $mp->won !== $tourn[$mp->tournament_match_id]->won)
+                    ->pluck('player_id');
+            };
+            $aOpponentIds = $leagueOpponents($aCourts, [$aId, $bId])->concat($tournamentOpponents($aTourn, [$aId, $bId]))->unique();
+            $bOpponentIds = $leagueOpponents($bCourts, [$aId, $bId])->concat($tournamentOpponents($bTourn, [$aId, $bId]))->unique();
 
             $commonIds = $aOpponentIds->intersect($bOpponentIds)->values();
 
             if ($commonIds->isNotEmpty()) {
-                $commonCpRows = \App\Models\CourtPlayer::whereIn('player_id', $commonIds)
-                    ->get(['court_id', 'player_id', 'team_id', 'won']);
-
-                // For each common opponent, collect court IDs where player A or B faced them
-                $aVsCourtIds = []; // commonPlayerId => [courtId, ...]
-                $bVsCourtIds = [];
-                foreach ($commonCpRows as $cp) {
-                    $cid = $cp->court_id;
-                    $pid = $cp->player_id;
-                    if ($aCourts->has($cid) && $aCourts[$cid]->team_id !== $cp->team_id) {
-                        $aVsCourtIds[$pid][] = $cid;
+                // League courts where A or B faced a common opponent
+                $leagueVs = []; // [subjectId][opponentId] => [courtId, ...]
+                foreach (\App\Models\CourtPlayer::whereIn('player_id', $commonIds)->get(['court_id', 'player_id', 'team_id']) as $cp) {
+                    foreach ([$aId => $aCourts, $bId => $bCourts] as $subjectId => $courts) {
+                        if ($courts->has($cp->court_id) && $courts[$cp->court_id]->team_id !== $cp->team_id) {
+                            $leagueVs[$subjectId][$cp->player_id][] = $cp->court_id;
+                        }
                     }
-                    if ($bCourts->has($cid) && $bCourts[$cid]->team_id !== $cp->team_id) {
-                        $bVsCourtIds[$pid][] = $cid;
+                }
+                // Tournament matches where A or B faced a common opponent
+                $tournVs = []; // [subjectId][opponentId] => [matchId, ...]
+                foreach (\App\Models\TournamentMatchPlayer::whereIn('player_id', $commonIds)->get(['tournament_match_id', 'player_id', 'won']) as $mp) {
+                    foreach ([$aId => $aTourn, $bId => $bTourn] as $subjectId => $tourn) {
+                        if ($tourn->has($mp->tournament_match_id) && $tourn[$mp->tournament_match_id]->won !== $mp->won) {
+                            $tournVs[$subjectId][$mp->player_id][] = $mp->tournament_match_id;
+                        }
                     }
                 }
 
-                // Bulk load all those courts
-                $allCommonCourtIds = array_unique(array_merge(
-                    ...array_values($aVsCourtIds),
-                    ...array_values($bVsCourtIds),
-                ));
-
-                $commonCourts = \App\Models\Court::whereIn('id', $allCommonCourtIds)
-                    ->with(['tennisMatch', 'courtPlayers.player', 'courtSets'])
+                $courtIds = collect($leagueVs)->flatten()->unique();
+                $commonCourts = \App\Models\Court::whereIn('id', $courtIds)
+                    ->with(['tennisMatch', 'courtPlayers', 'courtSets'])
                     ->get()
                     ->filter(fn($c) => $c->home_score !== null)
                     ->keyBy('id');
+                $commonTourn = \App\Models\TournamentMatch::whereIn('id', collect($tournVs)->flatten()->unique())
+                    ->with(['draw.tournament', 'sets', 'matchPlayers'])
+                    ->get()
+                    ->keyBy('id');
 
-                $matchesVs = function (int $subjectId, array $courtIds) use ($commonCourts, $player, $opponent) {
-                    return collect($courtIds)
-                        ->map(fn($cid) => $commonCourts->get($cid))
-                        ->filter()
-                        ->sortByDesc(fn($c) => $c->tennisMatch->start_time)
-                        ->map(fn($c) => [
-                            'court'      => $c,
-                            'subject_cp' => $c->courtPlayers->firstWhere('player_id', $subjectId),
-                        ])
+                $matchesVs = function (int $subjectId, int $oppId) use ($leagueVs, $tournVs, $commonCourts, $commonTourn) {
+                    return collect($leagueVs[$subjectId][$oppId] ?? [])->unique()
+                        ->map(fn($id) => $commonCourts->get($id))->filter()
+                        ->map(fn($c) => $this->h2hLeagueRow($c, $subjectId))
+                        ->concat(collect($tournVs[$subjectId][$oppId] ?? [])->unique()
+                            ->map(fn($id) => $commonTourn->get($id))->filter()
+                            ->map(fn($m) => $this->h2hTournamentRow($m, $subjectId)))
+                        ->sortByDesc(fn($row) => $row['date']?->timestamp ?? 0)
                         ->values();
                 };
 
                 $commonOpponents = Player::whereIn('id', $commonIds)->orderBy('last_name')->orderBy('first_name')
                     ->get(['id', 'first_name', 'last_name', 'utr_singles_rating'])
-                    ->map(function ($opp) use ($player, $opponent, $aVsCourtIds, $bVsCourtIds, $matchesVs) {
-                        $aMatches = $matchesVs($player->id,   $aVsCourtIds[$opp->id] ?? []);
-                        $bMatches = $matchesVs($opponent->id, $bVsCourtIds[$opp->id] ?? []);
-                        $aWins = $aMatches->where('subject_cp.won', true)->count();
-                        $bWins = $bMatches->where('subject_cp.won', true)->count();
+                    ->map(function ($opp) use ($aId, $bId, $matchesVs) {
+                        $aMatches = $matchesVs($aId, $opp->id);
+                        $bMatches = $matchesVs($bId, $opp->id);
+                        $aWins = $aMatches->where('won', true)->count();
+                        $bWins = $bMatches->where('won', true)->count();
                         return [
                             'player'          => $opp,
-                            'player_record'   => ['wins' => $aWins,   'losses' => $aMatches->count() - $aWins],
-                            'opponent_record' => ['wins' => $bWins,   'losses' => $bMatches->count() - $bWins],
+                            'player_record'   => ['wins' => $aWins, 'losses' => $aMatches->count() - $aWins],
+                            'opponent_record' => ['wins' => $bWins, 'losses' => $bMatches->count() - $bWins],
                             'player_matches'  => $aMatches,
                             'opponent_matches'=> $bMatches,
                         ];
@@ -356,6 +403,62 @@ class PlayerController extends Controller
         }
 
         return view('players.head-to-head', compact('player', 'opponent', 'allPlayers', 'directMatches', 'commonOpponents'));
+    }
+
+    /**
+     * A league court as a head-to-head row, from $subjectId's side (and $otherId's, for direct meetings).
+     * Sets are [subject games, other games, tiebreak].
+     */
+    private function h2hLeagueRow(\App\Models\Court $court, int $subjectId, ?int $otherId = null): array
+    {
+        $match = $court->tennisMatch;
+        $subject = $court->courtPlayers->firstWhere('player_id', $subjectId);
+        $other = $otherId ? $court->courtPlayers->firstWhere('player_id', $otherId) : null;
+        $isHome = $subject && $subject->team_id === $match->home_team_id;
+        $ratingField = $court->court_type === 'doubles' ? 'utr_doubles_rating' : 'utr_singles_rating';
+
+        return [
+            'source'      => 'league',
+            'date'        => $match->start_time ? \Carbon\Carbon::parse($match->start_time) : null,
+            'url'         => route('tennis-matches.show', $match->id),
+            'label'       => null,
+            'walkover'    => false,
+            'sets'        => $court->courtSets->sortBy('set_number')
+                ->map(fn($set) => $isHome ? [$set->home_score, $set->away_score, null] : [$set->away_score, $set->home_score, null])
+                ->values()->all(),
+            'won'         => (bool) $subject?->won,
+            'rating'      => $subject?->$ratingField,
+            'other_won'   => (bool) $other?->won,
+            'other_rating'=> $other?->$ratingField,
+        ];
+    }
+
+    /**
+     * A tournament match as a head-to-head row, in the same shape as h2hLeagueRow().
+     */
+    private function h2hTournamentRow(\App\Models\TournamentMatch $match, int $subjectId, ?int $otherId = null): array
+    {
+        $subject = $match->matchPlayers->firstWhere('player_id', $subjectId);
+        $other = $otherId ? $match->matchPlayers->firstWhere('player_id', $otherId) : null;
+        $won = (bool) $subject?->won;
+        $ratingField = $match->draw->team_type === 'doubles' ? 'utr_doubles_rating' : 'utr_singles_rating';
+
+        return [
+            'source'      => 'tournament',
+            'date'        => $match->played_on,
+            'url'         => route('tournaments.show', $match->draw->tournament_id),
+            'label'       => '🏆 ' . $match->draw->tournament->name . ' · ' . ($match->round_name ?? 'Round robin'),
+            'walkover'    => $match->isWalkover(),
+            'sets'        => $match->sets
+                ->map(fn($set) => $won
+                    ? [$set->winner_score, $set->loser_score, $set->loser_tiebreak]
+                    : [$set->loser_score, $set->winner_score, $set->loser_tiebreak])
+                ->values()->all(),
+            'won'         => $won,
+            'rating'      => $subject?->$ratingField,
+            'other_won'   => (bool) $other?->won,
+            'other_rating'=> $other?->$ratingField,
+        ];
     }
 
     /**

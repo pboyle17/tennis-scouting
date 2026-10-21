@@ -93,4 +93,5 @@ Route::delete('/courts/{court}', [\App\Http\Controllers\CourtController::class, 
 Route::resource('tournaments', TournamentController::class);
 Route::post('/tournaments/{tournament}/add-player', [TournamentController::class, 'addPlayer'])->name('tournaments.addPlayer');
 Route::delete('/tournaments/{tournament}/remove-player/{player}', [TournamentController::class, 'removePlayer'])->name('tournaments.removePlayer');
-Route::post('/tournaments/create-from-usta', [TournamentController::class, 'createFromUstaLink'])->name('tournaments.createFromUstaLink');
+Route::post('/tournaments/{tournament}/sync-utr', [TournamentController::class, 'syncFromUtr'])->name('tournaments.syncFromUtr');
+Route::post('/tournaments/create-from-utr', [TournamentController::class, 'createFromUtrLink'])->name('tournaments.createFromUtrLink');
