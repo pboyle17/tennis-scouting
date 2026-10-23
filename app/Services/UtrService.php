@@ -164,4 +164,53 @@ class UtrService
 
         throw new \Exception("UTR API request failed for {$path}. Status: {$response->status()}.");
     }
+
+    /**
+     * Search UTR for each player. A player with exactly one result whose name matches exactly
+     * gets that profile saved straight away; everyone with results is returned so the right
+     * profile can be picked by hand (the "Find Missing UTR IDs" buttons).
+     *
+     * @return array [['player' => ['id', 'first_name', 'last_name'], 'results' => hits], ...]
+     */
+    public function findMissingUtrIds(iterable $players): array
+    {
+        $searchResults = [];
+
+        foreach ($players as $player) {
+            $playerName = $player->first_name . ' ' . $player->last_name;
+            try {
+                $results = $this->searchPlayers($playerName, 10);
+                $hits = $results['players']['hits'] ?? $results['hits'] ?? [];
+                if (empty($hits)) {
+                    continue;
+                }
+
+                $source = $hits[0]['source'] ?? [];
+                if (count($hits) === 1
+                    && strtolower(trim($source['firstName'] ?? '')) === strtolower(trim($player->first_name))
+                    && strtolower(trim($source['lastName'] ?? '')) === strtolower(trim($player->last_name))) {
+                    $player->utr_id = $source['id'] ?? null;
+                    $player->utr_singles_rating = $source['singlesUtr'] ?? null;
+                    $player->utr_doubles_rating = $source['doublesUtr'] ?? null;
+                    // Reliability flags are only true when reliability is exactly 100
+                    $player->utr_singles_reliable = isset($source['ratingProgressSingles']) && $source['ratingProgressSingles'] == 100;
+                    $player->utr_doubles_reliable = isset($source['ratingProgressDoubles']) && $source['ratingProgressDoubles'] == 100;
+                    $player->utr_singles_updated_at = now();
+                    $player->utr_doubles_updated_at = now();
+                    $player->save();
+                    Log::info("Auto-selected and saved UTR data for {$playerName}", ['player_id' => $player->id, 'utr_id' => $player->utr_id]);
+                }
+
+                // Still shown in the UI (marked auto-selected)
+                $searchResults[] = [
+                    'player' => ['id' => $player->id, 'first_name' => $player->first_name, 'last_name' => $player->last_name],
+                    'results' => $hits,
+                ];
+            } catch (\Exception $e) {
+                Log::error("UTR search failed for player {$player->id}: " . $e->getMessage());
+            }
+        }
+
+        return $searchResults;
+    }
 }

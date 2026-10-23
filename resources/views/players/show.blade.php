@@ -169,6 +169,18 @@
                     <span class="text-sm font-semibold">View Tennis Record</span>
                 </a>
             @endif
+            @if($player->ustaProfileUrl())
+                <a href="{{ $player->ustaProfileUrl() }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition">
+                    <img src="{{ asset('images/usta_logo.png') }}" alt="USTA" class="h-5 w-8 mr-2 object-contain">
+                    <span class="text-sm font-semibold">View USTA Profile</span>
+                </a>
+            @endif
+            @if($player->tennis_number_link)
+                <a href="{{ $player->tennis_number_link }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition">
+                    <img src="{{ asset('images/wtn_logo.png') }}" alt="WTN" class="h-5 w-8 mr-2 object-contain">
+                    <span class="text-sm font-semibold">View WTN Profile</span>
+                </a>
+            @endif
             <a href="{{ route('rackets.index', ['player_id' => $player->id]) }}" class="inline-flex items-center bg-gray-100 hover:bg-gray-200 px-4 py-2 rounded transition">
                 <span class="text-xl mr-2">🏸</span>
                 <span class="text-sm font-semibold">Rackets</span>

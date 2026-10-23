@@ -44,19 +44,25 @@ class SyncTournamentFromUtrJob implements ShouldQueue
             'end_date' => $this->tournament->end_date ?? ($event['endDate'] ?? null),
         ]);
 
-        // Players, with their current ratings
+        $draws = $utr->fetchImportedEventDraws($eventId);
+        $drawNames = collect($draws)->pluck('name', 'id');
+
+        // Players, with their current ratings and the draws (flights) they entered
         $playerIds = [];
+        $pivot = [];
         foreach ($utr->fetchImportedEventPlayers($eventId) as $data) {
             if ($player = $this->resolvePlayer($data, updateRatings: true)) {
                 $playerIds[] = $player->id;
+                $flights = collect($data['draws'] ?? [])->map(fn($d) => $drawNames[$d['id']] ?? null)->filter()->unique()->sort()->values()->all();
+                $pivot[$player->id] = ['flights' => $flights]; // cast to JSON by TournamentPlayer
             }
         }
-        $this->tournament->players()->syncWithoutDetaching($playerIds);
+        $this->tournament->players()->syncWithoutDetaching($pivot);
 
         // Draws and their results
         $drawCount = 0;
         $matchCount = 0;
-        foreach ($utr->fetchImportedEventDraws($eventId) as $drawData) {
+        foreach ($draws as $drawData) {
             usleep(500000); // be gentle with the UTR API between draw requests
             $results = $utr->fetchImportedEventResults($eventId, $drawData['id']);
 

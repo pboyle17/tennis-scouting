@@ -95,3 +95,6 @@ Route::post('/tournaments/{tournament}/add-player', [TournamentController::class
 Route::delete('/tournaments/{tournament}/remove-player/{player}', [TournamentController::class, 'removePlayer'])->name('tournaments.removePlayer');
 Route::post('/tournaments/{tournament}/sync-utr', [TournamentController::class, 'syncFromUtr'])->name('tournaments.syncFromUtr');
 Route::post('/tournaments/create-from-utr', [TournamentController::class, 'createFromUtrLink'])->name('tournaments.createFromUtrLink');
+Route::post('/tournaments/create-from-usta', [TournamentController::class, 'createFromUstaLink'])->name('tournaments.createFromUstaLink');
+Route::post('/tournaments/{tournament}/find-missing-utr-ids', [TournamentController::class, 'findMissingUtrIds'])->name('tournaments.findMissingUtrIds');
+Route::post('/tournaments/{tournament}/import-usta-players', [TournamentController::class, 'importUstaPlayers'])->name('tournaments.importUstaPlayers');

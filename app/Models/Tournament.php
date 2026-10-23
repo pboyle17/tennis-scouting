@@ -41,6 +41,8 @@ class Tournament extends Model
     public function players(): BelongsToMany
     {
         return $this->belongsToMany(Player::class, 'tournament_player')
+                    ->using(TournamentPlayer::class)
+                    ->withPivot('flights')
                     ->withTimestamps();
     }
 
