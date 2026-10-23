@@ -27,6 +27,9 @@
                 <button onclick="openUtrModal()" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
                     🏆 Create from UTR Link
                 </button>
+                <button onclick="openUstaModal()" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded">
+                    🎾 Create from USTA Link
+                </button>
             @endenv
             <a href="{{ route('tournaments.create') }}" class="bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded">
                 + Add Tournament
@@ -144,7 +147,85 @@
     </div>
 </div>
 
+<!-- USTA Link Modal -->
+<div id="ustaModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
+    <div class="bg-white rounded-lg p-6 w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-lg font-medium text-gray-900">Create Tournament from USTA Link</h3>
+            <button onclick="closeUstaModal()" class="text-gray-400 hover:text-gray-600">
+                <span class="sr-only">Close</span>
+                <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        <form id="ustaForm" method="POST" action="{{ route('tournaments.createFromUstaLink') }}">
+            @csrf
+            <div class="mb-4">
+                <label for="usta_link" class="block text-sm font-medium text-gray-700 mb-2">
+                    USTA Tournament URL
+                </label>
+                <input type="url" name="usta_link" id="usta_link" required
+                       placeholder="https://playtennis.usta.com/Competitions/.../Tournaments/players/..."
+                       class="w-full border rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                <p class="mt-1 text-xs text-gray-500">
+                    Any page of the tournament on playtennis.usta.com (overview, players, draws...)
+                </p>
+            </div>
+
+            <div class="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
+                <h4 class="text-sm font-medium text-yellow-800 mb-1">What this will do:</h4>
+                <ul class="text-xs text-yellow-700 list-disc list-inside space-y-1">
+                    <li>Create the tournament with its name, dates and venue from USTA</li>
+                    <li>Add every registered player, creating any that are missing</li>
+                    <li>Look up UTR profiles for players without one and save their ratings</li>
+                </ul>
+            </div>
+
+            <div class="flex justify-end space-x-3">
+                <button type="button" onclick="closeUstaModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-4 rounded">
+                    Cancel
+                </button>
+                <button type="submit" id="ustaSubmitBtn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded">
+                    🚀 Create &amp; Import
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
+    function openUstaModal() {
+        document.getElementById('ustaModal').classList.remove('hidden');
+        document.getElementById('ustaModal').classList.add('flex');
+        document.getElementById('usta_link').focus();
+    }
+
+    function closeUstaModal() {
+        document.getElementById('ustaModal').classList.add('hidden');
+        document.getElementById('ustaModal').classList.remove('flex');
+        document.getElementById('usta_link').value = '';
+    }
+
+    document.getElementById('ustaModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            closeUstaModal();
+        }
+    });
+
+    document.getElementById('ustaForm').addEventListener('submit', function(e) {
+        const ustaLink = document.getElementById('usta_link').value;
+        if (!/playtennis\.usta\.com\/.*Tournaments\/[^\/]+\/[0-9a-f-]{36}/i.test(ustaLink)) {
+            e.preventDefault();
+            alert('Please enter a playtennis.usta.com tournament URL, e.g. https://playtennis.usta.com/Competitions/.../Tournaments/players/6B9D5E94-...');
+            return;
+        }
+        const submitBtn = document.getElementById('ustaSubmitBtn');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '⏳ Creating...';
+    });
+
     function openUtrModal() {
         document.getElementById('utrModal').classList.remove('hidden');
         document.getElementById('utrModal').classList.add('flex');

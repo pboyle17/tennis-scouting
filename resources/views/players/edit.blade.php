@@ -214,6 +214,22 @@
             </select>
         </div>
 
+        <div class="mb-4 grid grid-cols-2 gap-4">
+            <div>
+                <label class="block mb-1" for="usta_id">USTA ID</label>
+                <input type="text" name="usta_id" id="usta_id" value="{{ old('usta_id', $player->usta_id) }}" class="w-full border rounded p-2 @error('usta_id') border-red-500 @enderror" placeholder="e.g. 2019546054">
+                @error('usta_id')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+                @if($player->ustaProfileUrl())
+                    <a href="{{ $player->ustaProfileUrl() }}" target="_blank" rel="noopener noreferrer" class="text-xs text-blue-600 hover:underline">View USTA profile ↗</a>
+                @endif
+            </div>
+            <div>
+                <label class="block mb-1" for="wtn_id">WTN ID</label>
+                <input type="text" name="wtn_id" id="wtn_id" value="{{ old('wtn_id', $player->wtn_id) }}" class="w-full border rounded p-2 @error('wtn_id') border-red-500 @enderror" placeholder="e.g. DEM9468872">
+                @error('wtn_id')<p class="text-red-500 text-xs mt-1">{{ $message }}</p>@enderror
+            </div>
+        </div>
+
         <div class="mb-4">
             <label class="block mb-1" for="tennis_number_singles_rating">Tennis Number Singles Rating</label>
             <input type="number" step=".01" name="tennis_number_singles_rating" id="tennis_number_singles_rating" value="{{ old('tennis_number_singles_rating', $player->tennis_number_singles_rating) }}" class="w-full border rounded p-2">

@@ -7,6 +7,14 @@
     <div class="flex items-center justify-between mb-6">
         <h1 class="text-3xl font-bold text-center text-gray-800">{{ $tournament->name }}</h1>
         <div class="flex space-x-2">
+            @if(app()->isLocal() && \App\Services\UstaTournamentService::parseTournamentId($tournament->usta_link))
+                <form method="POST" action="{{ route('tournaments.importUstaPlayers', $tournament->id) }}">
+                    @csrf
+                    <button type="submit" class="bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                        🎾 Import USTA Players
+                    </button>
+                </form>
+            @endif
             @if(app()->isLocal() && $tournament->utrEventId())
                 <form method="POST" action="{{ route('tournaments.syncFromUtr', $tournament->id) }}">
                     @csrf
@@ -36,6 +44,31 @@
             ✖ {{ session('error') }}
         </div>
     @endif
+
+    @if(app()->isLocal() && ($import = \Illuminate\Support\Facades\Cache::get(\App\Jobs\ImportUstaTournamentPlayersJob::statusKey($tournament->id))))
+        <div class="bg-indigo-50 border-l-4 border-indigo-400 p-4 mb-6 text-sm text-gray-700">
+            <span class="font-semibold">USTA import {{ $import['stage'] === 'completed' ? 'finished' : $import['stage'] . '…' }}</span>
+            <span class="text-gray-500">({{ \Carbon\Carbon::parse($import['at'])->diffForHumans() }})</span>
+            <div class="mt-1">
+                {{ $import['registrations'] }} registered ·
+                {{ $import['created'] }} new players · {{ $import['existing'] }} already in the app
+                @if($import['ambiguous']) · {{ $import['ambiguous'] }} skipped (name shared by several players) @endif
+            </div>
+            <div>
+                UTR: {{ $import['utr_matched'] }} matched · {{ $import['utr_unmatched'] }} not found or unclear · {{ $import['utr_already'] }} already linked
+                @if($import['rate_limited']) · <span class="text-red-600 font-semibold">stopped early, UTR rate limited</span> @endif
+            </div>
+            @isset($import['wtn_matched'])
+                <div>
+                    WTN: {{ $import['wtn_matched'] }} matched · {{ $import['wtn_unmatched'] }} not found or unclear · {{ $import['wtn_refreshed'] }} refreshed
+                </div>
+            @endisset
+        </div>
+    @endif
+
+    @include('partials.utr-search-results', [
+        'saveUrl' => fn($playerId) => route('leagues.setPlayerUtrData', ['player' => $playerId]),
+    ])
 
     <!-- Tournament Info -->
     <div class="bg-white rounded-lg shadow p-6 mb-6">
@@ -176,11 +209,22 @@
             <strong>{{ $tournament->players->count() }}</strong> players in this tournament
         </div>
 
+        @php $playersWithoutUtrId = $tournament->players->whereNull('utr_id')->count(); @endphp
+        <div class="flex items-center gap-2">
+        @if(app()->isLocal() && $playersWithoutUtrId > 0)
+            <form method="POST" action="{{ route('tournaments.findMissingUtrIds', $tournament->id) }}">
+                @csrf
+                <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded cursor-pointer">
+                    🔍 Find Missing UTR IDs ({{ $playersWithoutUtrId }})
+                </button>
+            </form>
+        @endif
         @if($availablePlayers->count() > 0)
             <button type="button" id="toggleAddPlayerBtn" class="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded">
                 + Add Players
             </button>
         @endif
+        </div>
     </div>
 
     <!-- Add Player Section -->
@@ -254,6 +298,23 @@
             </button>
         </div>
 
+        @php
+            $flightNames = $tournament->players->flatMap(fn($p) => $p->pivot->flights ?? [])->unique()->sort(SORT_NATURAL)->values();
+            $flightsAttr = fn($p) => e(implode('|', $p->pivot->flights ?? []));
+        @endphp
+        @if($flightNames->count() > 1)
+            <div class="mb-4 flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Flight:</span>
+                @foreach($flightNames as $flightName)
+                    @php $flightCount = $tournament->players->filter(fn($p) => in_array($flightName, $p->pivot->flights ?? []))->count(); @endphp
+                    <button type="button" data-flight="{{ $flightName }}" class="flight-filter-btn px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200">
+                        {{ $flightName }} <span class="text-xs opacity-70">({{ $flightCount }})</span>
+                    </button>
+                @endforeach
+                <button type="button" id="clearFlightFilter" class="hidden text-sm text-blue-600 hover:underline">Show all</button>
+            </div>
+        @endif
+
         <!-- Mobile Sort Controls -->
         <div class="md:hidden mb-4 flex items-center gap-2 text-sm">
             <span class="text-gray-600 font-medium">Sort:</span>
@@ -271,7 +332,10 @@
         <!-- Mobile Cards -->
         <div id="playerCards" class="md:hidden space-y-3">
             @foreach ($sortDirection === 'asc' ? $tournament->players->sortBy($sortField) : $tournament->players->sortByDesc($sortField) as $player)
-                <div class="bg-white rounded-lg shadow p-4" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}">
+                <div class="bg-white rounded-lg shadow p-4" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}" data-flights="{!! $flightsAttr($player) !!}">
+                    @if(!empty($player->pivot->flights))
+                        <div class="text-xs text-gray-500 mb-1">{{ implode(' · ', $player->pivot->flights) }}</div>
+                    @endif
                     <div class="flex justify-between items-start mb-2">
                         <a href="{{ route('players.show', $player->id) }}" class="text-base font-semibold text-blue-600 hover:underline">
                             {{ $player->first_name }} {{ $player->last_name }}
@@ -348,20 +412,30 @@
                                 @endif
                             </a>
                         </th>
+                        @if($flightNames->isNotEmpty())
+                            <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Flight</th>
+                        @endif
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Links</th>
                         @env('local')<th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Actions</th>@endenv
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-200">
                     @foreach ($sortDirection === 'asc' ? $tournament->players->sortBy($sortField) : $tournament->players->sortByDesc($sortField) as $player)
-                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('tournaments.show', $tournament->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}">
-                            <td class="px-4 py-2 text-sm text-gray-700">{{ $loop->iteration }}</td>
+                        <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('tournaments.show', $tournament->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}" data-flights="{!! $flightsAttr($player) !!}">
+                            <td class="px-4 py-2 text-sm text-gray-700" data-rank>{{ $loop->iteration }}</td>
                             <td class="px-4 py-2 text-sm">
                                 <a href="{{ route('players.show', $player->id) }}" onclick="event.stopPropagation()" class="text-blue-600 hover:underline">{{ $player->first_name }} {{ $player->last_name }}</a>
                             </td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_singles_rating }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->utr_doubles_rating }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">{{ $player->tennis_number_singles_rating ? number_format($player->tennis_number_singles_rating, 2) : '' }}</td>
+                            @if($flightNames->isNotEmpty())
+                                <td class="px-4 py-2 text-sm text-gray-600">
+                                    @foreach($player->pivot->flights ?? [] as $flightName)
+                                        <div class="whitespace-nowrap">{{ $flightName }}</div>
+                                    @endforeach
+                                </td>
+                            @endif
                             <td class="px-4 py-2 text-sm text-center">
                                 <div class="flex items-center gap-2 justify-center">
                                     @if($player->utr_id)
@@ -371,6 +445,11 @@
                                     @endif
                                     @if($player->tennis_record_link)
                                         <a href="{{ $player->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="text-base leading-none">🎾</a>
+                                    @endif
+                                    @if($player->ustaProfileUrl())
+                                        <a href="{{ $player->ustaProfileUrl() }}" target="_blank" rel="noopener noreferrer" title="USTA profile">
+                                            <img src="{{ asset('images/usta_logo.png') }}" alt="USTA Profile" class="h-5 w-8 object-contain">
+                                        </a>
                                     @endif
                                     @if($player->tennis_number_link)
                                         <a href="{{ $player->tennis_number_link }}" target="_blank" rel="noopener noreferrer">
@@ -597,10 +676,11 @@
             }
         })();
 
-        // Player table search functionality
+        // Player table search + flight filter
         (function () {
             const input = document.getElementById('playerTableSearch');
             const clearBtn = document.getElementById('clearPlayerTableSearch');
+            const clearFlights = document.getElementById('clearFlightFilter');
             const playersTable = document.getElementById('playersTable');
             const playerCards = document.getElementById('playerCards');
 
@@ -608,30 +688,95 @@
 
             const rows = playersTable ? Array.from(playersTable.querySelectorAll('tbody tr[data-name]')) : [];
             const cards = playerCards ? Array.from(playerCards.querySelectorAll('[data-name]')) : [];
+            const flightButtons = Array.from(document.querySelectorAll('.flight-filter-btn'));
+            const activeFlights = new Set();
             let t;
 
-            function applyFilter(term) {
-                const q = term.trim().toLowerCase();
+            function matches(el, q) {
+                const name = el.getAttribute('data-name') || '';
+                const flights = (el.getAttribute('data-flights') || '').split('|').filter(Boolean);
+                const nameOk = !q || name.includes(q);
+                const flightOk = activeFlights.size === 0 || flights.some(f => activeFlights.has(f));
+                return nameOk && flightOk;
+            }
+
+            function applyFilter() {
+                const q = input.value.trim().toLowerCase();
+                let rank = 0;
                 rows.forEach(row => {
-                    const name = row.getAttribute('data-name') || '';
-                    row.style.display = (!q || name.includes(q)) ? '' : 'none';
+                    const show = matches(row, q);
+                    row.style.display = show ? '' : 'none';
+                    const rankCell = row.querySelector('[data-rank]');
+                    if (show && rankCell) rankCell.textContent = ++rank;
                 });
                 cards.forEach(card => {
-                    const name = card.getAttribute('data-name') || '';
-                    card.style.display = (!q || name.includes(q)) ? '' : 'none';
+                    card.style.display = matches(card, q) ? '' : 'none';
                 });
                 clearBtn.classList.toggle('hidden', q.length === 0);
+                if (clearFlights) clearFlights.classList.toggle('hidden', activeFlights.size === 0);
             }
 
-            function debouncedFilter() {
+            function setActive(btn, on) {
+                btn.classList.toggle('bg-blue-600', on);
+                btn.classList.toggle('text-white', on);
+                btn.classList.toggle('hover:bg-blue-700', on);
+                btn.classList.toggle('bg-gray-100', !on);
+                btn.classList.toggle('text-gray-700', !on);
+                btn.classList.toggle('hover:bg-gray-200', !on);
+            }
+
+            // Keep the selected flights in the URL (?flight=...) so they survive re-sorting
+            function withFlights(href) {
+                const url = new URL(href, window.location.href);
+                url.searchParams.delete('flight');
+                activeFlights.forEach(f => url.searchParams.append('flight', f));
+                return url.toString();
+            }
+
+            function syncUrl() {
+                history.replaceState(null, '', withFlights(window.location.href));
+            }
+
+            flightButtons.forEach(btn => btn.addEventListener('click', () => {
+                const flight = btn.dataset.flight;
+                const on = !activeFlights.has(flight);
+                on ? activeFlights.add(flight) : activeFlights.delete(flight);
+                setActive(btn, on);
+                applyFilter();
+                syncUrl();
+            }));
+
+            if (clearFlights) {
+                clearFlights.addEventListener('click', () => {
+                    activeFlights.clear();
+                    flightButtons.forEach(btn => setActive(btn, false));
+                    applyFilter();
+                    syncUrl();
+                });
+            }
+
+            // Column sort links reload the page, so carry the current flights along
+            document.querySelectorAll('#playersTable thead a[href*="sort="]').forEach(link => {
+                link.addEventListener('click', () => { link.href = withFlights(link.href); });
+            });
+
+            // Restore flights from the URL on load
+            const initialFlights = new URLSearchParams(window.location.search).getAll('flight');
+            flightButtons.forEach(btn => {
+                if (initialFlights.includes(btn.dataset.flight)) {
+                    activeFlights.add(btn.dataset.flight);
+                    setActive(btn, true);
+                }
+            });
+            if (activeFlights.size) applyFilter();
+
+            input.addEventListener('input', () => {
                 clearTimeout(t);
-                t = setTimeout(() => applyFilter(input.value), 150);
-            }
-
-            input.addEventListener('input', debouncedFilter);
+                t = setTimeout(applyFilter, 150);
+            });
             clearBtn.addEventListener('click', () => {
                 input.value = '';
-                applyFilter('');
+                applyFilter();
                 input.focus();
             });
         })();

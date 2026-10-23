@@ -541,7 +541,14 @@ class PlayerController extends Controller
             'tennis_number_singles_rating' => 'nullable|numeric',
             'tennis_number_doubles_rating' => 'nullable|numeric',
             'tennis_number_link' => 'nullable|url|max:500',
+            'usta_id' => 'nullable|string|max:50|unique:players,usta_id,' . $player->id,
+            'wtn_id' => 'nullable|string|max:50|unique:players,wtn_id,' . $player->id,
         ]);
+
+        if (!empty($validated['wtn_id'])) {
+            $validated['wtn_id'] = strtoupper(trim($validated['wtn_id']));
+            $validated['tennis_number_link'] = $validated['tennis_number_link'] ?: \App\Services\WtnService::profileUrl($validated['wtn_id']);
+        }
 
         // Check if UTR ratings changed and set updated timestamps
         if (isset($validated['utr_singles_rating']) && $validated['utr_singles_rating'] != $player->utr_singles_rating) {

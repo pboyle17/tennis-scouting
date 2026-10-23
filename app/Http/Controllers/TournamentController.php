@@ -213,6 +213,88 @@ class TournamentController extends Controller
     }
 
     /**
+     * Create a tournament from a playtennis.usta.com tournament link, then queue an import
+     * of its registered players (and UTR matching for any without a UTR id).
+     */
+    public function createFromUstaLink(Request $request, \App\Services\UstaTournamentService $usta)
+    {
+        abort_unless(app()->isLocal(), 404);
+
+        $request->validate(['usta_link' => 'required|url|max:255']);
+
+        $ustaId = \App\Services\UstaTournamentService::parseTournamentId($request->usta_link);
+        if (!$ustaId) {
+            return back()->with('error', 'Please provide a playtennis.usta.com tournament link, e.g. https://playtennis.usta.com/Competitions/.../Tournaments/players/6B9D5E94-...');
+        }
+
+        $existing = Tournament::whereNotNull('usta_link')->get()
+            ->first(fn($t) => \App\Services\UstaTournamentService::parseTournamentId($t->usta_link) === $ustaId);
+        if ($existing) {
+            return redirect()->route('tournaments.show', $existing->id)
+                ->with('error', 'A tournament for this USTA link already exists. Use "Import USTA Players" to refresh its players.');
+        }
+
+        try {
+            $details = $usta->fetchTournament($ustaId);
+        } catch (\Exception $e) {
+            \Log::error('Failed to load USTA tournament: ' . $e->getMessage());
+            return back()->with('error', 'Could not load that tournament from USTA. Check the link and try again.');
+        }
+
+        $venue = $details['primaryLocation'] ?? [];
+        $tournament = Tournament::create([
+            'name' => trim(preg_replace('/\s+/', ' ', $details['name'] ?? "USTA tournament {$ustaId}")),
+            'usta_link' => $request->usta_link,
+            'start_date' => $details['timings']['startDate'] ?? null,
+            'end_date' => $details['timings']['endDate'] ?? null,
+            'location' => collect([$venue['name'] ?? null, isset($venue['town']) ? ucwords(strtolower($venue['town'])) : null, $venue['county'] ?? null])->filter()->implode(', ') ?: null,
+        ]);
+
+        \App\Jobs\ImportUstaTournamentPlayersJob::dispatch($tournament, $ustaId);
+
+        return redirect()->route('tournaments.show', $tournament->id)
+            ->with('success', "Tournament '{$tournament->name}' created. Importing players from USTA and matching UTR profiles — refresh in a few minutes.");
+    }
+
+    /**
+     * Search UTR for tournament players without a UTR id, same as the team page's
+     * "Find Missing UTR IDs": exact single matches are saved, the rest are listed to pick from.
+     */
+    public function findMissingUtrIds(Tournament $tournament, \App\Services\UtrService $utr)
+    {
+        abort_unless(app()->isLocal(), 404);
+
+        $players = $tournament->players()->whereNull('utr_id')->get();
+        if ($players->isEmpty()) {
+            return back()->with('success', 'All players in this tournament already have UTR IDs!');
+        }
+
+        $searchResults = $utr->findMissingUtrIds($players);
+
+        return back()->with([
+            'utr_search_results' => $searchResults,
+            'success' => 'Found ' . count($searchResults) . ' player(s) with potential UTR matches. Review and select the correct profiles below.',
+        ]);
+    }
+
+    /**
+     * Re-run the USTA player import for a tournament that has a USTA link.
+     */
+    public function importUstaPlayers(Tournament $tournament)
+    {
+        abort_unless(app()->isLocal(), 404);
+
+        $ustaId = \App\Services\UstaTournamentService::parseTournamentId($tournament->usta_link);
+        if (!$ustaId) {
+            return back()->with('error', 'This tournament has no playtennis.usta.com tournament link.');
+        }
+
+        \App\Jobs\ImportUstaTournamentPlayersJob::dispatch($tournament, $ustaId);
+
+        return back()->with('success', 'USTA player import queued. Refresh in a few minutes.');
+    }
+
+    /**
      * Queue a sync of draws, matches and players from the tournament's UTR event.
      */
     public function syncFromUtr(Tournament $tournament)

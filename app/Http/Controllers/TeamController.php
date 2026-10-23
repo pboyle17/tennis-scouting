@@ -459,73 +459,7 @@ class TeamController extends Controller
             return back()->with('status', 'All players on this team already have UTR IDs!');
         }
 
-        // Search for UTR profiles for each player
-        $utrService = app(\App\Services\UtrService::class);
-        $searchResults = [];
-
-        foreach ($playersWithoutUtrIds as $player) {
-            try {
-                $playerName = $player->first_name . ' ' . $player->last_name;
-                $results = $utrService->searchPlayers($playerName, 10);
-
-                // Handle nested structure
-                $hits = $results['players']['hits'] ?? $results['hits'] ?? [];
-
-                if (!empty($hits)) {
-                    // Check if there's exactly one result with matching names - auto-save it
-                    if (count($hits) === 1) {
-                        $source = $hits[0]['source'] ?? [];
-                        $firstName = strtolower(trim($source['firstName'] ?? ''));
-                        $lastName = strtolower(trim($source['lastName'] ?? ''));
-                        $playerFirstName = strtolower(trim($player->first_name));
-                        $playerLastName = strtolower(trim($player->last_name));
-
-                        if ($firstName === $playerFirstName && $lastName === $playerLastName) {
-                            // Auto-save the UTR data
-                            $player->utr_id = $source['id'] ?? null;
-                            $player->utr_singles_rating = $source['singlesUtr'] ?? null;
-                            $player->utr_doubles_rating = $source['doublesUtr'] ?? null;
-
-                            // Set reliability flags - only true if reliability is exactly 100
-                            $player->utr_singles_reliable = isset($source['ratingProgressSingles']) && $source['ratingProgressSingles'] == 100;
-                            $player->utr_doubles_reliable = isset($source['ratingProgressDoubles']) && $source['ratingProgressDoubles'] == 100;
-
-                            // Set updated timestamps
-                            $player->utr_singles_updated_at = now();
-                            $player->utr_doubles_updated_at = now();
-
-                            $player->save();
-
-                            \Illuminate\Support\Facades\Log::info("Auto-selected and saved UTR data for {$playerName}", [
-                                'player_id' => $player->id,
-                                'utr_id' => $player->utr_id,
-                                'singles' => $player->utr_singles_rating,
-                                'doubles' => $player->utr_doubles_rating
-                            ]);
-                        }
-                    }
-
-                    // Still add to search results to show in UI
-                    $searchResults[] = [
-                        'player' => [
-                            'id' => $player->id,
-                            'first_name' => $player->first_name,
-                            'last_name' => $player->last_name
-                        ],
-                        'results' => $hits
-                    ];
-                }
-
-                \Illuminate\Support\Facades\Log::info("UTR Search for team player: {$playerName}", [
-                    'player_id' => $player->id,
-                    'team_id' => $team->id,
-                    'results_count' => count($hits)
-                ]);
-
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("UTR search failed for player {$player->id}: " . $e->getMessage());
-            }
-        }
+        $searchResults = app(\App\Services\UtrService::class)->findMissingUtrIds($playersWithoutUtrIds);
 
         return back()->with([
             'utr_search_results' => $searchResults,
