@@ -151,10 +151,11 @@ class PlayerController extends Controller
         ];
 
         // Best win = highest-rated opponent beaten. Worst loss = lowest-rated
-        // opponent lost to. Both ranked by the opponent's UTR rating at the
-        // time of the match (as snapshotted on the opposing CourtPlayer).
-        $bestWins = $this->extremeMatchesByCourtType($courtPlayers, won: true, keepHigher: true);
-        $worstLosses = $this->extremeMatchesByCourtType($courtPlayers, won: false, keepHigher: false);
+        // opponent lost to. League and tournament matches both count, ranked
+        // by the opponent's current UTR rating.
+        $resultCandidates = $this->extremeMatchCandidates($courtPlayers, $tournamentMatchPlayers, $player->id);
+        $bestWins = $this->extremeMatchesByCourtType($resultCandidates, won: true, keepHigher: true);
+        $worstLosses = $this->extremeMatchesByCourtType($resultCandidates, won: false, keepHigher: false);
 
         $ratingSnapshots = \App\Models\PlayerRatingSnapshot::where('player_id', $player->id)
             ->orderBy('snapshot_date')
@@ -234,44 +235,96 @@ class PlayerController extends Controller
     }
 
     /**
-     * For each court type, find the win/loss against the most extreme-rated
-     * opponent (highest for a win, lowest for a loss). Uses the opponent's
-     * current UTR rating rather than their rating at match time, since a
-     * rating backed by more matches is more accurate than an old snapshot.
+     * League and tournament results in one shape for picking best wins / worst losses.
+     * Uses the opponent's current UTR rating (singles, or the pair's average for doubles)
+     * rather than their rating at match time, since a rating backed by more matches is
+     * more accurate than an old snapshot.
      */
-    private function extremeMatchesByCourtType($courtPlayers, bool $won, bool $keepHigher): array
+    private function extremeMatchCandidates($courtPlayers, $tournamentMatchPlayers, int $playerId): array
     {
-        $result = ['singles' => null, 'doubles' => null];
+        $opponentRating = function ($opponents, string $courtType) {
+            if ($courtType === 'singles') {
+                return $opponents->first()?->utr_singles_rating;
+            }
+            $ratings = $opponents->pluck('utr_doubles_rating')->filter()->values();
+            return $ratings->isNotEmpty() ? $ratings->avg() : null;
+        };
 
-        foreach ($courtPlayers->where('won', $won) as $cp) {
+        $candidates = [];
+
+        foreach ($courtPlayers as $cp) {
             $court = $cp->court;
-            $opponents = $court->courtPlayers->where('team_id', '!=', $cp->team_id)->values();
+            $match = $court->tennisMatch;
+            $opponents = $court->courtPlayers->where('team_id', '!=', $cp->team_id)->pluck('player')->filter()->values();
             if ($opponents->isEmpty()) {
                 continue;
             }
+            $isHome = $cp->team_id === $match->home_team_id;
+            $candidates[] = [
+                'court_type' => $court->court_type,
+                'won' => (bool) $cp->won,
+                'partner' => $court->courtPlayers->first(fn($o) => $o->team_id === $cp->team_id && $o->player_id !== $playerId)?->player,
+                'opponents' => $opponents,
+                'opponent_rating' => $opponentRating($opponents, $court->court_type),
+                'date' => $match->start_time,
+                'url' => route('tennis-matches.show', $match->id),
+                'label' => null,
+                'walkover' => false,
+                'sets' => $court->courtSets->sortBy('set_number')
+                    ->map(fn($set) => $isHome ? [$set->home_score, $set->away_score, null] : [$set->away_score, $set->home_score, null])
+                    ->values()->all(),
+            ];
+        }
 
-            if ($court->court_type === 'singles') {
-                $opponentRating = $opponents->first()->player->utr_singles_rating;
-            } else {
-                $opponentRatings = $opponents->pluck('player.utr_doubles_rating')->filter()->values();
-                $opponentRating = $opponentRatings->isNotEmpty() ? $opponentRatings->avg() : null;
+        foreach ($tournamentMatchPlayers as $tmp) {
+            $match = $tmp->match;
+            $courtType = $match->draw->team_type === 'doubles' ? 'doubles' : 'singles';
+            $opponents = $match->matchPlayers->where('won', '!==', $tmp->won)->sortBy('position')->pluck('player')->filter()->values();
+            // Walkovers say nothing about level, so skip them
+            if ($opponents->isEmpty() || $match->isWalkover()) {
+                continue;
             }
+            $candidates[] = [
+                'court_type' => $courtType,
+                'won' => (bool) $tmp->won,
+                'partner' => $match->matchPlayers->first(fn($o) => $o->won === $tmp->won && $o->player_id !== $playerId)?->player,
+                'opponents' => $opponents,
+                'opponent_rating' => $opponentRating($opponents, $courtType),
+                'date' => $match->played_on,
+                'url' => route('tournaments.show', $match->draw->tournament_id),
+                'label' => '🏆 ' . $match->draw->tournament->name . ' · ' . ($match->round_name ?? 'Round robin'),
+                'walkover' => false,
+                'sets' => $match->sets
+                    ->map(fn($set) => $tmp->won
+                        ? [$set->winner_score, $set->loser_score, $set->loser_tiebreak]
+                        : [$set->loser_score, $set->winner_score, $set->loser_tiebreak])
+                    ->values()->all(),
+            ];
+        }
 
-            if ($opponentRating === null) {
+        return $candidates;
+    }
+
+    /**
+     * For each court type, find the win/loss against the most extreme-rated
+     * opponent (highest for a win, lowest for a loss).
+     */
+    private function extremeMatchesByCourtType(array $candidates, bool $won, bool $keepHigher): array
+    {
+        $result = ['singles' => null, 'doubles' => null];
+
+        foreach ($candidates as $candidate) {
+            if ($candidate['won'] !== $won || $candidate['opponent_rating'] === null) {
                 continue;
             }
 
-            $existing = $result[$court->court_type] ?? null;
+            $existing = $result[$candidate['court_type']] ?? null;
             $isMoreExtreme = !$existing || ($keepHigher
-                ? $opponentRating > $existing['opponent_rating']
-                : $opponentRating < $existing['opponent_rating']);
+                ? $candidate['opponent_rating'] > $existing['opponent_rating']
+                : $candidate['opponent_rating'] < $existing['opponent_rating']);
 
             if ($isMoreExtreme) {
-                $result[$court->court_type] = [
-                    'court_player' => $cp,
-                    'opponents' => $opponents,
-                    'opponent_rating' => $opponentRating,
-                ];
+                $result[$candidate['court_type']] = $candidate;
             }
         }
 
