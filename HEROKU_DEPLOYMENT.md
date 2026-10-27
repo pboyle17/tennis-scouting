@@ -278,3 +278,34 @@ Before going live:
 - Heroku Documentation: https://devcenter.heroku.com/
 - Laravel on Heroku: https://devcenter.heroku.com/articles/getting-started-with-laravel
 - View this project's logs: `heroku logs --tail`
+
+## Worker autoscaling
+
+The worker dyno scales itself between 0 and 1 so it only runs (and costs) while there are queued jobs:
+
+- Whenever a job is queued, the app scales `worker` to 1 through the Heroku Platform API (`App\Services\HerokuWorkerScaler`).
+- `worker.sh` runs `queue:work --stop-when-empty`, then `php artisan worker:scale-down`, which scales `worker` back to 0 once the `jobs` table is empty (and scales back up if something was queued meanwhile).
+
+Setup (once):
+
+```bash
+# A token that can scale dynos (write scope)
+heroku authorizations:create -s write -d "worker autoscale" -a tennis-scouting-dev
+heroku config:set HEROKU_API_TOKEN=<token from above> HEROKU_APP_NAME=tennis-scouting-dev -a tennis-scouting-dev
+heroku ps:scale worker=0 -a tennis-scouting-dev   # it starts on its own when a job is queued
+```
+
+Without `HEROKU_API_TOKEN` / `HEROKU_APP_NAME` (e.g. locally) nothing is scaled.
+
+## Daily restore from the latest backup
+
+`php artisan backups:restore-latest` restores this database from the newest backup in S3, skipping backups taken from this app's own database. It runs the restore in its own process, so no web or worker dyno has to be running. It refuses to run locally (use `--dry-run` to preview).
+
+It's run by Heroku Scheduler. Scheduler only takes UTC times, so to stay at 6 AM Eastern through daylight saving changes it runs hourly and the `--hour` option only lets it act during the 6 AM hour:
+
+```bash
+heroku addons:create scheduler:standard -a tennis-scouting-dev
+heroku addons:open scheduler -a tennis-scouting-dev
+# Add job:  php artisan backups:restore-latest --hour=6     Frequency: Every hour at :00
+```
+

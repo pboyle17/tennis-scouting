@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'heroku' => [
+        // Used to scale the worker dyno up/down with the queue (see App\Services\HerokuWorkerScaler)
+        'api_token' => env('HEROKU_API_TOKEN'),
+        'app_name' => env('HEROKU_APP_NAME'),
+    ],
+
 ];
