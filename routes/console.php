@@ -64,3 +64,44 @@ Schedule::call(function () {
         }
     }
 })->everyMinute()->name('daily-league-updates')->withoutOverlapping();
+
+Artisan::command('worker:scale-down', function () {
+    $scaledDown = app(\App\Services\HerokuWorkerScaler::class)->scaleDownIfIdle();
+    $this->info($scaledDown ? 'Queue empty, worker scaled down.' : 'Jobs still queued, keeping the worker running.');
+})->purpose('Scale the Heroku worker dyno to 0 when the queue is empty');
+
+Artisan::command('backups:restore-latest {--hour= : Only run when it is this hour (0-23) in the app timezone} {--dry-run : Only show which backup would be restored}', function (\App\Services\BackupStore $backups) {
+    // Locally the newest "other" backup is production's, and restoring it would wipe local data
+    if (app()->isLocal() && !$this->option('dry-run')) {
+        $this->error('Refusing to restore over the local database. Use --dry-run to preview.');
+        return 1;
+    }
+
+    $hour = $this->option('hour');
+    if ($hour !== null && now()->hour !== (int) $hour) {
+        $this->info('Not ' . $hour . ':00 ' . config('app.timezone') . ' yet, skipping.');
+        return;
+    }
+
+    // Skip backups taken from this app's own database; we want the newest copy of the source database
+    $ownDatabase = config('database.connections.pgsql.database');
+    if ($url = env('DATABASE_URL')) {
+        $ownDatabase = ltrim(parse_url($url, PHP_URL_PATH) ?? '', '/');
+    }
+
+    $latest = $backups->latest(excludeDatabase: $ownDatabase);
+    if (!$latest) {
+        $this->warn('No backups found in S3.');
+        return;
+    }
+
+    if ($this->option('dry-run')) {
+        $this->info("Would restore {$latest['filename']} (taken {$latest['at']->toDayDateTimeString()}).");
+        return;
+    }
+
+    $this->info("Restoring {$latest['filename']} (taken {$latest['at']->toDayDateTimeString()})...");
+    // Run in this process rather than queueing it, so no worker dyno is needed
+    \App\Jobs\RestoreFromS3BackupJob::dispatchSync($latest['key']);
+    $this->info('Restore complete.');
+})->purpose('Restore this database from the newest backup in S3 (used by Heroku Scheduler)');

@@ -23,17 +23,7 @@ class ConfigurationController extends Controller
   private function latestBackup(): ?array
   {
       try {
-          return \Cache::remember('latest_backup', now()->addMinutes(5), function () {
-              $latest = null;
-              foreach (\Storage::disk('s3')->files('backups') as $file) {
-                  if (!preg_match('/backup_.*?_(\d{4}-\d{2}-\d{2}_\d{6})/', basename($file), $matches)) continue;
-                  $date = \Carbon\Carbon::createFromFormat('Y-m-d_His', $matches[1], config('app.timezone'));
-                  if (!$latest || $date->gt($latest['at'])) {
-                      $latest = ['at' => $date, 'filename' => basename($file)];
-                  }
-              }
-              return $latest;
-          });
+          return \Cache::remember('latest_backup', now()->addMinutes(5), fn() => app(\App\Services\BackupStore::class)->latest());
       } catch (\Exception $e) {
           \Log::warning('Could not determine latest backup', ['error' => $e->getMessage()]);
           return null;
