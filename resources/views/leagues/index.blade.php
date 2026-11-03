@@ -310,5 +310,94 @@
             </tbody>
         </table>
     </div>
+
+    <!-- Recent Matches (last weekend) -->
+    @if($recentMatches->count() > 0)
+    <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+        <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">Recent Matches</h2>
+            <span class="text-sm text-gray-500">{{ $recentLabel }}</span>
+        </div>
+        <div class="space-y-6">
+            @foreach($recentMatches as $leagueName => $leagueMatches)
+            <div>
+                <h3 class="text-lg font-semibold text-gray-700 pt-2 mb-2">{{ $leagueName }}</h3>
+                <div class="space-y-3">
+            @foreach($leagueMatches as $match)
+                @php
+                    $isPlayed = $match->home_score !== null && $match->away_score !== null
+                        && !($match->home_score === 0 && $match->away_score === 0);
+                    $winner = $match->winningSide();
+                @endphp
+                <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition cursor-pointer" onclick="window.location='{{ route('tennis-matches.show', $match->id) }}'">
+                    <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                        <div>
+                            <div class="text-sm font-semibold text-gray-700">
+                                {{ $match->start_time->format('l, M d, Y') }}
+                                <span class="text-xs text-gray-500 font-normal">{{ $match->start_time->format('g:i A') }}</span>
+                            </div>
+                            <div class="text-sm text-gray-600 mt-1">
+                                <a href="{{ route('teams.show', $match->home_team_id) }}" onclick="event.stopPropagation()" class="text-blue-600 hover:underline {{ $winner === 'home' ? 'font-semibold' : '' }}">{{ $match->homeTeam->name }}</a>
+                                <span class="mx-1 text-gray-400">vs</span>
+                                <a href="{{ route('teams.show', $match->away_team_id) }}" onclick="event.stopPropagation()" class="text-blue-600 hover:underline {{ $winner === 'away' ? 'font-semibold' : '' }}">{{ $match->awayTeam->name }}</a>
+                            </div>
+                        </div>
+                        <div class="flex sm:flex-col items-center sm:items-end gap-2 self-start">
+                            @if($isPlayed)
+                                <span class="text-lg font-bold">
+                                    <span class="{{ $winner === 'home' ? 'text-green-600' : 'text-gray-900' }}">{{ $match->home_score }}</span><span class="text-gray-400">-</span><span class="{{ $winner === 'away' ? 'text-green-600' : 'text-gray-900' }}">{{ $match->away_score }}</span>
+                                </span>
+                            @else
+                                <span class="text-xs text-gray-400 italic">No result yet</span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
+
+    <!-- Upcoming Matches -->
+    @if($upcomingMatches->count() > 0)
+    <div class="bg-white rounded-lg shadow-md p-6 mt-6">
+        <div class="flex flex-wrap items-baseline justify-between gap-2 mb-4">
+            <h2 class="text-2xl font-bold text-gray-800">Upcoming Matches</h2>
+            <span class="text-sm text-gray-500">{{ $upcomingLabel }}</span>
+        </div>
+        <div class="space-y-6">
+            @foreach($upcomingMatches as $leagueName => $leagueMatches)
+            <div>
+                <h3 class="text-lg font-semibold text-gray-700 pt-2 mb-2">{{ $leagueName }}</h3>
+                <div class="space-y-3">
+            @foreach($leagueMatches as $match)
+                <div class="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition cursor-pointer" onclick="window.location='{{ route('tennis-matches.show', $match->id) }}'">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div>
+                            <div class="text-sm font-semibold text-gray-700">
+                                {{ $match->start_time->format('l, M d, Y') }}
+                                <span class="text-xs text-gray-500 font-normal">{{ $match->start_time->format('g:i A') }}</span>
+                            </div>
+                            <div class="text-sm text-gray-600 mt-1">
+                                <a href="{{ route('teams.show', $match->home_team_id) }}" onclick="event.stopPropagation()" class="text-blue-600 hover:underline">{{ $match->homeTeam->name }}</a>
+                                <span class="mx-1 text-gray-400">vs</span>
+                                <a href="{{ route('teams.show', $match->away_team_id) }}" onclick="event.stopPropagation()" class="text-blue-600 hover:underline">{{ $match->awayTeam->name }}</a>
+                            </div>
+                            @if($match->location)
+                                <div class="text-xs text-gray-500 mt-1">{{ $match->location }}</div>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+            @endforeach
+                </div>
+            </div>
+            @endforeach
+        </div>
+    </div>
+    @endif
 </div>
 @endsection

@@ -63,9 +63,49 @@ class LeagueController extends Controller
           $league->courtAverages = $leagueAveragesMap[$league->id] ?? ['s1' => null, 's2' => null, 'd1' => null, 'd2' => null, 'd3' => null];
       }
 
+      // Upcoming / recent matches across the listed leagues. Each shows the weekend
+      // of the nearest match in that direction, however far away it is.
+      $teamIds = $leagues->flatMap->teams->pluck('id');
+      $leagueMatches = fn() => \App\Models\TennisMatch::where(function ($query) use ($teamIds) {
+              $query->whereIn('home_team_id', $teamIds)
+                  ->orWhereIn('away_team_id', $teamIds);
+          });
+
+      // Upcoming: everything from now through the end of the next match's weekend
+      $upcomingMatches = collect();
+      $upcomingLabel = null;
+      if ($nextMatchTime = $leagueMatches()->where('start_time', '>=', now())->min('start_time')) {
+          [$weekendStart, $weekendEnd] = $this->weekendOf(\Carbon\Carbon::parse($nextMatchTime));
+          $upcomingMatches = $leagueMatches()
+              ->whereBetween('start_time', [now(), $weekendEnd])
+              ->with(['homeTeam', 'awayTeam', 'league'])
+              ->orderBy('start_time')
+              ->get();
+          $upcomingLabel = $this->weekendLabel($weekendStart);
+      }
+
+      // Recent: the weekend of the most recent past match, up to now
+      $recentMatches = collect();
+      $recentLabel = null;
+      if ($lastMatchTime = $leagueMatches()->where('start_time', '<', now())->max('start_time')) {
+          $lastMatchTime = \Carbon\Carbon::parse($lastMatchTime);
+          [$weekendStart, $weekendEnd] = $this->weekendOf($lastMatchTime);
+          $recentMatches = $leagueMatches()
+              ->whereBetween('start_time', [$weekendStart->copy()->min($lastMatchTime->copy()->startOfDay()), now()->min($weekendEnd)])
+              ->with(['homeTeam', 'awayTeam', 'league'])
+              ->orderBy('start_time')
+              ->get();
+          $recentLabel = $this->weekendLabel($weekendStart);
+      }
+
+      // Group each section by league name, alphabetically
+      $byLeague = fn($matches) => $matches->groupBy(fn($m) => $m->league?->name ?? 'Other')->sortKeys();
+      $recentMatches = $byLeague($recentMatches);
+      $upcomingMatches = $byLeague($upcomingMatches);
+
       $runningUpdates = League::runningUpdates($leagues->pluck('id'));
 
-      return view('leagues.index', compact('leagues', 'runningUpdates'));
+      return view('leagues.index', compact('leagues', 'runningUpdates', 'recentMatches', 'recentLabel', 'upcomingMatches', 'upcomingLabel'));
     }
 
     /**
