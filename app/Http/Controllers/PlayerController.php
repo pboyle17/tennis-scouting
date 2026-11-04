@@ -153,7 +153,7 @@ class PlayerController extends Controller
         // Best win = highest-rated opponent beaten. Worst loss = lowest-rated
         // opponent lost to. League and tournament matches both count, ranked
         // by the opponent's current UTR rating.
-        $resultCandidates = $this->extremeMatchCandidates($courtPlayers, $tournamentMatchPlayers, $player->id);
+        $resultCandidates = $this->extremeMatchCandidates($courtPlayers, $tournamentMatchPlayers, $player);
         $bestWins = $this->extremeMatchesByCourtType($resultCandidates, won: true, keepHigher: true);
         $worstLosses = $this->extremeMatchesByCourtType($resultCandidates, won: false, keepHigher: false);
 
@@ -240,8 +240,19 @@ class PlayerController extends Controller
      * rather than their rating at match time, since a rating backed by more matches is
      * more accurate than an old snapshot.
      */
-    private function extremeMatchCandidates($courtPlayers, $tournamentMatchPlayers, int $playerId): array
+    private function extremeMatchCandidates($courtPlayers, $tournamentMatchPlayers, Player $player): array
     {
+        $playerId = $player->id;
+
+        // The player's own side, also at current ratings: their UTR singles, or the pair's doubles average
+        $myRating = function ($partner, string $courtType) use ($player) {
+            if ($courtType === 'singles') {
+                return $player->utr_singles_rating;
+            }
+            $ratings = collect([$player, $partner])->filter()->pluck('utr_doubles_rating')->filter()->values();
+            return $ratings->isNotEmpty() ? $ratings->avg() : null;
+        };
+
         $opponentRating = function ($opponents, string $courtType) {
             if ($courtType === 'singles') {
                 return $opponents->first()?->utr_singles_rating;
@@ -260,10 +271,12 @@ class PlayerController extends Controller
                 continue;
             }
             $isHome = $cp->team_id === $match->home_team_id;
+            $partner = $court->courtPlayers->first(fn($o) => $o->team_id === $cp->team_id && $o->player_id !== $playerId)?->player;
             $candidates[] = [
                 'court_type' => $court->court_type,
                 'won' => (bool) $cp->won,
-                'partner' => $court->courtPlayers->first(fn($o) => $o->team_id === $cp->team_id && $o->player_id !== $playerId)?->player,
+                'partner' => $partner,
+                'my_rating' => $myRating($partner, $court->court_type),
                 'opponents' => $opponents,
                 'opponent_rating' => $opponentRating($opponents, $court->court_type),
                 'date' => $match->start_time,
@@ -284,10 +297,12 @@ class PlayerController extends Controller
             if ($opponents->isEmpty() || $match->isWalkover()) {
                 continue;
             }
+            $partner = $match->matchPlayers->first(fn($o) => $o->won === $tmp->won && $o->player_id !== $playerId)?->player;
             $candidates[] = [
                 'court_type' => $courtType,
                 'won' => (bool) $tmp->won,
-                'partner' => $match->matchPlayers->first(fn($o) => $o->won === $tmp->won && $o->player_id !== $playerId)?->player,
+                'partner' => $partner,
+                'my_rating' => $myRating($partner, $courtType),
                 'opponents' => $opponents,
                 'opponent_rating' => $opponentRating($opponents, $courtType),
                 'date' => $match->played_on,

@@ -17,6 +17,10 @@
             {{ $entry['opponents']->map(fn($o) => $o->first_name . ' ' . $o->last_name)->join(' / ') }}
         </span>
     </div>
+    <div class="text-xs text-gray-500">
+        {{ $type === 'singles' ? 'My Current UTR Singles' : 'My Team Current UTR Doubles (avg)' }}:
+        <span class="font-semibold text-gray-700">{{ $entry['my_rating'] !== null ? number_format($entry['my_rating'], 2) : 'N/A' }}</span>
+    </div>
     <div class="text-xs text-gray-500 mb-2">
         Opponent Current {{ $type === 'singles' ? 'UTR Singles' : 'UTR Doubles (avg)' }}:
         <span class="font-semibold text-gray-700">{{ number_format($entry['opponent_rating'], 2) }}</span>
