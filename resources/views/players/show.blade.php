@@ -263,6 +263,24 @@
                                         <span class="text-orange-500 italic">Defaulted</span>
                                     @endforelse
                                 </div>
+                                @php
+                                    // Current ratings, same as Best Wins: singles rating, or each pair's doubles average
+                                    $isSingles = $court->court_type === 'singles';
+                                    $currentRating = fn($players) => $isSingles
+                                        ? $players->first()?->utr_singles_rating
+                                        : $players->pluck('utr_doubles_rating')->filter()->avg();
+                                    $myRating = $currentRating(collect([$player, $partner?->player])->filter());
+                                    $oppRating = $currentRating($opponents->pluck('player')->filter()->values());
+                                @endphp
+                                @if($opponents->isNotEmpty())
+                                    <div class="text-xs text-gray-500 mt-1">
+                                        {{ $isSingles ? 'My Current UTR Singles' : 'My Team Current UTR Doubles (avg)' }}:
+                                        <span class="font-semibold text-gray-700">{{ $myRating ? number_format($myRating, 2) : 'N/A' }}</span>
+                                        <span class="mx-1 text-gray-300">·</span>
+                                        Opponent Current {{ $isSingles ? 'UTR Singles' : 'UTR Doubles (avg)' }}:
+                                        <span class="font-semibold text-gray-700">{{ $oppRating ? number_format($oppRating, 2) : 'N/A' }}</span>
+                                    </div>
+                                @endif
                             @elseif($isPlayed)
                                 <div class="text-xs text-gray-400 italic mt-2">Did not play</div>
                             @endif

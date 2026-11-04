@@ -1995,11 +1995,24 @@
             Object.entries(leagueAverages).forEach(([pos, avgRating]) => {
                 const y = yScale(avgRating);
                 const color = avgLineColors[pos];
-                const url = singlesCourtResultsUrls[pos] || '';
+                // League lines open the whole league's results; team lines keep the team filter
+                const url = (singlesCourtResultsUrls[pos] || '').split('?')[0];
                 // Visible dashed line
                 avgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="${color}" stroke-width="2" stroke-dasharray="6,4" opacity="0.7"/>`;
                 // Invisible thick hitbox for hover/click
-                avgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="avg-line" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" data-url="${url}" style="cursor: pointer;"/>`;
+                avgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="avg-line" data-label="League Average" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" data-url="${url}" style="cursor: pointer;"/>`;
+            });
+
+            // This team's averages at each position, as dotted lines in the same colors
+            const teamCourtStats = @json($courtStats ?? []);
+            [1, 2].forEach(pos => {
+                const courtStat = teamCourtStats.find(s => s.court_type === 'singles' && parseInt(s.court_number) === pos);
+                const avgRating = courtStat && (currentRatingType === 'utr' ? courtStat.avg_utr_singles : courtStat.avg_usta_dynamic);
+                if (!avgRating) return;
+                const y = yScale(avgRating);
+                const url = singlesCourtResultsUrls[pos] || '';
+                avgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="${avgLineColors[pos]}" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round" opacity="0.9"/>`;
+                avgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="avg-line" data-label="Team Average" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" data-url="${url}" style="cursor: pointer;"/>`;
             });
             svg += avgLinesSvg;
 
@@ -2100,6 +2113,14 @@
                 svg += `<rect x="${width - margin.right + 10}" y="${legendY}" width="15" height="15" fill="${color}"/>`;
                 svg += `<a href="/teams/${teamData.team_id}"><text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" font-weight="${fontWeight}" fill="#374151" style="cursor: pointer;">${teamData.team_name}</text></a>`;
                 legendY += 25;
+            });
+
+            // Key for the average lines
+            legendY += 10;
+            [['League avg', '6,4'], ['Team avg', '2,4']].forEach(([label, dash]) => {
+                svg += `<line x1="${width - margin.right + 10}" y1="${legendY + 7}" x2="${width - margin.right + 25}" y2="${legendY + 7}" stroke="#6b7280" stroke-width="2" stroke-dasharray="${dash}" stroke-linecap="round"/>`;
+                svg += `<text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" fill="#6b7280">${label}</text>`;
+                legendY += 20;
             });
 
             svg += '</svg>';
@@ -2203,7 +2224,7 @@
                     tooltip.style.fontSize = '12px';
                     tooltip.style.zIndex = '1000';
                     tooltip.style.pointerEvents = 'none';
-                    tooltip.innerHTML = `<div style="font-weight: bold;">Singles #${pos} League Average</div><div>${avg}</div>`;
+                    tooltip.innerHTML = `<div style="font-weight: bold;">Singles #${pos} ${this.dataset.label}</div><div>${avg}</div>`;
                     document.body.appendChild(tooltip);
                 });
 
@@ -2390,11 +2411,24 @@
             Object.entries(doublesLeagueAverages).forEach(([pos, avgRating]) => {
                 const y = yScale(avgRating);
                 const color = doublesAvgLineColors[pos];
-                const url = doublesCourtResultsUrls[pos] || '';
+                // League lines open the whole league's results; team lines keep the team filter
+                const url = (doublesCourtResultsUrls[pos] || '').split('?')[0];
                 // Visible dashed line
                 doublesAvgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="${color}" stroke-width="2" stroke-dasharray="6,4" opacity="0.7"/>`;
                 // Invisible thick hitbox for hover/click
-                doublesAvgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="doubles-avg-line" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" data-url="${url}" style="cursor: pointer;"/>`;
+                doublesAvgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="doubles-avg-line" data-label="League Average" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" data-url="${url}" style="cursor: pointer;"/>`;
+            });
+
+            // This team's averages at each position, as dotted lines in the same colors
+            const doublesTeamCourtStats = @json($courtStats ?? []);
+            [1, 2, 3].forEach(pos => {
+                const courtStat = doublesTeamCourtStats.find(s => s.court_type === 'doubles' && parseInt(s.court_number) === pos);
+                const avgRating = courtStat && (currentDoublesRatingType === 'utr' ? courtStat.avg_utr_doubles : courtStat.avg_usta_dynamic);
+                if (!avgRating) return;
+                const y = yScale(avgRating);
+                const url = doublesCourtResultsUrls[pos] || '';
+                doublesAvgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="${doublesAvgLineColors[pos]}" stroke-width="2" stroke-dasharray="2,4" stroke-linecap="round" opacity="0.9"/>`;
+                doublesAvgLinesSvg += `<line x1="${margin.left}" y1="${y}" x2="${width - margin.right}" y2="${y}" stroke="transparent" stroke-width="15" class="doubles-avg-line" data-label="Team Average" data-pos="${pos}" data-avg="${avgRating.toFixed(2)}" data-url="${url}" style="cursor: pointer;"/>`;
             });
             svg += doublesAvgLinesSvg;
 
@@ -2500,6 +2534,14 @@
                 legendY += 25;
             });
 
+            // Key for the average lines
+            legendY += 10;
+            [['League avg', '6,4'], ['Team avg', '2,4']].forEach(([label, dash]) => {
+                svg += `<line x1="${width - margin.right + 10}" y1="${legendY + 7}" x2="${width - margin.right + 25}" y2="${legendY + 7}" stroke="#6b7280" stroke-width="2" stroke-dasharray="${dash}" stroke-linecap="round"/>`;
+                svg += `<text x="${width - margin.right + 30}" y="${legendY + 12}" font-size="12" fill="#6b7280">${label}</text>`;
+                legendY += 20;
+            });
+
             svg += '</svg>';
             chartContainer.innerHTML = svg;
 
@@ -2602,7 +2644,7 @@
                     tooltip.style.fontSize = '12px';
                     tooltip.style.zIndex = '1000';
                     tooltip.style.pointerEvents = 'none';
-                    tooltip.innerHTML = `<div style="font-weight: bold;">Doubles #${pos} League Average</div><div>${avg}</div>`;
+                    tooltip.innerHTML = `<div style="font-weight: bold;">Doubles #${pos} ${this.dataset.label}</div><div>${avg}</div>`;
                     document.body.appendChild(tooltip);
                 });
 
