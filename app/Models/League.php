@@ -61,6 +61,12 @@ class League extends Model
             $this->teams_last_synced_at = now();
         }
 
+        // Team schedule pages are the only source for match times (match results pages
+        // show just a date), so re-read them to pick up rescheduled dates and times
+        if ($teamsToSync->isNotEmpty()) {
+            $jobs[] = new \App\Jobs\SyncTeamMatchesJob($this);
+        }
+
         $teamIds = $this->teams->pluck('id');
         $matches = TennisMatch::where(function ($q) use ($teamIds) {
             $q->whereIn('home_team_id', $teamIds)->orWhereIn('away_team_id', $teamIds);

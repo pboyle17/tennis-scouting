@@ -2,6 +2,7 @@
 
 namespace App\Jobs;
 
+use Illuminate\Bus\Batchable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use App\Models\League;
@@ -14,7 +15,7 @@ use Carbon\Carbon;
 
 class SyncTeamMatchesJob implements ShouldQueue
 {
-    use Queueable;
+    use Batchable, Queueable;
 
     protected $league;
     protected $teamId;
