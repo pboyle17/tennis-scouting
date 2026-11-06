@@ -893,23 +893,29 @@
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Player</th>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Team</th>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField == 'utr_singles_rating' && $sortDirection == 'desc') ? 'asc' : 'desc']) . '#players' }}" class="hover:text-blue-600">
-                                        UTR Singles
-                                        @if($sortField == 'utr_singles_rating')
-                                            <span class="ml-1">{{ $sortDirection == 'asc' ? '↑' : '↓' }}</span>
-                                        @endif
-                                    </a>
+                                    <div class="flex items-center gap-2">
+                                        <span id="filterSinglesReliable" class="cursor-pointer text-lg font-bold {{ request('singles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified ratings">✓</span>
+                                        <a href="{{ route('tennis-matches.show', array_merge(['match' => $match->id, 'sort' => 'utr_singles_rating', 'direction' => ($sortField == 'utr_singles_rating' && $sortDirection == 'desc') ? 'asc' : 'desc'], request()->only(['singles_verified', 'doubles_verified']))) . '#players' }}" class="hover:text-blue-600">
+                                            UTR Singles
+                                            @if($sortField == 'utr_singles_rating')
+                                                <span class="ml-1">{{ $sortDirection == 'asc' ? '↑' : '↓' }}</span>
+                                            @endif
+                                        </a>
+                                    </div>
                                 </th>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField == 'utr_doubles_rating' && $sortDirection == 'desc') ? 'asc' : 'desc']) . '#players' }}" class="hover:text-blue-600">
-                                        UTR Doubles
-                                        @if($sortField == 'utr_doubles_rating')
-                                            <span class="ml-1">{{ $sortDirection == 'asc' ? '↑' : '↓' }}</span>
-                                        @endif
-                                    </a>
+                                    <div class="flex items-center gap-2">
+                                        <span id="filterDoublesReliable" class="cursor-pointer text-lg font-bold {{ request('doubles_verified') ? 'text-green-600' : 'text-gray-400' }}" title="Filter verified ratings">✓</span>
+                                        <a href="{{ route('tennis-matches.show', array_merge(['match' => $match->id, 'sort' => 'utr_doubles_rating', 'direction' => ($sortField == 'utr_doubles_rating' && $sortDirection == 'desc') ? 'asc' : 'desc'], request()->only(['singles_verified', 'doubles_verified']))) . '#players' }}" class="hover:text-blue-600">
+                                            UTR Doubles
+                                            @if($sortField == 'utr_doubles_rating')
+                                                <span class="ml-1">{{ $sortDirection == 'asc' ? '↑' : '↓' }}</span>
+                                            @endif
+                                        </a>
+                                    </div>
                                 </th>
                                 <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
-                                    <a href="{{ route('tennis-matches.show', ['match' => $match->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField == 'USTA_dynamic_rating' && $sortDirection == 'desc') ? 'asc' : 'desc']) . '#players' }}" class="hover:text-blue-600">
+                                    <a href="{{ route('tennis-matches.show', array_merge(['match' => $match->id, 'sort' => 'USTA_dynamic_rating', 'direction' => ($sortField == 'USTA_dynamic_rating' && $sortDirection == 'desc') ? 'asc' : 'desc'], request()->only(['singles_verified', 'doubles_verified']))) . '#players' }}" class="hover:text-blue-600">
                                         USTA Dynamic
                                         @if($sortField == 'USTA_dynamic_rating')
                                             <span class="ml-1">{{ $sortDirection == 'asc' ? '↑' : '↓' }}</span>
@@ -918,6 +924,7 @@
                                 </th>
                                 <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Singles Record</th>
                                 <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Doubles Record</th>
+                                <th class="px-4 py-2 text-center text-xs font-semibold text-gray-600 uppercase">Player Links</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
@@ -929,8 +936,8 @@
                                     $isPromoted = $match->league && $match->league->NTRP_rating && $player->USTA_rating && $player->USTA_rating > $match->league->NTRP_rating;
                                     $isPlayingUp = $match->league && $match->league->NTRP_rating && $player->USTA_rating && $player->USTA_rating < $match->league->NTRP_rating;
                                 @endphp
-                                <tr class="hover:bg-gray-50">
-                                    <td class="px-4 py-2 text-sm text-gray-700 font-semibold">{{ $rank++ }}</td>
+                                <tr class="hover:bg-gray-50 match-player-row" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}">
+                                    <td class="px-4 py-2 text-sm text-gray-700 font-semibold match-player-rank">{{ $rank++ }}</td>
                                     <td class="px-4 py-2 text-sm">
                                         @php
                                             $isHomeTeam = $player->team_id === $match->home_team_id;
@@ -1095,6 +1102,43 @@
                                         @else
                                             -
                                         @endif
+                                    </td>
+                                    <td class="px-4 py-2 text-sm text-center">
+                                        <div class="flex items-center justify-center space-x-2">
+                                            @if($player->utr_id)
+                                                <div class="relative inline-block group">
+                                                    <a href="https://app.utrsports.net/profiles/{{ $player->utr_id }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center">
+                                                        <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-5 w-5">
+                                                    </a>
+                                                    @if($player->utr_singles_updated_at)
+                                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                                    whitespace-nowrap z-50">
+                                                            Updated: {{ \Carbon\Carbon::parse($player->utr_singles_updated_at)->format('M d, Y h:i A') }}
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                            @if($player->tennis_record_link)
+                                                <div class="relative inline-block group">
+                                                    <a href="{{ $player->tennis_record_link }}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center text-green-600 hover:text-green-800">
+                                                        <span class="text-xl leading-none">🎾</span>
+                                                    </a>
+                                                    @if($player->tennis_record_last_sync)
+                                                        <div class="absolute left-1/2 -translate-x-1/2 bottom-full mb-2
+                                                                    opacity-0 group-hover:opacity-100 transition pointer-events-none
+                                                                    bg-gray-800 text-white text-xs rounded py-1 px-2
+                                                                    whitespace-nowrap z-50">
+                                                            Last synced: {{ \Carbon\Carbon::parse($player->tennis_record_last_sync)->format('M d, Y h:i A') }}
+                                                        </div>
+                                                    @endif
+                                                </div>
+                                            @endif
+                                            @if(!$player->utr_id && !$player->tennis_record_link)
+                                                <span class="text-gray-400">-</span>
+                                            @endif
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
@@ -1789,33 +1833,43 @@
         const modal = document.getElementById('playerLinksModal');
         if (!modal) return;
 
-        document.getElementById('playerLinksModalTitle').textContent = playerName;
-        document.getElementById('playerLinksModalContent').innerHTML = `
-            <div class="space-y-3">
-                <a href="/players/${playerId}" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
-                    <span class="font-medium text-gray-700">👤 Player Profile</span>
-                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
-                    </svg>
-                </a>
-                ${utrId ? `
-                <a href="https://app.utrsports.net/profiles/${utrId}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
-                    <span class="font-medium text-gray-700">🎯 UTR Profile</span>
-                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                    </svg>
-                </a>
-                ` : ''}
-                ${tennisRecordLink ? `
-                <a href="${tennisRecordLink}" target="_blank" rel="noopener noreferrer" class="flex items-center justify-between p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition">
-                    <span class="font-medium text-gray-700">🎾 Tennis Record</span>
-                    <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                    </svg>
-                </a>
-                ` : ''}
-            </div>
+        document.getElementById('playerLinksModalTitle').textContent = playerName + ' - Links';
+
+        let linksHtml = `
+            <a href="/players/${playerId}" class="flex items-center space-x-3 p-3 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition">
+                <span class="text-3xl">👤</span>
+                <div>
+                    <div class="font-semibold text-gray-800">Player Profile</div>
+                    <div class="text-xs text-gray-500">View full profile</div>
+                </div>
+            </a>
         `;
+
+        if (utrId) {
+            linksHtml += `
+                <a href="https://app.utrsports.net/profiles/${utrId}" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                    <img src="{{ asset('images/utr_logo.avif') }}" alt="UTR Profile" class="h-8 w-8">
+                    <div>
+                        <div class="font-semibold text-gray-800">UTR Profile</div>
+                        <div class="text-xs text-gray-500">View on UTR Sports</div>
+                    </div>
+                </a>
+            `;
+        }
+
+        if (tennisRecordLink) {
+            linksHtml += `
+                <a href="${tennisRecordLink}" target="_blank" rel="noopener noreferrer" class="flex items-center space-x-3 p-3 bg-gray-50 hover:bg-gray-100 rounded border border-gray-200 transition">
+                    <span class="text-3xl">🎾</span>
+                    <div>
+                        <div class="font-semibold text-gray-800">Tennis Record</div>
+                        <div class="text-xs text-gray-500">View match history</div>
+                    </div>
+                </a>
+            `;
+        }
+
+        document.getElementById('playerLinksModalContent').innerHTML = linksHtml;
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     };
@@ -1834,13 +1888,58 @@
             closePlayerLinksModal();
         }
     });
+    // UTR verified filters on the Match Players table
+    (function() {
+        const filterSingles = document.getElementById('filterSinglesReliable');
+        const filterDoubles = document.getElementById('filterDoublesReliable');
+        if (!filterSingles || !filterDoubles) return;
+        let singlesActive = {{ request('singles_verified') ? 'true' : 'false' }};
+        let doublesActive = {{ request('doubles_verified') ? 'true' : 'false' }};
+
+        function applyVerifiedFilters() {
+            let rank = 1;
+            document.querySelectorAll('.match-player-row').forEach(row => {
+                const show = (!singlesActive || row.dataset.singlesReliable === '1')
+                    && (!doublesActive || row.dataset.doublesReliable === '1');
+                row.style.display = show ? '' : 'none';
+                if (show) row.querySelector('.match-player-rank').textContent = rank++;
+            });
+        }
+
+        function update() {
+            filterSingles.classList.toggle('text-green-600', singlesActive);
+            filterSingles.classList.toggle('text-gray-400', !singlesActive);
+            filterDoubles.classList.toggle('text-green-600', doublesActive);
+            filterDoubles.classList.toggle('text-gray-400', !doublesActive);
+
+            const url = new URL(window.location);
+            singlesActive ? url.searchParams.set('singles_verified', '1') : url.searchParams.delete('singles_verified');
+            doublesActive ? url.searchParams.set('doubles_verified', '1') : url.searchParams.delete('doubles_verified');
+            url.hash = 'players';
+            window.history.replaceState({}, '', url.toString());
+
+            // Keep the filters on the sort links
+            document.querySelectorAll('a[href*="sort="][href$="#players"]').forEach(link => {
+                const linkUrl = new URL(link.href);
+                singlesActive ? linkUrl.searchParams.set('singles_verified', '1') : linkUrl.searchParams.delete('singles_verified');
+                doublesActive ? linkUrl.searchParams.set('doubles_verified', '1') : linkUrl.searchParams.delete('doubles_verified');
+                link.href = linkUrl.toString();
+            });
+
+            applyVerifiedFilters();
+        }
+
+        filterSingles.addEventListener('click', e => { e.stopPropagation(); singlesActive = !singlesActive; update(); });
+        filterDoubles.addEventListener('click', e => { e.stopPropagation(); doublesActive = !doublesActive; update(); });
+        applyVerifiedFilters();
+    })();
 </script>
 
 <!-- Player Links Modal -->
 <div id="playerLinksModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden items-center justify-center z-50">
     <div class="bg-white rounded-lg p-6 w-full max-w-sm mx-4">
         <div class="flex justify-between items-center mb-4">
-            <h3 id="playerLinksModalTitle" class="text-lg font-medium text-gray-900"></h3>
+            <h3 id="playerLinksModalTitle" class="text-lg font-medium text-gray-900">Player Links</h3>
             <button onclick="closePlayerLinksModal()" class="text-gray-400 hover:text-gray-600">
                 <span class="sr-only">Close</span>
                 <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1848,7 +1947,12 @@
                 </svg>
             </button>
         </div>
-        <div id="playerLinksModalContent"></div>
+        <div id="playerLinksModalContent" class="space-y-3"></div>
+        <div class="mt-4 flex justify-end">
+            <button onclick="closePlayerLinksModal()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-semibold py-2 px-4 rounded">
+                Close
+            </button>
+        </div>
     </div>
 </div>
 
