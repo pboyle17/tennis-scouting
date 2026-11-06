@@ -798,6 +798,7 @@
             <table id="playersTable" class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50">
                     <tr>
+                        <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">Rank</th>
                         <th class="px-4 py-2 text-left text-xs font-semibold text-gray-600 uppercase">
                             <div class="flex items-center gap-2">
                                 @if($team->league && !$team->league->is_combo)
@@ -854,6 +855,7 @@
                             $isPlayingUp = $team->league && $team->league->NTRP_rating && $player->USTA_rating && $player->USTA_rating < $team->league->NTRP_rating;
                         @endphp
                         <tr ondblclick="window.location='{{ route('players.edit', $player->id) }}?return_url={{ urlencode(route('teams.show', $team->id)) }}'" class="hover:bg-gray-50 cursor-pointer" data-name="{{ strtolower($player->first_name . ' ' . $player->last_name) }}" data-singles-reliable="{{ $player->utr_singles_reliable ? '1' : '0' }}" data-doubles-reliable="{{ $player->utr_doubles_reliable ? '1' : '0' }}" data-promoted="{{ $isPromoted ? '1' : '0' }}" data-playing-up="{{ $isPlayingUp ? '1' : '0' }}">
+                            <td class="px-4 py-2 text-sm text-gray-700 font-semibold player-rank">{{ $loop->iteration }}</td>
                             <td class="px-4 py-2 text-sm text-gray-700">
                                 <a href="{{ route('players.show', $player->id) }}" class="text-blue-600 hover:underline font-semibold">
                                     {{ $player->first_name }} {{ $player->last_name }}
@@ -1562,6 +1564,7 @@
                     const show = !q || name.includes(q);
                     row.style.display = show ? '' : 'none';
                 });
+                if (window.renumberPlayerRanks) window.renumberPlayerRanks();
 
                 // Filter mobile cards
                 cards.forEach(card => {
@@ -1648,6 +1651,14 @@
             window.applyFilters();
         }
 
+        // Count only the rows still showing after filters
+        window.renumberPlayerRanks = function() {
+            let rank = 1;
+            document.querySelectorAll('#playersTable .player-rank').forEach(cell => {
+                if (cell.closest('tr').style.display !== 'none') cell.textContent = rank++;
+            });
+        }
+
         window.applyFilters = function() {
             const table = document.getElementById('playersTable');
             const playerCards = document.getElementById('playerCards');
@@ -1674,6 +1685,7 @@
 
                 row.style.display = show ? '' : 'none';
             });
+            if (window.renumberPlayerRanks) window.renumberPlayerRanks();
 
             // Filter mobile cards
             cards.forEach(card => {
