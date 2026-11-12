@@ -84,8 +84,11 @@ class UpdateUtrRatingsJob implements ShouldQueue
       $rateLimited = false;
 
       foreach ($players as $player) {
-          // Skip players already refreshed today (league/scheduled updates only)
-          if ($this->skipUpdatedToday && $player->utr_singles_updated_at?->isToday()) {
+          // Skip players already refreshed today (league/scheduled updates only),
+          // unless a singles or doubles rating is a whole number (x.00). 0.00 means unrated, so it still skips.
+          $isWholeRating = fn($rating) => $rating !== null && (float) $rating > 0 && (float) $rating == floor((float) $rating);
+          $hasWholeRating = $isWholeRating($player->utr_singles_rating) || $isWholeRating($player->utr_doubles_rating);
+          if ($this->skipUpdatedToday && !$hasWholeRating && $player->utr_singles_updated_at?->isToday()) {
               $skipped++;
               $processed++;
               continue;
