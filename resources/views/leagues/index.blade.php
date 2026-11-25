@@ -76,6 +76,9 @@
                             @else
                                 -
                             @endif
+                            @if($syncProblem = $league->teamSyncProblem())
+                                @include('partials.status-popover', ['status' => $syncProblem['status'], 'message' => $syncProblem['message'], 'title' => $syncProblem['status'] === 'error' ? 'Last team sync failed' : 'Last team sync had problems'])
+                            @endif
                         </span>
                     </div>
                     <div>
@@ -280,6 +283,9 @@
                                 <span class="text-gray-600" title="{{ $league->teams_last_synced_at->format('Y-m-d H:i') }}">{{ $league->teams_last_synced_at->diffForHumans() }}</span>
                             @else
                                 <span class="text-gray-400">-</span>
+                            @endif
+                            @if($syncProblem = $league->teamSyncProblem())
+                                @include('partials.status-popover', ['status' => $syncProblem['status'], 'message' => $syncProblem['message'], 'title' => $syncProblem['status'] === 'error' ? 'Last team sync failed' : 'Last team sync had problems'])
                             @endif
                         </td>
                         @env('local')

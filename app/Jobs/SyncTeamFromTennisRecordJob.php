@@ -142,6 +142,8 @@ class SyncTeamFromTennisRecordJob implements ShouldQueue
             // Clear the running flag
             Cache::forget('tennis_record_team_sync_running_' . $team->id);
 
+            $team->forceFill(['last_roster_sync_error' => null])->save();
+
             Log::info("Team sync completed successfully", [
                 'team_id' => $team->id,
                 'team_name' => $team->name,
@@ -152,6 +154,8 @@ class SyncTeamFromTennisRecordJob implements ShouldQueue
 
         } catch (\Exception $e) {
             Cache::forget('tennis_record_team_sync_running_' . $team->id);
+            // Shown as a notice on the leagues list until the next successful sync
+            $team->forceFill(['last_roster_sync_error' => \Illuminate\Support\Str::limit($e->getMessage(), 500)])->save();
             Log::error("Team sync failed: " . $e->getMessage(), [
                 'team_id' => $team->id,
                 'tennis_record_link' => $team->tennis_record_link,
