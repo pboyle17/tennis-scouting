@@ -1,4 +1,4 @@
-{{-- Status icon with a message box that opens on hover and stays open on click/tap. Expects $status ('error'|'warning') and $message. --}}
+{{-- Status icon with a message box that opens on hover and stays open on click/tap. Expects $status ('error'|'warning') and $message, and optionally $title. --}}
 @once
     <script>
         (function () {
@@ -42,7 +42,7 @@
         {{ $status === 'error' ? '⛔' : '⚠️' }}
     </button>
     <span data-status-box role="tooltip" class="hidden fixed z-50 w-80 max-w-[calc(100vw-16px)] text-left whitespace-normal rounded-lg shadow-lg border p-3 text-sm {{ $status === 'error' ? 'bg-red-50 border-red-200 text-red-800' : 'bg-amber-50 border-amber-200 text-amber-900' }}">
-        <span class="block font-semibold mb-1">{{ $status === 'error' ? 'Last UTR update failed' : 'Last UTR update had problems' }}</span>
+        <span class="block font-semibold mb-1">{{ $title ?? ($status === 'error' ? 'Last UTR update failed' : 'Last UTR update had problems') }}</span>
         <span class="block">{{ $message }}</span>
     </span>
 </span>

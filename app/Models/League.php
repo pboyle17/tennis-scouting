@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\DB;
 
 class League extends Model
 {
-    protected $fillable = ['name', 'usta_link', 'tennis_record_link', 'NTRP_rating', 'is_combo', 'active', 'daily_update', 'daily_update_time', 'last_utr_update_status', 'last_utr_update_message'];
+    protected $fillable = ['name', 'usta_link', 'tennis_record_link', 'NTRP_rating', 'is_combo', 'active', 'daily_update', 'daily_update_time', 'last_utr_update_status', 'last_utr_update_message', 'last_schedule_sync_status', 'last_schedule_sync_message'];
 
     protected $casts = [
         'active' => 'boolean',
@@ -33,55 +33,118 @@ class League extends Model
     }
 
     /**
-     * Queue a full league update (UTRs, team syncs, match syncs) as one job batch.
-     * Returns counts of what was queued.
+     * Queue a full league update as job batches that run in stages, each starting once the
+     * previous one finishes (even with failures): team rosters, then the schedule sync, then
+     * match details and UTRs. Match syncs only find players on the teams' rosters, so rosters
+     * go first. Returns counts of what will be synced.
      */
     public function dispatchUpdate(): array
     {
+        $teamsToSync = $this->teams()->whereNotNull('tennis_record_link')->get();
+        if ($teamsToSync->isNotEmpty()) {
+            $this->teams_last_synced_at = now();
+        }
+        $this->save();
+
+        $leagueId = $this->id;
+        $this->dispatchUpdateStage(
+            $teamsToSync->map(fn($team) => new \App\Jobs\SyncTeamFromTennisRecordJob($team))->all(),
+            static fn() => League::find($leagueId)?->dispatchScheduleStage()
+        );
+
+        return ['teams' => $teamsToSync->count(), 'matches' => $this->matchesWithTennisRecordLink()->count()];
+    }
+
+    /**
+     * Stage 2: re-read the team schedule pages, the only source for match times
+     * (match results pages show just a date), to pick up new and rescheduled matches.
+     */
+    public function dispatchScheduleStage(): void
+    {
+        $leagueId = $this->id;
+        $jobs = $this->teams()->whereNotNull('tennis_record_link')->exists()
+            ? [new \App\Jobs\SyncTeamMatchesJob($this)]
+            : [];
+        $this->dispatchUpdateStage($jobs, static fn() => League::find($leagueId)?->dispatchDetailsStage());
+    }
+
+    /**
+     * Stage 3: match details and UTRs, now that rosters and the schedule are current.
+     */
+    public function dispatchDetailsStage(): void
+    {
         $jobs = [];
 
-        $utrIds = [];
-        foreach ($this->teams as $team) {
-            $utrIds = array_merge($utrIds, $team->players()->whereNotNull('utr_id')->pluck('utr_id')->toArray());
-        }
-        $utrIds = array_unique($utrIds);
+        $utrIds = $this->teams()->with('players')->get()
+            ->flatMap(fn($team) => $team->players->whereNotNull('utr_id')->pluck('utr_id'))
+            ->unique()->values()->all();
         if (!empty($utrIds)) {
             $utrJobKey = 'utr_update_' . uniqid();
             $jobs[] = new \App\Jobs\UpdateUtrRatingsJob($utrIds, $utrJobKey, $this->id, skipUpdatedToday: true);
             // Remember the UTR job's progress key so the update's progress can include per-player UTR progress
             Cache::put('league_update_utr_' . $this->id, ['key' => $utrJobKey, 'players' => count($utrIds)], now()->addDay());
             $this->utr_last_updated_at = now();
+            $this->save();
         }
 
-        $teamsToSync = $this->teams()->whereNotNull('tennis_record_link')->get();
-        foreach ($teamsToSync as $team) {
-            $jobs[] = new \App\Jobs\SyncTeamFromTennisRecordJob($team);
-        }
-        if ($teamsToSync->isNotEmpty()) {
-            $this->teams_last_synced_at = now();
-        }
-
-        // Team schedule pages are the only source for match times (match results pages
-        // show just a date), so re-read them to pick up rescheduled dates and times
-        if ($teamsToSync->isNotEmpty()) {
-            $jobs[] = new \App\Jobs\SyncTeamMatchesJob($this);
-        }
-
-        $teamIds = $this->teams->pluck('id');
-        $matches = TennisMatch::where(function ($q) use ($teamIds) {
-            $q->whereIn('home_team_id', $teamIds)->orWhereIn('away_team_id', $teamIds);
-        })->whereNotNull('tennis_record_match_link')->get();
-        foreach ($matches as $match) {
+        foreach ($this->matchesWithTennisRecordLink()->get() as $match) {
             $jobs[] = new \App\Jobs\SyncMatchFromTennisRecordJob($match);
         }
 
-        if (!empty($jobs)) {
-            Bus::batch($jobs)->name($this->updateBatchName())->allowFailures()->dispatch();
+        $this->dispatchUpdateStage($jobs);
+    }
+
+    /**
+     * Run one stage of the update as a batch, then the next stage when it finishes.
+     */
+    private function dispatchUpdateStage(array $jobs, ?\Closure $next = null): void
+    {
+        if (empty($jobs)) {
+            $next && $next();
+            return;
         }
 
-        $this->save();
+        $batch = Bus::batch($jobs)->name($this->updateBatchName())->allowFailures();
+        if ($next) {
+            $batch->finally($next);
+        }
+        $batch->dispatch();
+    }
 
-        return ['teams' => $teamsToSync->count(), 'matches' => $matches->count()];
+    private function matchesWithTennisRecordLink()
+    {
+        $teamIds = $this->teams()->pluck('id');
+        return TennisMatch::where(function ($q) use ($teamIds) {
+            $q->whereIn('home_team_id', $teamIds)->orWhereIn('away_team_id', $teamIds);
+        })->whereNotNull('tennis_record_match_link');
+    }
+
+    /**
+     * Problems from the last roster and schedule syncs for the leagues list notice,
+     * as ['status' => 'error'|'warning', 'message' => ...], or null when both were clean.
+     */
+    public function teamSyncProblem(): ?array
+    {
+        $messages = [];
+
+        $syncedTeams = $this->teams->whereNotNull('tennis_record_link');
+        $rosterFailures = $syncedTeams->whereNotNull('last_roster_sync_error');
+        if ($rosterFailures->isNotEmpty()) {
+            $messages[] = "Roster sync failed for {$rosterFailures->count()} of {$syncedTeams->count()} teams: "
+                . $rosterFailures->pluck('name')->join(', ') . '. '
+                . 'Last error: ' . rtrim(\Illuminate\Support\Str::limit($rosterFailures->first()->last_roster_sync_error, 150), '.') . '.';
+        }
+
+        if ($this->last_schedule_sync_status) {
+            $messages[] = $this->last_schedule_sync_message;
+        }
+
+        if (empty($messages)) {
+            return null;
+        }
+
+        $allFailed = $rosterFailures->count() === $syncedTeams->count() || $this->last_schedule_sync_status === 'error';
+        return ['status' => $allFailed ? 'error' : 'warning', 'message' => implode(' ', $messages)];
     }
 
     /**

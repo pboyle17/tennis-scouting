@@ -70,6 +70,7 @@ class SyncTeamMatchesJob implements ShouldQueue
 
             $allMatches = [];
             $teamIndex = 0;
+            $failedTeams = [];
 
             // Loop through each team and fetch their schedule
             foreach ($teamsToSync as $team) {
@@ -124,6 +125,7 @@ class SyncTeamMatchesJob implements ShouldQueue
                             'team_name' => $team->name,
                             'status' => $response->status()
                         ]);
+                        $failedTeams[] = "{$team->name} (HTTP {$response->status()})";
                         continue;
                     }
                 } catch (\Exception $e) {
@@ -133,6 +135,7 @@ class SyncTeamMatchesJob implements ShouldQueue
                         'error' => $e->getMessage(),
                         'exception_type' => get_class($e)
                     ]);
+                    $failedTeams[] = "{$team->name} (" . \Illuminate\Support\Str::limit($e->getMessage(), 60) . ")";
                     continue;
                 }
 
@@ -309,6 +312,17 @@ class SyncTeamMatchesJob implements ShouldQueue
                 Cache::put($conflictsKey, $scoreConflicts, 3600); // Store for 1 hour
             }
 
+            // Shown as a notice on the leagues list until the next clean sync (whole-league syncs only)
+            if (!$this->teamId) {
+                $teamsWithLinks = $teamsToSync->whereNotNull('tennis_record_link')->count();
+                $league->update(empty($failedTeams)
+                    ? ['last_schedule_sync_status' => null, 'last_schedule_sync_message' => null]
+                    : [
+                        'last_schedule_sync_status' => count($failedTeams) === $teamsWithLinks ? 'error' : 'warning',
+                        'last_schedule_sync_message' => 'Schedule sync could not read ' . count($failedTeams) . " of {$teamsWithLinks} team pages: " . implode(', ', $failedTeams) . '.',
+                    ]);
+            }
+
             Log::info("=== TEAM MATCHES SYNC JOB COMPLETED SUCCESSFULLY ===", [
                 'league_id' => $league->id,
                 'league_name' => $league->name,
@@ -320,6 +334,12 @@ class SyncTeamMatchesJob implements ShouldQueue
             ]);
 
         } catch (\Exception $e) {
+            if (!$this->teamId) {
+                $league->update([
+                    'last_schedule_sync_status' => 'error',
+                    'last_schedule_sync_message' => 'Schedule sync failed: ' . \Illuminate\Support\Str::limit($e->getMessage(), 200),
+                ]);
+            }
             Log::error("=== TEAM MATCHES SYNC JOB FAILED ===", [
                 'league_id' => $league->id,
                 'error_message' => $e->getMessage(),
